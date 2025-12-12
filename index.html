@@ -21,10 +21,11 @@
       if (isNaN(d.getTime())) return isoString;
       return d.toLocaleString(undefined, {
         year: "numeric",
-        month: "short",
-        day: "numeric",
+        month: "2-digit",
+        day: "2-digit",
         hour: "numeric",
         minute: "2-digit",
+        second: "2-digit",
         hour12: true
       });
     }
@@ -32,11 +33,13 @@
     function isWatchOrWarning(properties) {
       const event = (properties.event || "").toLowerCase();
 
+      // Include: Watch / Warning / Emergency
       const isWanted =
         event.includes("watch") ||
         event.includes("warning") ||
         event.includes("emergency");
 
+      // Exclude: Advisory / Statement / Outlook / Test
       const isUnwanted =
         event.includes("advisory") ||
         event.includes("statement") ||
@@ -46,24 +49,36 @@
       return isWanted && !isUnwanted;
     }
 
+    // Require at least one Pennsylvania UGC code: PAZ### or PAC###
+    function isPennsylvaniaAlert(p) {
+      const ugc = (p.geocode && Array.isArray(p.geocode.ugc)) ? p.geocode.ugc : [];
+      return ugc.some(code => typeof code === "string" && code.startsWith("PA"));
+    }
+
     function renderTable(alerts) {
       const container = document.getElementById("tableContainer");
+
       if (!alerts.length) {
         container.innerHTML = "<p>No active watches or warnings for PA.</p>";
         return;
       }
 
-      let rows = alerts.map(f => {
+      const rows = alerts.map(f => {
         const p = f.properties || {};
         const event = p.event || "Unknown";
         const locations = p.areaDesc || "—";
-        const expires = p.ends || p.expires || null;
-        const expiresStr = formatTime(expires);
-        return `<tr><td>${event}</td><td>${locations}</td><td>${expiresStr}</td></tr>`;
+        const expiresIso = p.ends || p.expires || null;
+        const expiresStr = formatTime(expiresIso);
+
+        return `<tr>
+          <td>${event}</td>
+          <td>${locations}</td>
+          <td>${expiresStr}</td>
+        </tr>`;
       }).join("");
 
       container.innerHTML = `
-        <table border="1" cellpadding="4" cellspacing="0">
+        <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 1200px;">
           <thead>
             <tr>
               <th>Type</th>
@@ -74,7 +89,8 @@
           <tbody>
             ${rows}
           </tbody>
-        </table>`;
+        </table>
+      `;
     }
 
     async function fetchAlerts() {
@@ -89,28 +105,40 @@
           headers: { "Accept": "application/geo+json" }
         });
 
-        if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
+        if (!response.ok) throw new Error("HTTP " + response.status);
 
         const data = await response.json();
         const features = Array.isArray(data.features) ? data.features : [];
-        const filtered = features.filter(f => f && f.properties && isWatchOrWarning(f.properties));
+
+        // Watches/Warnings only + must include PA UGC codes
+        const filtered = features.filter(f => {
+          if (!f || !f.properties) return false;
+          return isWatchOrWarning(f.properties) && isPennsylvaniaAlert(f.properties);
+        });
+
+        // Sort by expiration time (soonest first)
+        filtered.sort((a, b) => {
+          const ap = a.properties || {};
+          const bp = b.properties || {};
+          const ae = new Date(ap.ends || ap.expires || 0).getTime();
+          const be = new Date(bp.ends || bp.expires || 0).getTime();
+          return ae - be;
+        });
 
         renderTable(filtered);
 
-        statusEl.textContent = "Last updated: " +
-          new Date().toLocaleString() + " | Alerts: " + filtered.length;
+        statusEl.textContent =
+          "Last updated: " + new Date().toLocaleString() + " | Alerts: " + filtered.length;
 
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Error loading alerts: " + err.message;
+      } finally {
+        refreshBtn.disabled = false;
       }
-
-      refreshBtn.disabled = false;
     }
 
-    // Manual refresh button
+    // Manual refresh
     document.getElementById("refreshBtn").addEventListener("click", fetchAlerts);
 
     // Initial load
