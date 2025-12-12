@@ -33,7 +33,6 @@
       color: #333;
     }
 
-    /* Type cell styling */
     .type-cell {
       font-weight: 600;
       color: #111;
@@ -50,13 +49,6 @@
     .section-title {
       margin-top: 16px;
       margin-bottom: 6px;
-    }
-
-    .small-note {
-      margin-top: 6px;
-      margin-bottom: 0;
-      font-size: 0.92em;
-      color: #333;
     }
 
     .link-btn {
@@ -97,13 +89,12 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-
     const zoneCache = new Map();
 
     function formatTime(val) {
-      if (val === null || val === undefined) return "N/A";
+      if (!val) return "N/A";
       const d = new Date(val);
-      return isNaN(d.getTime()) ? String(val) : d.toLocaleString();
+      return isNaN(d) ? val : d.toLocaleString();
     }
 
     function isWatchOrWarning(p) {
@@ -138,7 +129,6 @@
       if (zoneCache.has(zoneUrl)) return zoneCache.get(zoneUrl);
       try {
         const r = await fetchWithTimeout(zoneUrl, { headers: { Accept: "application/geo+json" } }, 5000);
-        if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         const info = { name: d?.properties?.name || zoneUrl, state: d?.properties?.state || null };
         zoneCache.set(zoneUrl, info);
@@ -150,209 +140,132 @@
 
     async function getPALocationsFromAffectedZones(p) {
       const zones = Array.isArray(p.affectedZones) ? p.affectedZones : [];
-      if (!zones.length) return { paNames: [], hasPA: false };
-
       const settled = await Promise.allSettled(zones.map(getZoneInfo));
       const names = settled
-        .filter(r => r.status === "fulfilled" && r.value && r.value.state === "PA")
+        .filter(r => r.status === "fulfilled" && r.value.state === "PA")
         .map(r => r.value.name);
-
-      const unique = [...new Set(names)];
-      return { paNames: unique, hasPA: unique.length > 0 };
+      return { paNames: [...new Set(names)], hasPA: names.length > 0 };
     }
 
-    function getTypeClass(event) {
-      return event.toLowerCase().includes("watch") ? "type-watch" : "type-warning";
-    }
-
-    // Direction-agnostic sort key (Northern Erie sorts as Erie, etc.)
     function locationSortKey(name) {
       return name
-        .trim()
-        .replace(
-          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-          ""
-        )
-        .trim()
+        .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|northern|southern|eastern|western)\b\.?\s+/i, "")
         .toLowerCase();
     }
 
-    function sortLocations(locationsArray) {
-      return locationsArray.sort((a, b) => {
+    function sortLocations(arr) {
+      return arr.sort((a, b) => {
         const ka = locationSortKey(a);
         const kb = locationSortKey(b);
         return ka === kb ? a.localeCompare(b) : ka.localeCompare(kb);
       });
     }
 
-    // Group by (event + expiresMs) and merge locations
     function groupAlerts(list) {
       const map = new Map();
-
       for (const a of list) {
         const key = `${a.event}||${a.expiresMs}`;
         if (!map.has(key)) {
           map.set(key, { event: a.event, expiresMs: a.expiresMs, locations: new Set() });
         }
-        const g = map.get(key);
-        a.paNames.forEach(l => g.locations.add(l));
+        a.paNames.forEach(l => map.get(key).locations.add(l));
       }
-
       return [...map.values()].sort((a, b) => (a.expiresMs ?? 1e15) - (b.expiresMs ?? 1e15));
     }
 
-    function renderSummaryTable(grouped) {
-      const c = document.getElementById("tableContainer");
+    function getTypeClass(event) {
+      return event.toLowerCase().includes("watch") ? "type-watch" : "type-warning";
+    }
 
+    function renderSummary(grouped) {
+      const c = document.getElementById("tableContainer");
       if (!grouped.length) {
         c.innerHTML = "<p>No active watches or warnings for PA.</p>";
         return;
       }
-
       c.innerHTML = `
         <table>
           <thead>
-            <tr>
-              <th>Type</th>
-              <th>Locations</th>
-              <th>Expires</th>
-            </tr>
+            <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
           </thead>
           <tbody>
-            ${grouped.map(g => {
-              const locs = sortLocations([...g.locations]).join("; ");
-              return `
-                <tr>
-                  <td class="type-cell ${getTypeClass(g.event)}">${g.event}</td>
-                  <td>${locs || "—"}</td>
-                  <td>${formatTime(g.expiresMs)}</td>
-                </tr>
-              `;
-            }).join("")}
+            ${grouped.map(g => `
+              <tr>
+                <td class="type-cell ${getTypeClass(g.event)}">${g.event}</td>
+                <td>${sortLocations([...g.locations]).join("; ")}</td>
+                <td>${formatTime(g.expiresMs)}</td>
+              </tr>
+            `).join("")}
           </tbody>
-        </table>
-      `;
+        </table>`;
     }
 
-    // Bottom table: one row per actual alert (ungrouped), with link
-    function renderLinksTable(paOnlyAlerts) {
+    function renderLinks(paOnly) {
       const c = document.getElementById("linksContainer");
-
-      if (!paOnlyAlerts.length) {
+      if (!paOnly.length) {
         c.innerHTML = "<p>No active watches or warnings for PA.</p>";
         return;
       }
 
-      // Sort by type, then expiration, then first location sort key (helps scan)
-      const sorted = [...paOnlyAlerts].sort((a, b) => {
-        const te = (a.event || "").localeCompare(b.event || "");
-        if (te !== 0) return te;
-
-        const ae = a.expiresMs ?? 1e15;
-        const be = b.expiresMs ?? 1e15;
-        if (ae !== be) return ae - be;
-
-        const aFirst = (sortLocations([...a.paNames])[0] || "");
-        const bFirst = (sortLocations([...b.paNames])[0] || "");
-        return locationSortKey(aFirst).localeCompare(locationSortKey(bFirst));
-      });
-
       c.innerHTML = `
         <table>
           <thead>
-            <tr>
-              <th>Type</th>
-              <th>Locations</th>
-              <th>Link</th>
-            </tr>
+            <tr><th>Type</th><th>Locations</th><th>Link</th></tr>
           </thead>
           <tbody>
-            ${sorted.map((a, idx) => {
-              const locs = sortLocations([...a.paNames]).join("; ");
-              const safeUrl = a.link ? String(a.link) : "";
-              const linkHtml = safeUrl
-                ? `<a class="link-btn" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open</a>`
-                : "—";
-
-              return `
-                <tr>
-                  <td class="type-cell ${getTypeClass(a.event)}">${a.event || "Unknown"}</td>
-                  <td>${locs || "—"}</td>
-                  <td>${linkHtml}</td>
-                </tr>
-              `;
-            }).join("")}
+            ${paOnly.map(a => `
+              <tr>
+                <td class="type-cell ${getTypeClass(a.event)}">${a.event}</td>
+                <td>${sortLocations([...a.paNames]).join("; ")}</td>
+                <td>
+                  ${a.link ? `<a class="link-btn" href="${a.link}" target="_blank">View Warning</a>` : "—"}
+                </td>
+              </tr>
+            `).join("")}
           </tbody>
-        </table>
-        <p class="small-note">
-          Links open the underlying NWS alert resource (may display as JSON depending on browser).
-        </p>
-      `;
+        </table>`;
     }
 
-    function refreshMapImage() {
-      const img = document.getElementById("wwaMap");
-      if (img) img.src = MAP_URL + "?t=" + Date.now();
+    function refreshMap() {
+      document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
     }
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
-      const btn = document.getElementById("refreshBtn");
-      btn.disabled = true;
       status.textContent = "Loading alerts…";
 
       try {
-        const r = await fetchWithTimeout(API_URL, { headers: { Accept: "application/geo+json" } }, 8000);
-        if (!r.ok) throw new Error("HTTP " + r.status);
+        const r = await fetchWithTimeout(API_URL, { headers: { Accept: "application/geo+json" } });
         const d = await r.json();
 
-        const features = Array.isArray(d.features) ? d.features : [];
-        const ww = features.filter(f => f?.properties && isWatchOrWarning(f.properties));
+        const ww = (d.features || []).filter(f => f?.properties && isWatchOrWarning(f.properties));
 
         const settled = await Promise.allSettled(ww.map(async f => {
-          const p = f.properties || {};
-
-          // Best “actual alert” link: the feature id from api.weather.gov
-          const link = f.id || p.id || p["@id"] || null;
-
+          const p = f.properties;
           const pa = await getPALocationsFromAffectedZones(p);
           return {
-            event: p.event || "Unknown",
+            event: p.event,
             expiresMs: getExpiresMs(p),
             paNames: pa.paNames,
             hasPA: pa.hasPA,
-            link
+            link: p.web || null   // ✅ HUMAN-READABLE LINK
           };
         }));
 
-        const paOnly = settled
-          .filter(x => x.status === "fulfilled" && x.value && x.value.hasPA)
-          .map(x => x.value);
+        const paOnly = settled.filter(x => x.status === "fulfilled" && x.value.hasPA).map(x => x.value);
 
-        // Top table: grouped summary
-        renderSummaryTable(groupAlerts(paOnly));
+        renderSummary(groupAlerts(paOnly));
+        renderLinks(paOnly);
 
-        // Bottom table: ungrouped links
-        renderLinksTable(paOnly);
-
-        // Counter = actual alerts (ungrouped count)
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${paOnly.length}`;
+        refreshMap();
 
-        // Refresh map each pull
-        refreshMapImage();
-
-      } catch (err) {
-        console.error(err);
+      } catch {
         status.textContent = "Error loading alerts.";
-        document.getElementById("tableContainer").innerHTML = "<p>Error loading alerts.</p>";
-        document.getElementById("linksContainer").innerHTML = "<p>Error loading alerts.</p>";
-        refreshMapImage();
-      } finally {
-        btn.disabled = false;
       }
     }
 
-    document.getElementById("refreshBtn").addEventListener("click", fetchAlerts);
+    document.getElementById("refreshBtn").onclick = fetchAlerts;
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
   </script>
