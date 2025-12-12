@@ -15,6 +15,9 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
 
+    // Cache zone/county lookups so we don't hammer the API
+    const ugcNameCache = new Map(); // key: UGC like "PAZ006" -> value: "Northern Clinton" (etc.)
+
     function formatTime(isoString) {
       if (!isoString) return "N/A";
       const d = new Date(isoString);
@@ -49,45 +52,86 @@
       return isWanted && !isUnwanted;
     }
 
-    // Require at least one Pennsylvania UGC code: PAZ### or PAC###
-    function isPennsylvaniaAlert(p) {
-      const ugc = (p.geocode && Array.isArray(p.geocode.ugc)) ? p.geocode.ugc : [];
-      return ugc.some(code => typeof code === "string" && code.startsWith("PA"));
+    // Pull UGC array safely
+    function getUGCList(p) {
+      return (p.geocode && Array.isArray(p.geocode.ugc)) ? p.geocode.ugc : [];
     }
 
-    function renderTable(alerts) {
+    // Keep only alerts that have at least one PA UGC (PAZ### / PAC###)
+    function hasAnyPennsylvaniaUGC(p) {
+      return getUGCList(p).some(code => typeof code === "string" && code.startsWith("PA"));
+    }
+
+    // Build the correct NWS endpoint for a given UGC code
+    // - PAZ### => forecast zone endpoint
+    // - PAC### => county zone endpoint
+    function ugcToNwsUrl(ugc) {
+      // UGC format is typically STZ### or STC###
+      const thirdChar = ugc[2]; // 'Z' or 'C'
+      if (thirdChar === "Z") return `https://api.weather.gov/zones/forecast/${ugc}`;
+      if (thirdChar === "C") return `https://api.weather.gov/zones/county/${ugc}`;
+      // Fallback (rare)
+      return `https://api.weather.gov/zones/forecast/${ugc}`;
+    }
+
+    async function lookupUGCName(ugc) {
+      if (ugcNameCache.has(ugc)) return ugcNameCache.get(ugc);
+
+      try {
+        const url = ugcToNwsUrl(ugc);
+        const resp = await fetch(url, { headers: { "Accept": "application/geo+json" } });
+        if (!resp.ok) throw new Error(`UGC lookup HTTP ${resp.status}`);
+
+        const data = await resp.json();
+        const name = data && data.properties && data.properties.name ? data.properties.name : ugc;
+
+        ugcNameCache.set(ugc, name);
+        return name;
+      } catch (e) {
+        // If lookup fails, fall back to showing the code itself
+        ugcNameCache.set(ugc, ugc);
+        return ugc;
+      }
+    }
+
+    // Return a PA-only location string for an alert
+    async function getPALocationsString(p) {
+      const ugc = getUGCList(p);
+      const paUGC = ugc.filter(code => typeof code === "string" && code.startsWith("PA"));
+
+      // Convert PA UGC codes to human names
+      const names = await Promise.all(paUGC.map(lookupUGCName));
+
+      // Deduplicate while preserving order
+      const seen = new Set();
+      const unique = names.filter(n => {
+        if (seen.has(n)) return false;
+        seen.add(n);
+        return true;
+      });
+
+      return unique.length ? unique.join("; ") : (p.areaDesc || "—");
+    }
+
+    function renderTable(rowsHtml) {
       const container = document.getElementById("tableContainer");
 
-      if (!alerts.length) {
+      if (!rowsHtml) {
         container.innerHTML = "<p>No active watches or warnings for PA.</p>";
         return;
       }
-
-      const rows = alerts.map(f => {
-        const p = f.properties || {};
-        const event = p.event || "Unknown";
-        const locations = p.areaDesc || "—";
-        const expiresIso = p.ends || p.expires || null;
-        const expiresStr = formatTime(expiresIso);
-
-        return `<tr>
-          <td>${event}</td>
-          <td>${locations}</td>
-          <td>${expiresStr}</td>
-        </tr>`;
-      }).join("");
 
       container.innerHTML = `
         <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 1200px;">
           <thead>
             <tr>
               <th>Type</th>
-              <th>Locations</th>
+              <th>Locations (PA only)</th>
               <th>Expires</th>
             </tr>
           </thead>
           <tbody>
-            ${rows}
+            ${rowsHtml}
           </tbody>
         </table>
       `;
@@ -104,16 +148,15 @@
         const response = await fetch(API_URL, {
           headers: { "Accept": "application/geo+json" }
         });
-
         if (!response.ok) throw new Error("HTTP " + response.status);
 
         const data = await response.json();
         const features = Array.isArray(data.features) ? data.features : [];
 
-        // Watches/Warnings only + must include PA UGC codes
+        // Watches/Warnings only + must include at least one PA UGC
         const filtered = features.filter(f => {
           if (!f || !f.properties) return false;
-          return isWatchOrWarning(f.properties) && isPennsylvaniaAlert(f.properties);
+          return isWatchOrWarning(f.properties) && hasAnyPennsylvaniaUGC(f.properties);
         });
 
         // Sort by expiration time (soonest first)
@@ -125,7 +168,29 @@
           return ae - be;
         });
 
-        renderTable(filtered);
+        if (!filtered.length) {
+          renderTable("");
+          statusEl.textContent = "Last updated: " + new Date().toLocaleString() + " | Alerts: 0";
+          return;
+        }
+
+        // Build table rows with PA-only location names (async lookups)
+        const rows = await Promise.all(filtered.map(async (f) => {
+          const p = f.properties || {};
+          const event = p.event || "Unknown";
+          const expiresIso = p.ends || p.expires || null;
+          const expiresStr = formatTime(expiresIso);
+
+          const paLocations = await getPALocationsString(p);
+
+          return `<tr>
+            <td>${event}</td>
+            <td>${paLocations}</td>
+            <td>${expiresStr}</td>
+          </tr>`;
+        }));
+
+        renderTable(rows.join(""));
 
         statusEl.textContent =
           "Last updated: " + new Date().toLocaleString() + " | Alerts: " + filtered.length;
@@ -133,18 +198,16 @@
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Error loading alerts: " + err.message;
+        document.getElementById("tableContainer").innerHTML =
+          "<p>Error loading alerts. Check console/network access to api.weather.gov.</p>";
       } finally {
         refreshBtn.disabled = false;
       }
     }
 
-    // Manual refresh
     document.getElementById("refreshBtn").addEventListener("click", fetchAlerts);
 
-    // Initial load
     fetchAlerts();
-
-    // Auto-refresh every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
   </script>
 </body>
