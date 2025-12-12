@@ -40,11 +40,11 @@
     }
 
     .type-watch {
-      background-color: rgba(255, 165, 0, 0.5); /* orange */
+      background-color: rgba(255, 165, 0, 0.5);
     }
 
     .type-warning {
-      background-color: rgba(220, 38, 38, 0.5); /* red */
+      background-color: rgba(220, 38, 38, 0.5);
     }
   </style>
 </head>
@@ -81,9 +81,9 @@
     const zoneCache = new Map();
 
     function formatTime(val) {
-      if (val === null || val === undefined) return "N/A";
+      if (!val) return "N/A";
       const d = new Date(val);
-      return isNaN(d) ? String(val) : d.toLocaleString();
+      return isNaN(d) ? val : d.toLocaleString();
     }
 
     function isWatchOrWarning(p) {
@@ -117,12 +117,7 @@
     async function getZoneInfo(zoneUrl) {
       if (zoneCache.has(zoneUrl)) return zoneCache.get(zoneUrl);
       try {
-        const r = await fetchWithTimeout(
-          zoneUrl,
-          { headers: { Accept: "application/geo+json" } },
-          5000
-        );
-        if (!r.ok) throw new Error("HTTP " + r.status);
+        const r = await fetchWithTimeout(zoneUrl, { headers: { Accept: "application/geo+json" } }, 5000);
         const d = await r.json();
         const info = { name: d?.properties?.name || zoneUrl, state: d?.properties?.state || null };
         zoneCache.set(zoneUrl, info);
@@ -134,16 +129,11 @@
 
     async function getPALocationsFromAffectedZones(p) {
       const zones = Array.isArray(p.affectedZones) ? p.affectedZones : [];
-      if (!zones.length) return { paNames: [], hasPA: false };
-
       const settled = await Promise.allSettled(zones.map(getZoneInfo));
       const names = settled
-        .filter(r => r.status === "fulfilled" && r.value && r.value.state === "PA")
+        .filter(r => r.status === "fulfilled" && r.value.state === "PA")
         .map(r => r.value.name);
-
-      // Dedup but keep only PA zones
-      const unique = [...new Set(names)];
-      return { paNames: unique, hasPA: unique.length > 0 };
+      return { paNames: [...new Set(names)], hasPA: names.length > 0 };
     }
 
     function groupAlerts(list) {
@@ -162,16 +152,14 @@
       return event.toLowerCase().includes("watch") ? "type-watch" : "type-warning";
     }
 
-    // NEW: Sort by base name ignoring directional prefixes, but keep display text unchanged.
+    /* 🔧 FIXED: strip Northern/Southern/etc for sorting only */
     function locationSortKey(name) {
-      if (!name) return "";
       return name
         .trim()
         .replace(
-          /^(north|south|east|west|northeast|northwest|southeast|southwest)\s+/i,
+          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
           ""
         )
-        .trim()
         .toLowerCase();
     }
 
@@ -192,23 +180,19 @@
             </tr>
           </thead>
           <tbody>
-            ${grouped.map(g => {
-              const sortedLocations = [...g.locations].sort((a, b) => {
-                const ka = locationSortKey(a);
-                const kb = locationSortKey(b);
-                const primary = ka.localeCompare(kb);
-                // Tie-breaker: if both reduce to the same base name, keep a stable readable order
-                return primary !== 0 ? primary : a.localeCompare(b);
-              }).join("; ");
-
-              return `
-                <tr>
-                  <td class="type-cell ${getTypeClass(g.event)}">${g.event}</td>
-                  <td>${sortedLocations}</td>
-                  <td>${formatTime(g.expiresMs)}</td>
-                </tr>
-              `;
-            }).join("")}
+            ${grouped.map(g => `
+              <tr>
+                <td class="type-cell ${getTypeClass(g.event)}">${g.event}</td>
+                <td>${[...g.locations]
+                  .sort((a, b) => {
+                    const ka = locationSortKey(a);
+                    const kb = locationSortKey(b);
+                    return ka === kb ? a.localeCompare(b) : ka.localeCompare(kb);
+                  })
+                  .join("; ")}</td>
+                <td>${formatTime(g.expiresMs)}</td>
+              </tr>
+            `).join("")}
           </tbody>
         </table>
       `;
@@ -226,12 +210,7 @@
       status.textContent = "Loading alerts…";
 
       try {
-        const r = await fetchWithTimeout(
-          API_URL,
-          { headers: { Accept: "application/geo+json" } },
-          8000
-        );
-        if (!r.ok) throw new Error("HTTP " + r.status);
+        const r = await fetchWithTimeout(API_URL, { headers: { Accept: "application/geo+json" } }, 8000);
         const d = await r.json();
 
         const ww = (d.features || []).filter(f => f?.properties && isWatchOrWarning(f.properties));
@@ -242,16 +221,13 @@
           return { event: p.event, expiresMs: getExpiresMs(p), paNames: pa.paNames, hasPA: pa.hasPA };
         }));
 
-        const paOnly = settled
-          .filter(x => x.status === "fulfilled" && x.value && x.value.hasPA)
-          .map(x => x.value);
+        const paOnly = settled.filter(x => x.status === "fulfilled" && x.value.hasPA).map(x => x.value);
 
         renderTable(groupAlerts(paOnly));
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${paOnly.length}`;
         refreshMapImage();
-      } catch (err) {
-        console.error(err);
+      } catch {
         status.textContent = "Error loading alerts.";
         document.getElementById("tableContainer").innerHTML = "<p>Error loading alerts.</p>";
         refreshMapImage();
