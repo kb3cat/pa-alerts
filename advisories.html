@@ -17,9 +17,7 @@
       flex-wrap: wrap;
     }
 
-    .nav-toggle {
-      font-size: 0.95em;
-    }
+    .nav-toggle { font-size: 0.95em; }
 
     .nav-toggle button {
       margin-left: 8px;
@@ -31,16 +29,13 @@
       font: inherit;
     }
 
-    .nav-toggle button:hover {
-      background: #f3f3f3;
-    }
+    .nav-toggle button:hover { background: #f3f3f3; }
 
     .refresh-label { font-size: 0.95em; color: #333; }
 
     .section-title { margin-top: 16px; margin-bottom: 6px; }
     .muted { color: #555; font-size: 0.95em; }
 
-    /* Type cell styling */
     .type-cell { font-weight: 600; color: #111; }
     .type-watch   { background-color: rgba(255, 165, 0, 0.5); }
     .type-warning { background-color: rgba(220, 38, 38, 0.5); }
@@ -114,7 +109,6 @@
 <body>
   <h1>PA Watches, Warnings & Advisories</h1>
 
-  <!-- TOP NAV (best placement) -->
   <div class="controls">
     <div class="nav-toggle">
       Want to see just watches and warnings?
@@ -149,7 +143,6 @@
     </a>
   </p>
 
-  <!-- Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
       <h3 id="modalTitle"></h3>
@@ -209,9 +202,7 @@
     }
 
     function locationSortKey(name) {
-      return name
-        .replace(/^(north|south|east|west|upper|lower|northeast|northwest|southeast|southwest)\s+/i, "")
-        .toLowerCase();
+      return name.replace(/^(north|south|east|west|upper|lower|higher elevations( of)?|northeast|northwest|southeast|southwest)\s+/i, "").toLowerCase();
     }
 
     function sortLocations(arr) {
@@ -268,6 +259,13 @@
         }
       }
 
+      // 🔽 SORT BY EXPIRATION (SOONEST FIRST)
+      rows.sort((a, b) => {
+        const ta = new Date(a.expires || 0).getTime();
+        const tb = new Date(b.expires || 0).getTime();
+        return ta - tb;
+      });
+
       status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
       refreshMap();
 
@@ -281,7 +279,9 @@
       document.getElementById("tableContainer").innerHTML = `
         <table>
           <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-          ${Object.values(grouped).map(g => `
+          ${Object.values(grouped).sort((a,b)=>{
+            return new Date(a.expires||0)-new Date(b.expires||0);
+          }).map(g => `
             <tr>
               <td class="type-cell ${typeClass(g.event)}">${g.event}</td>
               <td>${sortLocations([...g.names]).join("; ")}</td>
