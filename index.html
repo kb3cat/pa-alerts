@@ -17,9 +17,10 @@
       flex-wrap: wrap;
     }
 
-    .nav-toggle { font-size: 0.95em; }
+    .nav-toggle {
+      font-size: 0.95em;
+    }
 
-    /* EXACT button styles from advisories */
     .nav-toggle button {
       margin-left: 8px;
       padding: 6px 12px;
@@ -29,24 +30,25 @@
       cursor: pointer;
       font: inherit;
     }
-    .nav-toggle button:hover { background: #f3f3f3; }
 
-    .refresh-label { font-size: 0.95em; color: #333; }
+    .nav-toggle button:hover {
+      background: #f3f3f3;
+    }
 
-    #refreshBtn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #333;
-      background: #e6e6e6;
-      cursor: pointer;
-      font: inherit;
+    .refresh-label {
+      font-size: 0.95em;
+      color: #333;
+    }
+
+    .section-title {
+      margin-top: 16px;
+      margin-bottom: 6px;
+    }
+
+    .muted {
+      color: #555;
       font-size: 0.95em;
     }
-    #refreshBtn:hover { background: #dcdcdc; }
-    #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    .section-title { margin-top: 16px; margin-bottom: 6px; }
-    .muted { color: #555; font-size: 0.95em; }
 
     .type-cell { font-weight: 600; color: #111; }
     .type-watch   { background-color: rgba(255, 165, 0, 0.5); }
@@ -75,60 +77,40 @@
     }
     .modal {
       background: #fff;
-      color: #111;
       width: min(900px, 100%);
       max-height: 85vh;
       overflow: auto;
       border-radius: 10px;
       border: 1px solid #333;
       padding: 14px 16px 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     }
     .modal h3 { margin: 0 0 8px; }
-    .modal .meta { margin: 0 0 10px; color: #333; font-size: 0.95em; }
-    .modal .label { margin-top: 10px; font-weight: 700; }
+    .modal .meta { margin: 0 0 10px; font-size: 0.95em; }
     .modal pre {
       white-space: pre-wrap;
-      word-break: break-word;
-      margin: 6px 0 0;
-      padding: 10px;
       background: #f6f6f6;
       border: 1px solid #ddd;
+      padding: 10px;
       border-radius: 6px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.95em;
-      line-height: 1.35;
+      font-family: ui-monospace, monospace;
     }
-    .modal .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
-    .modal .actions button {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
-      cursor: pointer;
-      font: inherit;
-    }
-    .modal .actions button:hover { background: #f3f3f3; }
   </style>
 </head>
 
 <body>
   <h1>PA Watches & Warnings</h1>
 
+  <!-- TOP NAV -->
   <div class="controls">
     <div class="nav-toggle">
       Want to see advisories as well?
-      <button type="button" onclick="window.location.href='advisories.html'">Click here</button>
+      <button type="button" onclick="location.href='advisories.html'">Click here</button>
     </div>
   </div>
 
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
+    <!-- NO custom styling here — matches advisories -->
     <button id="refreshBtn">Refresh Now</button>
   </div>
 
@@ -140,12 +122,12 @@
   <h2 class="section-title">Alert Links</h2>
   <div id="linksContainer"></div>
 
-  <h2 style="margin-top: 18px;">Alert Map</h2>
+  <h2 class="section-title">Alert Map</h2>
   <img
     id="wwaMap"
     src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-    alt="NWS Current Watches and Warnings (PA)"
-    style="max-width: 1200px; width: 100%; height: auto; border: 1px solid #ccc;"
+    style="max-width:1200px;width:100%;border:1px solid #ccc"
+    alt="NWS PA Watches and Warnings"
   />
   <p class="muted">
     Map source:
@@ -154,88 +136,28 @@
     </a>
   </p>
 
-  <!-- Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
       <h3 id="modalTitle"></h3>
       <p id="modalMeta" class="meta"></p>
-
-      <div class="label">Description</div>
       <pre id="modalDescription"></pre>
-
-      <div class="label">Instructions</div>
-      <pre id="modalInstruction"></pre>
-
-      <div class="actions">
-        <button id="copyBtn">Copy Text</button>
-        <button id="closeBtn">Close</button>
-      </div>
+      <button onclick="closeModal()">Close</button>
     </div>
   </div>
 
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-
-    const zoneCache = new Map();
-    const alertStore = new Map();
+    const alertStore = [];
 
     function formatTime(v) {
-      if (!v) return "N/A";
-      const d = new Date(v);
-      return isNaN(d) ? String(v) : d.toLocaleString();
-    }
-
-    function isWantedAlert(p) {
-      const e = (p.event || "").toLowerCase();
-      return (
-        (e.includes("watch") || e.includes("warning") || e.includes("emergency")) &&
-        !e.includes("advisory") &&
-        !e.includes("statement") &&
-        !e.includes("outlook") &&
-        !e.includes("test")
-      );
-    }
-
-    function isMarineZone(url) {
-      return typeof url === "string" && url.includes("/zones/marine/");
-    }
-
-    async function fetchZone(url) {
-      if (zoneCache.has(url)) return zoneCache.get(url);
-      try {
-        const r = await fetch(url);
-        const d = await r.json();
-        const info = { name: d.properties.name, state: d.properties.state };
-        zoneCache.set(url, info);
-        return info;
-      } catch {
-        return null;
-      }
-    }
-
-    function locationSortKey(name) {
-      return name
-        .replace(/^(north|south|east|west|upper|lower|higher elevations?|northeast|northwest|southeast|southwest)\s+/i, "")
-        .toLowerCase();
-    }
-
-    function sortLocations(arr) {
-      return arr.sort((a,b)=>{
-        const ka = locationSortKey(a);
-        const kb = locationSortKey(b);
-        return ka === kb ? a.localeCompare(b) : ka.localeCompare(kb);
-      });
+      return v ? new Date(v).toLocaleString() : "N/A";
     }
 
     function typeClass(e) {
       e = e.toLowerCase();
-      if (e.includes("watch")) return "type-watch";
-      return "type-warning";
-    }
-
-    function cleanText(t) {
-      return t ? t.replace(/\n{3,}/g,"\n\n").trim() : "N/A";
+      if (e.includes("warning")) return "type-warning";
+      return "type-watch";
     }
 
     function refreshMap() {
@@ -243,10 +165,7 @@
     }
 
     async function fetchAlerts() {
-      const status = document.getElementById("status");
-      const btn = document.getElementById("refreshBtn");
-      btn.disabled = true;
-      status.textContent = "Loading alerts…";
+      document.getElementById("status").textContent = "Loading alerts…";
 
       const r = await fetch(API_URL);
       const d = await r.json();
@@ -254,45 +173,28 @@
       const rows = [];
       for (const f of d.features || []) {
         const p = f.properties;
-        if (!isWantedAlert(p)) continue;
+        if (!p.event.toLowerCase().includes("watch") &&
+            !p.event.toLowerCase().includes("warning")) continue;
 
-        const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
-        const names = [];
-
-        for (const z of zones) {
-          const info = await fetchZone(z);
-          if (info && info.state === "PA") names.push(info.name);
-        }
-
-        if (names.length) {
-          rows.push({
-            event: p.event,
-            expires: p.ends || p.expires,
-            names: [...new Set(names)],
-            description: p.description,
-            instruction: p.instruction
-          });
-        }
+        rows.push({
+          event: p.event,
+          expires: p.expires,
+          locations: p.areaDesc,
+          description: p.description
+        });
       }
 
-      status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
-      refreshMap();
-
-      const grouped = {};
-      for (const r of rows) {
-        const k = r.event + r.expires;
-        grouped[k] = grouped[k] || { event: r.event, expires: r.expires, names: new Set() };
-        r.names.forEach(n => grouped[k].names.add(n));
-      }
+      document.getElementById("status").textContent =
+        `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
       document.getElementById("tableContainer").innerHTML = `
         <table>
           <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-          ${Object.values(grouped).map(g=>`
+          ${rows.map(r => `
             <tr>
-              <td class="type-cell ${typeClass(g.event)}">${g.event}</td>
-              <td>${sortLocations([...g.names]).join("; ")}</td>
-              <td>${formatTime(g.expires)}</td>
+              <td class="type-cell ${typeClass(r.event)}">${r.event}</td>
+              <td>${r.locations}</td>
+              <td>${formatTime(r.expires)}</td>
             </tr>`).join("")}
         </table>
       `;
@@ -303,36 +205,32 @@
           ${rows.map((r,i)=>`
             <tr>
               <td class="type-cell ${typeClass(r.event)}">${r.event}</td>
-              <td>${sortLocations(r.names).join("; ")}</td>
+              <td>${r.locations}</td>
               <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
             </tr>`).join("")}
         </table>
         <p class="muted">“View Text” opens the full warning text.</p>
       `;
 
-      alertStore.clear();
-      rows.forEach((r,i)=>alertStore.set(i,r));
-      btn.disabled = false;
+      alertStore.length = 0;
+      rows.forEach(r => alertStore.push(r));
+      refreshMap();
     }
 
     function openModal(i) {
-      const a = alertStore.get(i);
+      const a = alertStore[i];
       document.getElementById("modalTitle").textContent = a.event;
       document.getElementById("modalMeta").textContent =
-        `Locations: ${sortLocations(a.names).join("; ")} | Expires: ${formatTime(a.expires)}`;
-      document.getElementById("modalDescription").textContent = cleanText(a.description);
-      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
+        `Expires: ${formatTime(a.expires)}`;
+      document.getElementById("modalDescription").textContent = a.description;
       document.getElementById("modalBackdrop").style.display = "flex";
     }
 
-    document.getElementById("closeBtn").onclick = () =>
+    function closeModal() {
       document.getElementById("modalBackdrop").style.display = "none";
-
-    document.getElementById("copyBtn").onclick = () =>
-      navigator.clipboard.writeText(document.getElementById("modalDescription").textContent);
+    }
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
-
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
   </script>
