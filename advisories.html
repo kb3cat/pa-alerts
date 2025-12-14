@@ -32,17 +32,16 @@
 
     .refresh-label { font-size: 0.95em; color: #333; }
 
-    /* Small gray pill refresh button — CANONICAL */
+    /* Refresh button matches nav button */
     #refreshBtn {
-      padding: 3px 10px;
-      border-radius: 999px;
-      border: 1px solid #aaa;
-      background: #e9e9e9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #fff;
       cursor: pointer;
       font: inherit;
-      line-height: 1.2;
     }
-    #refreshBtn:hover { background: #dedede; }
+    #refreshBtn:hover { background: #f3f3f3; }
     #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .section-title { margin-top: 16px; margin-bottom: 6px; }
@@ -61,6 +60,14 @@
       display: inline-block;
     }
 
+    /* RWS nav button highlight */
+    .rws-new {
+      border-color: rgba(59,130,246,0.7) !important;
+      background: rgba(59,130,246,0.12) !important;
+      color: rgb(37,99,235) !important;
+      font-weight: 600;
+    }
+
     button.view-btn {
       padding: 4px 10px;
       border: 1px solid #555;
@@ -71,7 +78,7 @@
     }
     button.view-btn:hover { background: #f3f3f3; }
 
-    /* Windy radar wrapper: hides bottom UI strip */
+    /* Windy radar wrapper */
     .radar-wrap {
       max-width: 1200px;
       width: 100%;
@@ -146,10 +153,19 @@
 <body>
   <h1>PA Watches, Warnings & Advisories</h1>
 
+  <!-- TOP NAV -->
   <div class="controls">
     <div class="nav-toggle">
       Want to see just watches and warnings?
       <button type="button" onclick="window.location.href='index.html'">Click here</button>
+    </div>
+  </div>
+
+  <!-- RWS NAV -->
+  <div class="controls">
+    <div class="nav-toggle">
+      Need the Regional Weather Summary?
+      <button id="rwsNavBtn" type="button" onclick="goToRWS()">Click here</button>
     </div>
   </div>
 
@@ -219,6 +235,10 @@
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
     const STORAGE_KEY = "paAlertsSnapshot_advisories_v2";
 
+    // RWS keys written by rwsctp.html
+    const RWS_SEEN_KEY = "rwsctp_last_seen_id_v1";
+    const RWS_ACK_KEY  = "rwsctp_last_ack_id_v1";
+
     const zoneCache = new Map();
     const alertStore = new Map();
 
@@ -263,7 +283,7 @@
       return String(name || "")
         .trim()
         .replace(
-          /^(higher elevations of\s+|ridges of\s+|n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northeast|northwest|southeast|southwest|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+          /^(higher elevations of\s+|ridges of\s+|north|south|east|west|upper|lower|northeast|northwest|southeast|southwest|n|s|e|w|ne|nw|se|sw|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
           ""
         )
         .trim()
@@ -330,6 +350,28 @@
         if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
         return safe;
       }).join("; ");
+    }
+
+    // ---- RWS button highlighting + acknowledgement ----
+    function updateRwsButton() {
+      const btn = document.getElementById("rwsNavBtn");
+      if (!btn) return;
+      const seen = localStorage.getItem(RWS_SEEN_KEY);
+      const ack  = localStorage.getItem(RWS_ACK_KEY);
+      const isNew = !!seen && (ack !== seen);
+      btn.classList.toggle("rws-new", isNew);
+    }
+
+    function acknowledgeRwsIfNeeded() {
+      const seen = localStorage.getItem(RWS_SEEN_KEY);
+      if (!seen) return;
+      localStorage.setItem(RWS_ACK_KEY, seen);
+      updateRwsButton();
+    }
+
+    function goToRWS() {
+      acknowledgeRwsIfNeeded();
+      window.location.href = "rwsctp.html";
     }
 
     async function fetchAlerts() {
@@ -414,6 +456,7 @@
           </table>
         `;
 
+        // Alert Links sorted by expiration
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -450,6 +493,8 @@
         refreshMap();
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
+        updateRwsButton();
+
       } catch (err) {
         console.error(err);
         status.textContent = "Error loading alerts: " + err.message;
@@ -481,6 +526,9 @@
     };
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
+
+    updateRwsButton();
+    setInterval(updateRwsButton, 30 * 1000);
 
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
