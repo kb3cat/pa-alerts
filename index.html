@@ -32,16 +32,17 @@
 
     .refresh-label { font-size: 0.95em; color: #333; }
 
-    /* Refresh button MUST match nav button */
+    /* Small gray "pill" refresh button */
     #refreshBtn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid #aaa;
+      background: #e9e9e9;
       cursor: pointer;
       font: inherit;
+      line-height: 1.2;
     }
-    #refreshBtn:hover { background: #f3f3f3; }
+    #refreshBtn:hover { background: #dedede; }
     #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .section-title { margin-top: 16px; margin-bottom: 6px; }
@@ -123,19 +124,6 @@
       font: inherit;
     }
     .modal .actions button:hover { background: #f3f3f3; }
-
-    /* Radar embed */
-    .embed-wrap {
-      width: 100%;
-      max-width: 1200px;
-      border: 1px solid #ccc;
-    }
-    .embed-wrap iframe {
-      width: 100%;
-      height: 620px;
-      border: 0;
-      display: block;
-    }
   </style>
 </head>
 
@@ -179,21 +167,17 @@
     </a>
   </p>
 
-  <!-- RADAR (Windy Option A) -->
-  <h2 class="section-title">Radar</h2>
-  <div class="embed-wrap">
-    <iframe
-      id="windyRadar"
-      title="Windy Radar"
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"
-      src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.8&detailLat=40.9&detailLon=-77.8&width=1200&height=620&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=12&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0F&radarRange=-1">
-    </iframe>
-  </div>
-  <p class="muted">
-    Radar source:
-    <a href="https://www.windy.com/" target="_blank" rel="noopener noreferrer">Windy</a>
-  </p>
+  <h2 class="section-title">Live Radar</h2>
+  <iframe
+    id="windyRadar"
+    title="Windy Radar"
+    width="1200"
+    height="600"
+    style="max-width: 1200px; width: 100%; height: 600px; border: 1px solid #ccc; border-radius: 8px;"
+    src="https://embed.windy.com/embed2.html?lat=40.90&lon=-77.70&detailLat=40.90&detailLon=-77.70&width=1200&height=600&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=true&metricWind=default&metricTemp=default&radarRange=-1"
+    frameborder="0">
+  </iframe>
+  <p class="muted">Radar source: Windy.com (embedded)</p>
 
   <!-- Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
@@ -217,13 +201,11 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-    const WINDY_BASE =
-      "https://embed.windy.com/embed2.html?lat=40.9&lon=-77.8&detailLat=40.9&detailLon=-77.8&width=1200&height=620&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=12&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0F&radarRange=-1";
 
-    const STORAGE_KEY = "paAlertsSnapshot_index_v1";
+    const STORAGE_KEY = "paAlertsSnapshot_index_v2";
 
-    const zoneCache = new Map();
-    const alertStore = new Map();
+    const zoneCache = new Map();  // zoneURL -> {name,state}
+    const alertStore = new Map(); // idx -> row object for modal
 
     function formatTime(v) {
       if (!v) return "N/A";
@@ -260,13 +242,13 @@
       }
     }
 
+    // UPDATED: ignore "Higher Elevations of " for sorting (and keep ridges-of too)
     function locationSortKey(name) {
       return String(name || "")
         .trim()
         .replace(
-  /^(higher elevations of\s+|ridges of\s+|n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-  ""
-)
+          /^(higher elevations of\s+|ridges of\s+|n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+          ""
         )
         .trim()
         .toLowerCase();
@@ -283,7 +265,7 @@
     function typeClass(e) {
       e = (e || "").toLowerCase();
       if (e.includes("watch")) return "type-watch";
-      return "type-warning";
+      return "type-warning"; // warning or emergency
     }
 
     function cleanText(t) {
@@ -292,12 +274,6 @@
 
     function refreshMap() {
       document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
-    }
-
-    function refreshRadar() {
-      // Bump query to force reload (keeps newest radar frame when Windy updates)
-      const url = WINDY_BASE + "&t=" + Date.now();
-      document.getElementById("windyRadar").src = url;
     }
 
     function loadSnapshot() {
@@ -322,14 +298,6 @@
       return added;
     }
 
-    function renderLocationsWithHighlight(namesSorted, newSet) {
-      return namesSorted.map(n => {
-        const safe = escapeHtml(n);
-        if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
-        return safe;
-      }).join("; ");
-    }
-
     function escapeHtml(s) {
       return String(s)
         .replaceAll("&", "&amp;")
@@ -337,6 +305,14 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function renderLocationsWithHighlight(namesSorted, newSet) {
+      return namesSorted.map(n => {
+        const safe = escapeHtml(n);
+        if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
+        return safe;
+      }).join("; ");
     }
 
     async function fetchAlerts() {
@@ -383,25 +359,29 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
-        const grouped = new Map();
+        // Group summary by (event + expires)
+        const grouped = new Map(); // key -> {event, expires, names:Set}
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
           row.names.forEach(n => grouped.get(k).names.add(n));
         }
 
+        // Snapshot objects (plain arrays)
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
+        // Sort summary groups by soonest expiration first
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
 
+        // Render Summary
         document.getElementById("tableContainer").innerHTML = `
           <table>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
@@ -423,6 +403,7 @@
           </table>
         `;
 
+        // Sort Alert Links by expiration soonest
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -434,9 +415,11 @@
           return an.localeCompare(bn);
         });
 
+        // Store rows for modal
         alertStore.clear();
         rows.forEach((r, i) => alertStore.set(i, r));
 
+        // Render Alert Links
         document.getElementById("linksContainer").innerHTML = `
           <table>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
@@ -459,7 +442,6 @@
         `;
 
         refreshMap();
-        refreshRadar();
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
       } catch (err) {
