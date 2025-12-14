@@ -264,8 +264,9 @@
       return String(name || "")
         .trim()
         .replace(
-          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-          ""
+  /^(higher elevations of\s+|ridges of\s+|n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+  ""
+)
         )
         .trim()
         .toLowerCase();
