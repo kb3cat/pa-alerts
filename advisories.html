@@ -17,7 +17,9 @@
       flex-wrap: wrap;
     }
 
-    .nav-toggle { font-size: 0.95em; }
+    .nav-toggle {
+      font-size: 0.95em;
+    }
 
     .nav-toggle button {
       margin-left: 8px;
@@ -28,11 +30,14 @@
       cursor: pointer;
       font: inherit;
     }
-    .nav-toggle button:hover { background: #f3f3f3; }
+
+    .nav-toggle button:hover {
+      background: #f3f3f3;
+    }
 
     .refresh-label { font-size: 0.95em; color: #333; }
 
-    /* Refresh button MUST match nav button */
+    /* Refresh matches nav button */
     #refreshBtn {
       padding: 6px 12px;
       border-radius: 6px;
@@ -124,6 +129,19 @@
       font: inherit;
     }
     .modal .actions button:hover { background: #f3f3f3; }
+
+    /* Radar embed */
+    .embed-wrap {
+      width: 100%;
+      max-width: 1200px;
+      border: 1px solid #ccc;
+    }
+    .embed-wrap iframe {
+      width: 100%;
+      height: 620px;
+      border: 0;
+      display: block;
+    }
   </style>
 </head>
 
@@ -140,7 +158,7 @@
 
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
-    <button id="refreshBtn" type="button">Refresh Now</button>
+    <button id="refreshBtn">Refresh Now</button>
   </div>
 
   <p id="status">Loading alerts…</p>
@@ -167,6 +185,22 @@
     </a>
   </p>
 
+  <!-- RADAR (Windy Option A) -->
+  <h2 class="section-title">Radar</h2>
+  <div class="embed-wrap">
+    <iframe
+      id="windyRadar"
+      title="Windy Radar"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.8&detailLat=40.9&detailLon=-77.8&width=1200&height=620&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=12&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0F&radarRange=-1">
+    </iframe>
+  </div>
+  <p class="muted">
+    Radar source:
+    <a href="https://www.windy.com/" target="_blank" rel="noopener noreferrer">Windy</a>
+  </p>
+
   <!-- Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
@@ -189,6 +223,8 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
+    const WINDY_BASE =
+      "https://embed.windy.com/embed2.html?lat=40.9&lon=-77.8&detailLat=40.9&detailLon=-77.8&width=1200&height=620&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=12&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0F&radarRange=-1";
 
     const STORAGE_KEY = "paAlertsSnapshot_advisories_v1";
 
@@ -267,13 +303,8 @@
       document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
     }
 
-    function escapeHtml(s) {
-      return String(s)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    function refreshRadar() {
+      document.getElementById("windyRadar").src = WINDY_BASE + "&t=" + Date.now();
     }
 
     function loadSnapshot() {
@@ -306,10 +337,18 @@
       }).join("; ");
     }
 
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const btn = document.getElementById("refreshBtn");
-
       btn.disabled = true;
       status.textContent = "Loading alerts…";
 
@@ -348,10 +387,8 @@
           }
         }
 
-        // Alerts counter = actual alerts, not grouped
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
-        // Grouped summary by (event + expires)
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -359,14 +396,12 @@
           row.names.forEach(n => grouped.get(k).names.add(n));
         }
 
-        // Snapshot structures
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Sort summary rows by expiration soonest first
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -394,7 +429,6 @@
           </table>
         `;
 
-        // Sort links rows by expiration soonest, then type, then first location
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -431,6 +465,7 @@
         `;
 
         refreshMap();
+        refreshRadar();
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
       } catch (err) {
