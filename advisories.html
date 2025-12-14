@@ -30,6 +30,14 @@
     }
     .nav-toggle button:hover { background: #f3f3f3; }
 
+    /* NEW: small italic helper line under the RWS row */
+    .nav-subtext {
+      font-size: 0.8em;
+      font-style: italic;
+      color: #555;
+      margin-top: 2px;
+    }
+
     .refresh-label { font-size: 0.95em; color: #333; }
 
     /* Refresh button matches nav button */
@@ -45,13 +53,15 @@
     #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .section-title { margin-top: 16px; margin-bottom: 6px; }
-    .muted { color: #555; font-size: 0.95em; }
+    .muted { color: #555; font-size: 0.95em; max-width: 1200px; }
 
+    /* Type cell styling */
     .type-cell { font-weight: 600; color: #111; }
     .type-watch   { background-color: rgba(255, 165, 0, 0.5); }
     .type-warning { background-color: rgba(220, 38, 38, 0.5); }
     .type-adv     { background-color: rgba(255, 235, 59, 0.55); }
 
+    /* NEW info highlight (blue) */
     .new-info {
       background: rgba(59, 130, 246, 0.28);
       border: 1px solid rgba(59, 130, 246, 0.35);
@@ -60,7 +70,7 @@
       display: inline-block;
     }
 
-    /* RWS nav button highlight */
+    /* RWS nav button highlight (blue) */
     .rws-new {
       border-color: rgba(59,130,246,0.7) !important;
       background: rgba(59,130,246,0.12) !important;
@@ -78,7 +88,7 @@
     }
     button.view-btn:hover { background: #f3f3f3; }
 
-    /* Windy radar wrapper */
+    /* Windy radar wrapper (cropped so no “junk” below) */
     .radar-wrap {
       max-width: 1200px;
       width: 100%;
@@ -166,9 +176,11 @@
     <div class="nav-toggle">
       Need the Regional Weather Summary?
       <button id="rwsNavBtn" type="button" onclick="goToRWS()">Click here</button>
+      <div class="nav-subtext">Button will turn blue when the RWS is updated by NWS</div>
     </div>
   </div>
 
+  <!-- REFRESH -->
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
@@ -203,7 +215,7 @@
     <iframe
       id="windyRadar"
       title="Windy Radar"
-      src="https://embed.windy.com/embed2.html?lat=40.90&lon=-77.70&detailLat=40.90&detailLon=-77.70&width=1200&height=650&zoom=7&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=false&metricWind=default&metricTemp=default&radarRange=-1"
+      src="https://embed.windy.com/embed2.html?lat=40.90&lon=-77.70&detailLat=40.90&detailLon=-77.70&width=1200&height=650&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=false&metricWind=default&metricTemp=default&radarRange=-1"
       loading="lazy"
       referrerpolicy="no-referrer-when-downgrade"
       allowfullscreen>
@@ -233,7 +245,8 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-    const STORAGE_KEY = "paAlertsSnapshot_advisories_v2";
+
+    const STORAGE_KEY = "paAlertsSnapshot_advisories_v1";
 
     // RWS keys written by rwsctp.html
     const RWS_SEEN_KEY = "rwsctp_last_seen_id_v1";
@@ -247,6 +260,7 @@
       const d = new Date(v);
       return isNaN(d) ? String(v) : d.toLocaleString();
     }
+
     function toTimeMs(v) {
       const t = new Date(v || 0).getTime();
       return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
@@ -279,11 +293,12 @@
       }
     }
 
+    // Ignore directional prefixes for sorting (includes “Higher Elevations of …”)
     function locationSortKey(name) {
       return String(name || "")
         .trim()
         .replace(
-          /^(higher elevations of\s+|ridges of\s+|north|south|east|west|upper|lower|northeast|northwest|southeast|southwest|n|s|e|w|ne|nw|se|sw|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+          /^(higher elevations of\s+|higher elevations?\s+|ridges of\s+|north|south|east|west|upper|lower|northeast|northwest|southeast|southwest|n|s|e|w|ne|nw|se|sw|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
           ""
         )
         .trim()
@@ -323,7 +338,11 @@
     }
 
     function saveSnapshot(summaryGroups, alertsById) {
-      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById };
+      const snap = {
+        ts: Date.now(),
+        summary: summaryGroups,
+        alerts: alertsById
+      };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snap)); } catch {}
     }
 
@@ -352,7 +371,7 @@
       }).join("; ");
     }
 
-    // ---- RWS button highlighting + acknowledgement ----
+    // ---- RWS button highlighting + acknowledgement (clicking button = acknowledge) ----
     function updateRwsButton() {
       const btn = document.getElementById("rwsNavBtn");
       if (!btn) return;
@@ -418,6 +437,7 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
+        // Group summary by (event + expires)
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -431,12 +451,14 @@
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
+        // Sort summary groups by soonest expiration first
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
 
+        // Render Summary
         document.getElementById("tableContainer").innerHTML = `
           <table>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
@@ -456,7 +478,7 @@
           </table>
         `;
 
-        // Alert Links sorted by expiration
+        // Sort Alert Links rows by soonest expiration
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -468,9 +490,11 @@
           return an.localeCompare(bn);
         });
 
+        // Store rows for modal
         alertStore.clear();
         rows.forEach((r, i) => alertStore.set(i, r));
 
+        // Render Alert Links
         document.getElementById("linksContainer").innerHTML = `
           <table>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
@@ -497,9 +521,9 @@
 
       } catch (err) {
         console.error(err);
-        status.textContent = "Error loading alerts: " + err.message;
+        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
       } finally {
-        btn.disabled = false;
+        document.getElementById("refreshBtn").disabled = false;
       }
     }
 
