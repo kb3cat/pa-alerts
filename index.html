@@ -32,32 +32,41 @@
 
     .refresh-label { font-size: 0.95em; color: #333; }
 
-    /* Small gray pill refresh button — CANONICAL */
+    /* Refresh button matches nav button */
     #refreshBtn {
-      padding: 3px 10px;
-      border-radius: 999px;
-      border: 1px solid #aaa;
-      background: #e9e9e9;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #fff;
       cursor: pointer;
       font: inherit;
-      line-height: 1.2;
     }
-    #refreshBtn:hover { background: #dedede; }
+    #refreshBtn:hover { background: #f3f3f3; }
     #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .section-title { margin-top: 16px; margin-bottom: 6px; }
     .muted { color: #555; font-size: 0.95em; }
 
+    /* Type cell styling */
     .type-cell { font-weight: 600; color: #111; }
     .type-watch   { background-color: rgba(255, 165, 0, 0.5); }
     .type-warning { background-color: rgba(220, 38, 38, 0.5); }
 
+    /* NEW info highlight (blue) */
     .new-info {
       background: rgba(59, 130, 246, 0.28);
       border: 1px solid rgba(59, 130, 246, 0.35);
       border-radius: 6px;
       padding: 0 4px;
       display: inline-block;
+    }
+
+    /* RWS nav button highlight (blue) */
+    .rws-new {
+      border-color: rgba(59,130,246,0.7) !important;
+      background: rgba(59,130,246,0.12) !important;
+      color: rgb(37,99,235) !important;
+      font-weight: 600;
     }
 
     button.view-btn {
@@ -70,19 +79,19 @@
     }
     button.view-btn:hover { background: #f3f3f3; }
 
-    /* Windy radar wrapper: hides bottom UI strip if Windy injects it */
+    /* Windy radar wrapper */
     .radar-wrap {
       max-width: 1200px;
       width: 100%;
-      height: 520px;            /* visible window */
-      overflow: hidden;         /* crop the Windy bottom strip */
+      height: 520px;
+      overflow: hidden;
       border: 1px solid #ccc;
       border-radius: 8px;
       background: #fff;
     }
     .radar-wrap iframe {
       width: 100%;
-      height: 650px;            /* bigger than wrapper so we can crop */
+      height: 650px;
       border: 0;
       display: block;
     }
@@ -145,10 +154,19 @@
 <body>
   <h1>PA Watches & Warnings</h1>
 
+  <!-- TOP NAV -->
   <div class="controls">
     <div class="nav-toggle">
       Want to see advisories as well?
       <button type="button" onclick="window.location.href='advisories.html'">Click here</button>
+    </div>
+  </div>
+
+  <!-- RWS NAV (between top nav and refresh row) -->
+  <div class="controls">
+    <div class="nav-toggle">
+      Need the Regional Weather Summary?
+      <button id="rwsNavBtn" type="button" onclick="goToRWS()">Click here</button>
     </div>
   </div>
 
@@ -218,6 +236,10 @@
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
     const STORAGE_KEY = "paAlertsSnapshot_index_v2";
 
+    // RWS keys written by rwsctp.html
+    const RWS_SEEN_KEY = "rwsctp_last_seen_id_v1";
+    const RWS_ACK_KEY  = "rwsctp_last_ack_id_v1";
+
     const zoneCache = new Map();
     const alertStore = new Map();
 
@@ -255,8 +277,6 @@
       }
     }
 
-    // Keep the full string (so "Higher Elevations of Indiana" stays intact),
-    // but sort as if the prefix isn't there.
     function locationSortKey(name) {
       return String(name || "")
         .trim()
@@ -327,6 +347,29 @@
         if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
         return safe;
       }).join("; ");
+    }
+
+    // ---- RWS button highlighting + acknowledgement ----
+    function updateRwsButton() {
+      const btn = document.getElementById("rwsNavBtn");
+      if (!btn) return;
+      const seen = localStorage.getItem(RWS_SEEN_KEY);
+      const ack  = localStorage.getItem(RWS_ACK_KEY);
+      const isNew = !!seen && (ack !== seen);
+      btn.classList.toggle("rws-new", isNew);
+    }
+
+    function acknowledgeRwsIfNeeded() {
+      const seen = localStorage.getItem(RWS_SEEN_KEY);
+      if (!seen) return;
+      localStorage.setItem(RWS_ACK_KEY, seen);
+      updateRwsButton();
+    }
+
+    function goToRWS() {
+      // Clicking the button counts as acknowledgement
+      acknowledgeRwsIfNeeded();
+      window.location.href = "rwsctp.html";
     }
 
     async function fetchAlerts() {
@@ -447,6 +490,8 @@
         refreshMap();
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
+        updateRwsButton();
+
       } catch (err) {
         console.error(err);
         status.textContent = "Error loading alerts: " + err.message;
@@ -478,6 +523,9 @@
     };
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
+
+    updateRwsButton();
+    setInterval(updateRwsButton, 30 * 1000);
 
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
