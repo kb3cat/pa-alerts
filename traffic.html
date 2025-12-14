@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PA 511 Network Traffic Impacts</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root {
+    --bg:#0b1220; --panel:#111a2e; --border:#26324d;
+    --text:#e5e7eb; --muted:#9ca3af;
+    --red:#ef4444; --orange:#f97316; --yellow:#eab308;
+  }
+  body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text)}
+  header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between}
+  h1{font-size:18px;margin:0}
+  .meta{font-size:12px;color:var(--muted)}
+  .wrap{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;padding:12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .card h2{font-size:14px;margin:0;padding:10px 12px;border-bottom:1px solid var(--border)}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .red{background:var(--red)} .orange{background:var(--orange)} .yellow{background:var(--yellow)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--border)}
+  th{color:#cbd5e1;text-align:left;position:sticky;top:0;background:var(--panel)}
+  tr:hover{background:rgba(255,255,255,.05);cursor:pointer}
+  #map{height:75vh}
+  @media(max-width:1100px){.wrap{grid-template-columns:1fr}#map{height:55vh}}
+</style>
+</head>
+
+<body>
+<header>
+  <h1>PA 511 Network Traffic Impacts</h1>
+  <div class="meta" id="status">Loading…</div>
+</header>
+
+<div class="wrap">
+<div class="card">
+
+<h2><span class="dot red"></span> 511 Network Roadway Closures</h2>
+<table id="tblClosures"><thead>
+<tr><th>Route</th><th>County</th><th>Details</th><th>Updated</th></tr>
+</thead><tbody></tbody></table>
+
+<h2><span class="dot orange"></span> 511 Network Lane Restrictions</h2>
+<table id="tblRestrictions"><thead>
+<tr><th>Route</th><th>County</th><th>Details</th><th>Updated</th></tr>
+</thead><tbody></tbody></table>
+
+<h2><span class="dot yellow"></span> 511 Network Traffic Disruptions</h2>
+<table id="tblDisruptions"><thead>
+<tr><th>Route</th><th>County</th><th>Details</th><th>Updated</th></tr>
+</thead><tbody></tbody></table>
+
+</div>
+
+<div class="card">
+<h2>Map</h2>
+<div id="map"></div>
+</div>
+</div>
+
+<script>
+const INCIDENTS =
+"https://services8.arcgis.com/sodCWEIiVaMSrQtn/arcgis/rest/services/Traffic_Incidents/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
+
+const CLOSURES =
+"https://services8.arcgis.com/sodCWEIiVaMSrQtn/arcgis/rest/services/Emergency_Closures/FeatureServer/0/query?where=1=1&outFields=*&f=geojson";
+
+const map=L.map("map").setView([40.9,-77.8],7);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18}).addTo(map);
+
+const layers={
+  closure:L.layerGroup().addTo(map),
+  restriction:L.layerGroup().addTo(map),
+  disruption:L.layerGroup().addTo(map)
+};
+
+const style={
+  closure:{color:"#ef4444",weight:6},
+  restriction:{color:"#f97316",weight:5},
+  disruption:{color:"#eab308",weight:4}
+};
+
+const tables={
+  closure:document.querySelector("#tblClosures tbody"),
+  restriction:document.querySelector("#tblRestrictions tbody"),
+  disruption:document.querySelector("#tblDisruptions tbody")
+};
+
+function isRamp(p){
+  return /ramp/i.test(p.Description||"");
+}
+
+function is511Route(r){
+  return /(I-|US-|PA-|SR )/i.test(r||"");
+}
+
+function row(t,e){
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${e.Route}</td><td>${e.County}</td><td>${e.Desc}</td><td>${e.Updated}</td>`;
+  tr.onclick=()=>{ if(e.layer.getBounds) map.fitBounds(e.layer.getBounds()); };
+  tables[t].appendChild(tr);
+}
+
+async function load(){
+  document.getElementById("status").textContent="Loading…";
+  Object.values(tables).forEach(t=>t.innerHTML="");
+  Object.values(layers).forEach(l=>l.clearLayers());
+
+  const [inc,cls]=await Promise.all([fetch(INCIDENTS).then(r=>r.json()),fetch(CLOSURES).then(r=>r.json())]);
+
+  cls.features.forEach(f=>{
+    const p=f.properties;
+    if(isRamp(p)||!is511Route(p.RouteName))return;
+    const l=L.geoJSON(f,{style:style.closure}).addTo(layers.closure);
+    row("closure",{Route:p.RouteName,County:p.County,Desc:p.Description,Updated:p.LastUpdated,layer:l});
+  });
+
+  inc.features.forEach(f=>{
+    const p=f.properties;
+    if(isRamp(p)||!is511Route(p.RouteName))return;
+
+    const desc=(p.Description||"").toLowerCase();
+    let cat="disruption";
+    if(desc.includes("lane")||desc.includes("shoulder"))cat="restriction";
+
+    const l=L.geoJSON(f,{style:style[cat],pointToLayer:(f,latlng)=>L.circleMarker(latlng,{radius:6,...style[cat]})})
+      .addTo(layers[cat]);
+
+    row(cat,{Route:p.RouteName,County:p.County,Desc:p.Description,Updated:p.LastUpdated,layer:l});
+  });
+
+  document.getElementById("status").textContent=`Updated ${new Date().toLocaleString()}`;
+}
+
+load();
+setInterval(load,60000);
+</script>
+</body>
+</html>
