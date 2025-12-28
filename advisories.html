@@ -69,7 +69,6 @@
     }
     button.view-btn:hover { background: #f3f3f3; }
 
-    /* Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -272,18 +271,14 @@
     }
 
     function locationSortKey(name) {
-      let s = String(name || "").trim();
-
-      // "Higher Elevations of Indiana" -> "Indiana"
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-
-      // strip directional prefixes for sorting
-      s = s.replace(
-        /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-        ""
-      );
-
-      return s.trim().toLowerCase();
+      return String(name || "")
+        .trim()
+        .replace(
+          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+          ""
+        )
+        .trim()
+        .toLowerCase();
     }
 
     function sortLocations(arr) {
@@ -292,6 +287,25 @@
         const kb = locationSortKey(b);
         return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
       });
+    }
+
+    // SUMMARY ONLY normalization (does NOT affect Alert Links)
+    function normalizeSummaryCounty(name) {
+      let s = String(name || "").trim();
+
+      // remove directional prefixes
+      s = s.replace(
+        /^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\s+/i,
+        ""
+      );
+
+      // remove elevation prefixes
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+
+      // remove ridge/elevation suffixes
+      s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
+
+      return s.trim();
     }
 
     function typeClass(e) {
@@ -348,37 +362,6 @@
       }).join("; ");
     }
 
-    // === NEW (Summary only): collapse segmented zones to whole county when multiple segments exist on same summary row ===
-    function stripToBaseCounty(name) {
-      let s = String(name || "").trim();
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-      s = s.replace(
-        /^(N|S|E|W|NE|NW|SE|SW|North|South|East|West|Northern|Southern|Eastern|Western|Northeastern|Northwestern|Southeastern|Southwestern|Upper|Lower)\b\.?\s+/i,
-        ""
-      );
-      return s.trim();
-    }
-
-    function buildCollapsedSummaryDisplay(namesSorted) {
-      // base -> [original variants]
-      const buckets = new Map();
-      for (const original of namesSorted || []) {
-        const base = stripToBaseCounty(original);
-        const key = base.toLowerCase();
-        if (!buckets.has(key)) buckets.set(key, { base, variants: [] });
-        buckets.get(key).variants.push(original);
-      }
-
-      const out = [];
-      for (const [, b] of buckets.entries()) {
-        if (b.variants.length > 1) out.push(b.base);     // collapse to whole county
-        else out.push(b.variants[0]);                    // keep original if only one
-      }
-
-      return sortLocations(out);
-    }
-    // === END NEW ===
-
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const btn = document.getElementById("refreshBtn");
@@ -414,7 +397,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)],
+              names: [...new Set(names)],    // EXACT NWS NAMES (used by Alert Links)
               description: p.description,
               instruction: p.instruction
             });
@@ -423,16 +406,20 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
+        // ===== SUMMARY GROUPING (NORMALIZED) =====
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
-          row.names.forEach(n => grouped.get(k).names.add(n));
+
+          // normalize ONLY for Summary
+          row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
+        // Alert Links snapshot stays exact (no normalization)
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
@@ -450,30 +437,23 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-            ${
-              groupedArr.map(g => {
-                const key = `${g.event}||${g.expires || ""}`;
-                const namesSorted = sortLocations([...g.names]);
-                const prevNames = prevSnap?.summary?.[key];
-
-                // NEW: collapse segmented counties on the SAME summary row
-                const collapsed = buildCollapsedSummaryDisplay(namesSorted);
-
-                // highlight based on displayed values
-                const newSet = prevSnap ? diffNewNames(collapsed, prevNames) : new Set();
-
-                return `
-                  <tr>
-                    <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                    <td>${renderLocationsWithHighlight(collapsed, newSet)}</td>
-                    <td>${escapeHtml(formatTime(g.expires))}</td>
-                  </tr>
-                `;
-              }).join("")
-            }
+            ${groupedArr.map(g => {
+              const key = `${g.event}||${g.expires || ""}`;
+              const namesSorted = sortLocations([...g.names]);
+              const prevNames = prevSnap?.summary?.[key];
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${escapeHtml(formatTime(g.expires))}</td>
+                </tr>
+              `;
+            }).join("")}
           </table>
         `;
 
+        // ===== ALERT LINKS (UNTOUCHED / EXACT) =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -496,20 +476,18 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
-            ${
-              rows.map((row, i) => {
-                const namesSorted = sortLocations(row.names);
-                const prevNames = prevSnap?.alerts?.[row.alertId];
-                const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-                return `
-                  <tr>
-                    <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                    <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
-                  </tr>
-                `;
-              }).join("")
-            }
+            ${rows.map((row, i) => {
+              const namesSorted = sortLocations(row.names); // exact
+              const prevNames = prevSnap?.alerts?.[row.alertId];
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
+                </tr>
+              `;
+            }).join("")}
           </table>
           <p class="muted">“View Text” opens the full warning text.</p>
         `;
