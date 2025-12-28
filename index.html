@@ -250,14 +250,18 @@
     }
 
     function locationSortKey(name) {
-      return String(name || "")
-        .trim()
-        .replace(
-          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-          ""
-        )
-        .trim()
-        .toLowerCase();
+      let s = String(name || "").trim();
+
+      // "Higher Elevations of Indiana" -> "Indiana"
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+
+      // strip directional prefixes for sorting
+      s = s.replace(
+        /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+        ""
+      );
+
+      return s.trim().toLowerCase();
     }
 
     function sortLocations(arr) {
@@ -320,6 +324,38 @@
         return safe;
       }).join("; ");
     }
+
+    // === NEW (Summary only): collapse segmented zones to whole county when multiple segments exist on same summary row ===
+    function stripToBaseCounty(name) {
+      let s = String(name || "").trim();
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+      s = s.replace(
+        /^(N|S|E|W|NE|NW|SE|SW|North|South|East|West|Northern|Southern|Eastern|Western|Northeastern|Northwestern|Southeastern|Southwestern|Upper|Lower)\b\.?\s+/i,
+        ""
+      );
+      return s.trim();
+    }
+
+    function buildCollapsedSummaryDisplay(namesSorted) {
+      // base -> [original variants]
+      const buckets = new Map();
+      for (const original of namesSorted || []) {
+        const base = stripToBaseCounty(original);
+        const key = base.toLowerCase();
+        if (!buckets.has(key)) buckets.set(key, { base, variants: [] });
+        buckets.get(key).variants.push(original);
+      }
+
+      const out = [];
+      for (const [, b] of buckets.entries()) {
+        if (b.variants.length > 1) out.push(b.base);     // collapse to whole county
+        else out.push(b.variants[0]);                    // keep original if only one
+      }
+
+      // keep your sorting behavior
+      return sortLocations(out);
+    }
+    // === END NEW ===
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
@@ -398,11 +434,17 @@
               const key = `${g.event}||${g.expires || ""}`;
               const namesSorted = sortLocations([...g.names]);
               const prevNames = prevSnap?.summary?.[key];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+
+              // NEW: collapse segmented counties on the SAME summary row
+              const collapsed = buildCollapsedSummaryDisplay(namesSorted);
+
+              // highlight based on displayed values
+              const newSet = prevSnap ? diffNewNames(collapsed, prevNames) : new Set();
+
               return `
                 <tr>
                   <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${renderLocationsWithHighlight(collapsed, newSet)}</td>
                   <td>${escapeHtml(formatTime(g.expires))}</td>
                 </tr>
               `;
