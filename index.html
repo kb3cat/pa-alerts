@@ -328,7 +328,7 @@
     // === NEW (Summary only): collapse segmented zones to whole county when multiple segments exist on same summary row ===
     function stripToBaseCounty(name) {
       let s = String(name || "").trim();
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of|Ridges\s+of|Ridges)\s+/i, "");
       s = s.replace(
         /^(N|S|E|W|NE|NW|SE|SW|North|South|East|West|Northern|Southern|Eastern|Western|Northeastern|Northwestern|Southeastern|Southwestern|Upper|Lower)\b\.?\s+/i,
         ""
