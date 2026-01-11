@@ -6,6 +6,7 @@
 
   <style>
     body { margin: 16px; }
+
     .controls {
       display: flex;
       align-items: center;
@@ -41,49 +42,6 @@
 
     .muted { color: #555; font-size: 0.95em; max-width: 1200px; }
     .section-title { margin-top: 14px; margin-bottom: 6px; }
-
-    .title-row {
-      display: flex;
-      align-items: baseline;
-      gap: 12px;
-      flex-wrap: wrap;
-      max-width: 1200px;
-    }
-
-    /* Update indicator */
-    .update-indicator {
-      font-size: 0.92em;
-      color: #111;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .update-pill {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid #333;
-      background: #fff;
-      color: #111;
-      line-height: 1.4;
-      white-space: nowrap;
-    }
-    .update-pill.is-new {
-      border-color: rgba(59,130,246,0.7);
-      background: rgba(59,130,246,0.12);
-      color: rgb(37,99,235);
-      font-weight: 600;
-    }
-    #ackBtn {
-      padding: 4px 10px;
-      border: 1px solid #555;
-      background: #fff;
-      cursor: pointer;
-      border-radius: 4px;
-      font: inherit;
-    }
-    #ackBtn:hover { background: #f3f3f3; }
-    #ackBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .panel {
       max-width: 1200px;
@@ -135,15 +93,9 @@
 
   <p id="status" class="muted">Loading RWS…</p>
 
-  <div class="title-row">
-    <h2 class="section-title" style="margin:0;">Latest Text</h2>
-    <div class="update-indicator">
-      <span id="updatePill" class="update-pill">Last changed: —</span>
-      <button id="ackBtn" type="button" disabled>Acknowledge</button>
-    </div>
-  </div>
+  <h2 class="section-title">Latest Text</h2>
 
-  <div class="panel" style="margin-top:8px;">
+  <div class="panel">
     <h2 id="prodTitle">RWS (CTP)</h2>
     <p id="prodMeta" class="meta">—</p>
     <pre id="prodText">Loading…</pre>
@@ -151,19 +103,17 @@
 
   <p class="muted" style="margin-top:10px;">
     Source:
-    <a id="listLink" href="#" target="_blank" rel="noopener noreferrer">NWS API (Products: RWS / CTP)</a>
+    <a id="listLink" href="#" target="_blank" rel="noopener noreferrer">
+      NWS API (Products: RWS / CTP)
+    </a>
     &nbsp;|&nbsp;
-    <a id="prodLink" href="#" target="_blank" rel="noopener noreferrer">Latest product</a>
+    <a id="prodLink" href="#" target="_blank" rel="noopener noreferrer">
+      Latest product
+    </a>
   </p>
 
   <script>
-    // Correct endpoint order (type then location)
     const LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-
-    // Local storage keys (so the “new” indicator survives refresh/page reload)
-    const SEEN_KEY = "rwsctp_last_seen_id_v1";
-    const ACK_KEY  = "rwsctp_last_ack_id_v1";
-    const CHG_KEY  = "rwsctp_last_change_time_v1";
 
     function fmtTime(v) {
       if (!v) return "N/A";
@@ -184,13 +134,12 @@
     function pickLatestProduct(items) {
       if (!Array.isArray(items) || items.length === 0) return null;
 
-      const scored = items.map(p => {
-        const t = Date.parse(p.issuanceTime || p.issueTime || p.validTime || p.created || "");
-        return { p, t: isNaN(t) ? -1 : t };
-      });
-
-      scored.sort((a, b) => b.t - a.t);
-      return scored[0].p;
+      return items
+        .map(p => ({
+          p,
+          t: Date.parse(p.issuanceTime || p.issueTime || p.created || "")
+        }))
+        .sort((a, b) => b.t - a.t)[0]?.p || null;
     }
 
     function getLatestUrl(latest) {
@@ -198,40 +147,16 @@
         latest?.["@id"] ||
         latest?.id ||
         latest?.url ||
-        (latest?.productId ? `https://api.weather.gov/products/${latest.productId}` : null)
+        (latest?.productId
+          ? `https://api.weather.gov/products/${latest.productId}`
+          : null)
       );
     }
-
-    function getProductId(latest, prod) {
-      // Prefer a stable id
-      return (
-        latest?.productId ||
-        prod?.id ||
-        prod?.["@id"] ||
-        latest?.["@id"] ||
-        latest?.id ||
-        null
-      );
-    }
-
-    function setPill(text, isNew) {
-      const pill = document.getElementById("updatePill");
-      pill.textContent = text;
-      pill.classList.toggle("is-new", !!isNew);
-    }
-
-    function setAckEnabled(enabled) {
-      document.getElementById("ackBtn").disabled = !enabled;
-    }
-
-    function saveLS(k, v) { try { localStorage.setItem(k, v); } catch {} }
-    function loadLS(k) { try { return localStorage.getItem(k); } catch { return null; } }
-
-    function nowISO() { return new Date().toISOString(); }
 
     async function refreshRWS() {
       const status = document.getElementById("status");
       const btn = document.getElementById("refreshBtn");
+
       btn.disabled = true;
       status.textContent = "Loading RWS…";
 
@@ -243,86 +168,45 @@
         const latest = pickLatestProduct(products);
 
         if (!latest) {
-          status.textContent = `Last updated: ${new Date().toLocaleString()} | No RWS products found.`;
-          document.getElementById("prodText").textContent = "No RWS products returned for CTP.";
-          document.getElementById("prodLink").href = "#";
-          document.getElementById("prodMeta").textContent = "—";
-          setPill("Last changed: —", false);
-          setAckEnabled(false);
+          status.textContent = "No RWS products found.";
+          document.getElementById("prodText").textContent =
+            "No Regional Weather Summary is currently available.";
           return;
         }
 
         const latestUrl = getLatestUrl(latest);
-        if (!latestUrl) throw new Error("Found a product, but no URL to fetch.");
-
         document.getElementById("prodLink").href = latestUrl;
 
         const prod = await fetchJson(latestUrl);
 
-        const wmo = prod.wmoCollectiveId || prod.wmoId || "";
-        const awips = prod.awipsId || prod.productCode || "";
-        const issued = prod.issuanceTime || prod.issueTime || latest.issuanceTime || "";
+        const issued = prod.issuanceTime || prod.issueTime || "";
+        const wmo = prod.wmoCollectiveId || "";
+        const awips = prod.awipsId || "";
 
-        const titleBits = [];
-        titleBits.push(prod.productName || "Regional Weather Summary");
-        titleBits.push("CTP");
-        document.getElementById("prodTitle").textContent = titleBits.join(" — ");
+        document.getElementById("prodTitle").textContent =
+          `${prod.productName || "Regional Weather Summary"} — CTP`;
 
         document.getElementById("prodMeta").textContent =
           `Issued: ${fmtTime(issued)}`
           + (wmo ? ` | WMO: ${wmo}` : "")
           + (awips ? ` | AWIPS: ${awips}` : "");
 
-        const text = cleanText(prod.productText || prod.text || "");
-        document.getElementById("prodText").textContent = text;
-
-        // ---- Change detection / acknowledge logic ----
-        const prodId = getProductId(latest, prod) || ("issued:" + issued);
-        const lastSeen = loadLS(SEEN_KEY);
-        const lastAck  = loadLS(ACK_KEY);
-        const lastChg  = loadLS(CHG_KEY);
-
-        // If product changed since lastSeen, record change time and mark as "new"
-        if (lastSeen && prodId !== lastSeen) {
-          saveLS(CHG_KEY, nowISO());
-        } else if (!lastSeen) {
-          // First ever load: treat as seen + acknowledged to avoid immediate blue
-          saveLS(CHG_KEY, nowISO());
-          saveLS(ACK_KEY, prodId);
-        }
-
-        saveLS(SEEN_KEY, prodId);
-
-        const changeTime = loadLS(CHG_KEY) || nowISO();
-        const isUnacked = (lastAck !== prodId);
-
-        setPill(`Last changed: ${fmtTime(changeTime)}`, isUnacked);
-        setAckEnabled(isUnacked);
+        document.getElementById("prodText").textContent =
+          cleanText(prod.productText || prod.text || "");
 
         status.textContent = `Last updated: ${new Date().toLocaleString()}`;
 
       } catch (err) {
         console.error(err);
         status.textContent = `Error loading RWS: ${err.message}`;
-        document.getElementById("prodText").textContent = "Error loading RWS text.";
-        setPill("Last changed: —", false);
-        setAckEnabled(false);
+        document.getElementById("prodText").textContent =
+          "Error loading Regional Weather Summary.";
       } finally {
         btn.disabled = false;
       }
     }
 
-    document.getElementById("refreshBtn").addEventListener("click", refreshRWS);
-
-    document.getElementById("ackBtn").addEventListener("click", () => {
-      const lastSeen = loadLS(SEEN_KEY);
-      if (!lastSeen) return;
-      saveLS(ACK_KEY, lastSeen);
-
-      const changeTime = loadLS(CHG_KEY) || nowISO();
-      setPill(`Last changed: ${fmtTime(changeTime)}`, false);
-      setAckEnabled(false);
-    });
+    document.getElementById("refreshBtn").onclick = refreshRWS;
 
     refreshRWS();
     setInterval(refreshRWS, 5 * 60 * 1000);
