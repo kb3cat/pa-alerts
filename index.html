@@ -112,6 +112,7 @@
     }
     .modal .actions button:hover { background: #f3f3f3; }
 
+    /* Radar embed */
     .embed-wrap {
       max-width: 1200px;
       width: 100%;
@@ -166,29 +167,121 @@
     alt="NWS Current Watches, Warnings, and Advisories (PA)"
     style="max-width: 1200px; width: 100%; height: auto; border: 1px solid #ccc;"
   />
+  <p class="muted">
+    Map source:
+    <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
+      NWS Current Watches, Warnings, and Advisories (PA)
+    </a>
+  </p>
 
   <h2 style="margin-top: 18px;">Live Radar</h2>
   <div class="embed-wrap">
     <iframe
-      title="Windy Radar"
-      src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&zoom=6&overlay=radar"
+      title="Windy Radar (embedded)"
+      src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&width=1200&height=520&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
       loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
       allowfullscreen>
     </iframe>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3 id="modalTitle"></h3>
+      <p id="modalMeta" class="meta"></p>
+
+      <div class="label">Description</div>
+      <pre id="modalDescription"></pre>
+
+      <div class="label">Instructions</div>
+      <pre id="modalInstruction"></pre>
+
+      <div class="actions">
+        <button id="copyBtn">Copy Text</button>
+        <button id="closeBtn">Close</button>
+      </div>
+    </div>
   </div>
 
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
+
     const STORAGE_KEY = "paAlertsSnapshot_index_v1";
 
     const zoneCache = new Map();
     const alertStore = new Map();
 
+    function formatTime(v) {
+      if (!v) return "N/A";
+      const d = new Date(v);
+      return isNaN(d) ? String(v) : d.toLocaleString();
+    }
+
+    function toTimeMs(v) {
+      const t = new Date(v || 0).getTime();
+      return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+    }
+
+    function isWatchWarningEmergencyOnly(p) {
+      const e = (p.event || "").toLowerCase();
+      const wanted = (e.includes("watch") || e.includes("warning") || e.includes("emergency"));
+      const unwanted = (e.includes("advisory") || e.includes("statement") || e.includes("outlook") || e.includes("test"));
+      return wanted && !unwanted;
+    }
+
+    function isMarineZone(url) {
+      return typeof url === "string" && url.includes("/zones/marine/");
+    }
+
+    // --- NEW: fetch timeout helper (prevents "Loading alerts..." from hanging forever) ---
+    function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(t));
+    }
+
+    async function fetchZone(url) {
+      if (zoneCache.has(url)) return zoneCache.get(url);
+      try {
+        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 8000);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        const info = { name: d.properties?.name, state: d.properties?.state };
+        zoneCache.set(url, info);
+        return info;
+      } catch {
+        return null;
+      }
+    }
+
+    // used for sorting only
+    function locationSortKey(name) {
+      return String(name || "")
+        .trim()
+        .replace(
+          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+          ""
+        )
+        .trim()
+        .toLowerCase();
+    }
+
+    function sortLocations(arr) {
+      return [...arr].sort((a, b) => {
+        const ka = locationSortKey(a);
+        const kb = locationSortKey(b);
+        return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
+      });
+    }
+
+    // SUMMARY ONLY normalization (does NOT affect Alert Links)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
 
-      // remove directional prefixes INCLUDING Upper/Lower
+      // remove directional prefixes (NOW includes Upper/Lower)
       s = s.replace(
         /^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western|Upper|Lower)\s+/i,
         ""
@@ -203,71 +296,231 @@
       return s.trim();
     }
 
-    function isWatchWarningEmergencyOnly(p) {
-      const e = (p.event || "").toLowerCase();
-      return (e.includes("watch") || e.includes("warning") || e.includes("emergency"))
-        && !e.includes("advisory")
-        && !e.includes("statement")
-        && !e.includes("outlook")
-        && !e.includes("test");
+    function typeClass(e) {
+      e = (e || "").toLowerCase();
+      if (e.includes("watch")) return "type-watch";
+      return "type-warning";
     }
 
-    function fetchZone(url) {
-      if (zoneCache.has(url)) return zoneCache.get(url);
-      return fetch(url)
-        .then(r => r.json())
-        .then(d => {
-          const info = { name: d.properties?.name, state: d.properties?.state };
-          zoneCache.set(url, info);
-          return info;
-        })
-        .catch(() => null);
+    function cleanText(t) {
+      return t ? t.replace(/\n{3,}/g, "\n\n").trim() : "N/A";
     }
 
-    function sortLocations(arr) {
-      return [...arr].sort((a, b) => a.localeCompare(b));
+    function refreshMap() {
+      document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
+    }
+
+    function loadSnapshot() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function saveSnapshot(summaryGroups, alertsById) {
+      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snap)); } catch {}
+    }
+
+    function diffNewNames(currentArr, prevArr) {
+      const prev = new Set((prevArr || []).map(String));
+      const now = new Set((currentArr || []).map(String));
+      const added = new Set();
+      for (const n of now) if (!prev.has(n)) added.add(n);
+      return added;
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderLocationsWithHighlight(namesSorted, newSet) {
+      return namesSorted.map(n => {
+        const safe = escapeHtml(n);
+        if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
+        return safe;
+      }).join("; ");
     }
 
     async function fetchAlerts() {
-      const r = await fetch(API_URL, { headers: { Accept: "application/geo+json" } });
-      const d = await r.json();
-      const rows = [];
+      const status = document.getElementById("status");
+      const btn = document.getElementById("refreshBtn");
 
-      for (const f of d.features || []) {
-        const p = f.properties;
-        if (!p || !isWatchWarningEmergencyOnly(p)) continue;
+      btn.disabled = true;
+      status.textContent = "Loading alerts…";
 
-        const names = [];
-        for (const z of p.affectedZones || []) {
-          const info = await fetchZone(z);
-          if (info?.state === "PA" && info.name) names.push(info.name);
+      try {
+        const prevSnap = loadSnapshot();
+
+        // API call also uses timeout so it can't hang forever
+        const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+
+        const rows = [];
+        const features = Array.isArray(d.features) ? d.features : [];
+
+        for (const f of features) {
+          const p = f?.properties;
+          if (!p || !isWatchWarningEmergencyOnly(p)) continue;
+
+          const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
+          if (!zones.length) continue;
+
+          // --- NEW: parallel zone lookups (faster + avoids serial stalls) ---
+          const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
+          const names = [];
+          for (const info of zoneInfos) {
+            if (info && info.state === "PA" && info.name) names.push(info.name);
+          }
+
+          if (names.length) {
+            const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + p.areaDesc);
+            rows.push({
+              alertId,
+              event: p.event,
+              expires: p.ends || p.expires,
+              names: [...new Set(names)],     // EXACT NWS NAMES (used by Alert Links)
+              description: p.description,
+              instruction: p.instruction
+            });
+          }
+
+          // light progress indicator so it never "feels" frozen
+          if (rows.length % 3 === 0) {
+            status.textContent = `Loading alerts… (${rows.length} matching alerts processed)`;
+          }
         }
 
-        if (names.length) {
-          rows.push({ event: p.event, expires: p.ends || p.expires, names });
+        status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
+        refreshMap();
+
+        // ===== SUMMARY GROUPING (NORMALIZED) =====
+        const grouped = new Map();
+        for (const row of rows) {
+          const k = `${row.event}||${row.expires || ""}`;
+          if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
+
+          // normalize ONLY for Summary
+          row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
-      }
 
-      const grouped = new Map();
-      for (const r of rows) {
-        const key = r.event + "|" + (r.expires || "");
-        if (!grouped.has(key)) grouped.set(key, { event: r.event, expires: r.expires, names: new Set() });
-        r.names.forEach(n => grouped.get(key).names.add(normalizeSummaryCounty(n)));
-      }
+        const currentSummarySnap = {};
+        for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-      document.getElementById("tableContainer").innerHTML = `
-        <table>
-          <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-          ${[...grouped.values()].map(g => `
-            <tr>
-              <td>${g.event}</td>
-              <td>${sortLocations([...g.names]).join("; ")}</td>
-              <td>${g.expires || "N/A"}</td>
-            </tr>
-          `).join("")}
-        </table>
-      `;
+        // Alert Links snapshot stays exact (no normalization)
+        const currentAlertsSnap = {};
+        for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
+
+        const groupedArr = [...grouped.values()].sort((a, b) => {
+          const ae = toTimeMs(a.expires);
+          const be = toTimeMs(b.expires);
+          return ae - be || String(a.event).localeCompare(String(b.event));
+        });
+
+        document.getElementById("tableContainer").innerHTML = `
+          <table>
+            <colgroup>
+              <col style="width: 22%;">
+              <col style="width: 63%;">
+              <col style="width: 15%;">
+            </colgroup>
+            <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
+            ${groupedArr.map(g => {
+              const key = `${g.event}||${g.expires || ""}`;
+              const namesSorted = sortLocations([...g.names]);
+              const prevNames = prevSnap?.summary?.[key];
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${escapeHtml(formatTime(g.expires))}</td>
+                </tr>
+              `;
+            }).join("")}
+          </table>
+        `;
+
+        // ===== ALERT LINKS (UNTOUCHED / EXACT) =====
+        rows.sort((a, b) => {
+          const ae = toTimeMs(a.expires);
+          const be = toTimeMs(b.expires);
+          if (ae !== be) return ae - be;
+          const et = String(a.event).localeCompare(String(b.event));
+          if (et !== 0) return et;
+          const an = sortLocations(a.names)[0] || "";
+          const bn = sortLocations(b.names)[0] || "";
+          return an.localeCompare(bn);
+        });
+
+        alertStore.clear();
+        rows.forEach((r, i) => alertStore.set(i, r));
+
+        document.getElementById("linksContainer").innerHTML = `
+          <table>
+            <colgroup>
+              <col style="width: 22%;">
+              <col style="width: 63%;">
+              <col style="width: 15%;">
+            </colgroup>
+            <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
+            ${rows.map((row, i) => {
+              const namesSorted = sortLocations(row.names); // exact
+              const prevNames = prevSnap?.alerts?.[row.alertId];
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
+                </tr>
+              `;
+            }).join("")}
+          </table>
+          <p class="muted">“View Text” opens the full warning text.</p>
+        `;
+
+        saveSnapshot(currentSummarySnap, currentAlertsSnap);
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
+      } finally {
+        document.getElementById("refreshBtn").disabled = false;
+      }
     }
+
+    function openModal(i) {
+      const a = alertStore.get(i);
+      if (!a) return;
+      document.getElementById("modalTitle").textContent = a.event;
+      document.getElementById("modalMeta").textContent =
+        `Locations: ${sortLocations(a.names).join("; ")} | Expires: ${formatTime(a.expires)}`;
+      document.getElementById("modalDescription").textContent = cleanText(a.description);
+      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
+      document.getElementById("modalBackdrop").style.display = "flex";
+    }
+
+    document.getElementById("closeBtn").onclick = () =>
+      document.getElementById("modalBackdrop").style.display = "none";
+
+    document.getElementById("copyBtn").onclick = () => {
+      const title = document.getElementById("modalTitle").textContent || "";
+      const meta  = document.getElementById("modalMeta").textContent || "";
+      const desc  = document.getElementById("modalDescription").textContent || "";
+      const inst  = document.getElementById("modalInstruction").textContent || "";
+      navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
+    };
+
+    document.getElementById("refreshBtn").onclick = fetchAlerts;
 
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
