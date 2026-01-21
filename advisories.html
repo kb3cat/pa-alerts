@@ -144,6 +144,20 @@
     #linksContainer {
       max-width: 1200px;
     }
+
+    /* ==============================
+       RWS "NEW PRODUCT" INDICATOR
+       ============================== */
+    .rws-hot {
+      border-color: rgba(245, 158, 11, 0.95) !important;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
+      animation: rwsPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes rwsPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 
@@ -160,7 +174,8 @@
   <div class="controls">
     <div class="nav-toggle">
       Need the Regional Weather Summary?
-      <button type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
+      <!-- IMPORTANT: id used by RWS indicator -->
+      <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
     </div>
   </div>
 
@@ -226,8 +241,23 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-
     const STORAGE_KEY = "paAlertsSnapshot_advisories_v1";
+
+    /* ==============================
+       RWS "NEW PRODUCT" INDICATOR (CTP ONLY)
+       If a NEW RWSCTP posts, the button:
+         - starts flashing/glowing
+         - changes text to "New Summary"
+       When you click (pointerdown) it:
+         - acknowledges (stores marker)
+         - stops flashing
+         - restores original button text
+       ============================== */
+    const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v2";
+    let currentRwsMarker = null;
+    const RWS_BTN_TEXT_NORMAL = "Click here";
+    const RWS_BTN_TEXT_NEW = "New Summary";
 
     const zoneCache = new Map();
     const alertStore = new Map();
@@ -257,10 +287,19 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
+    // Prevent hangs forever (and improves reliability vs plain fetch)
+    function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(t));
+    }
+
     async function fetchZone(url) {
       if (zoneCache.has(url)) return zoneCache.get(url);
       try {
-        const r = await fetch(url);
+        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 8000);
+        if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         const info = { name: d.properties?.name, state: d.properties?.state };
         zoneCache.set(url, info);
@@ -292,19 +331,12 @@
     // SUMMARY ONLY normalization (does NOT affect Alert Links)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
-
-      // remove elevation prefixes
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-
-      // remove directional + upper/lower prefixes
       s = s.replace(
         /^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i,
         ""
       );
-
-      // remove ridge/elevation suffixes
       s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-
       return s.trim();
     }
 
@@ -362,6 +394,103 @@
       }).join("; ");
     }
 
+    /* ------------------------------
+       RWS indicator helpers
+       ------------------------------ */
+    function pickLatestProduct(items) {
+      if (!Array.isArray(items) || items.length === 0) return null;
+      return items
+        .map(p => ({ p, t: Date.parse(p.issuanceTime || p.issueTime || p.created || "") }))
+        .sort((a, b) => b.t - a.t)[0]?.p || null;
+    }
+
+    function getLatestUrl(latest) {
+      return (
+        latest?.["@id"] ||
+        latest?.id ||
+        latest?.url ||
+        (latest?.productId ? `https://api.weather.gov/products/${latest.productId}` : null)
+      );
+    }
+
+    function buildRwsMarkerFromLatest(latest) {
+      const latestUrl = getLatestUrl(latest) || "";
+      const issued = latest?.issuanceTime || latest?.issueTime || latest?.created || "";
+      const wmo = latest?.wmoCollectiveId || "";
+      const awips = latest?.awipsId || "";
+      return `${latestUrl}||${issued}||${wmo}||${awips}`;
+    }
+
+    function setRwsButtonHot(isHot) {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      if (isHot) {
+        btn.classList.add("rws-hot");
+        btn.textContent = RWS_BTN_TEXT_NEW;
+        btn.setAttribute("aria-label", "New Regional Weather Summary");
+      } else {
+        btn.classList.remove("rws-hot");
+        btn.textContent = RWS_BTN_TEXT_NORMAL;
+        btn.setAttribute("aria-label", "Regional Weather Summary");
+      }
+    }
+
+    async function checkRWSIndicator() {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      try {
+        const r = await fetchWithTimeout(
+          RWS_LIST_URL,
+          { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
+          8000
+        );
+        if (!r.ok) return;
+
+        const listing = await r.json();
+        const products = listing.products || listing["@graph"] || listing.items || [];
+        const latest = pickLatestProduct(products);
+        if (!latest) return;
+
+        currentRwsMarker = buildRwsMarkerFromLatest(latest);
+
+        const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
+
+        // First run: initialize so you don't get a false "new" glow
+        if (!lastSeen) {
+          localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
+          setRwsButtonHot(false);
+          return;
+        }
+
+        setRwsButtonHot(currentRwsMarker !== lastSeen);
+
+      } catch {
+        // silent
+      }
+    }
+
+    // Acknowledge on pointerdown so it stops flashing immediately before navigation
+    (function wireRwsAcknowledge() {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      btn.addEventListener("pointerdown", () => {
+        if (!currentRwsMarker) return;
+        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+        setRwsButtonHot(false);
+      });
+
+      // Keyboard activation too
+      btn.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (!currentRwsMarker) return;
+        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+        setRwsButtonHot(false);
+      });
+    })();
+
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const btn = document.getElementById("refreshBtn");
@@ -372,7 +501,7 @@
       try {
         const prevSnap = loadSnapshot();
 
-        const r = await fetch(API_URL, { headers: { "Accept": "application/geo+json" } });
+        const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
 
@@ -384,10 +513,12 @@
           if (!p || !isWantedAlert(p)) continue;
 
           const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
-          const names = [];
+          if (!zones.length) continue;
 
-          for (const z of zones) {
-            const info = await fetchZone(z);
+          const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
+
+          const names = [];
+          for (const info of zoneInfos) {
             if (info && info.state === "PA" && info.name) names.push(info.name);
           }
 
@@ -411,8 +542,6 @@
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
-
-          // normalize ONLY for Summary
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
@@ -437,21 +566,19 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-            ${
-              groupedArr.map(g => {
-                const key = `${g.event}||${g.expires || ""}`;
-                const namesSorted = sortLocations([...g.names]);
-                const prevNames = prevSnap?.summary?.[key];
-                const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-                return `
-                  <tr>
-                    <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                    <td>${escapeHtml(formatTime(g.expires))}</td>
-                  </tr>
-                `;
-              }).join("")
-            }
+            ${groupedArr.map(g => {
+              const key = `${g.event}||${g.expires || ""}`;
+              const namesSorted = sortLocations([...g.names]);
+              const prevNames = prevSnap?.summary?.[key];
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${escapeHtml(formatTime(g.expires))}</td>
+                </tr>
+              `;
+            }).join("")}
           </table>
         `;
 
@@ -478,26 +605,27 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
-            ${
-              rows.map((row, i) => {
-                const namesSorted = sortLocations(row.names); // exact
-                const prevNames = prevSnap?.alerts?.[row.alertId];
-                const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-                return `
-                  <tr>
-                    <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                    <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
-                  </tr>
-                `;
-              }).join("")
-            }
+            ${rows.map((row, i) => {
+              const namesSorted = sortLocations(row.names); // exact
+              const prevNames = prevSnap?.alerts?.[row.alertId];
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
+                </tr>
+              `;
+            }).join("")}
           </table>
           <p class="muted">“View Text” opens the full warning text.</p>
         `;
 
         refreshMap();
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
+
+        // Check RWS after render too
+        checkRWSIndicator();
 
       } catch (err) {
         console.error(err);
@@ -531,8 +659,14 @@
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
+    // initial load
     fetchAlerts();
+
+    // auto-refresh alerts every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
+
+    // extra: RWS-only check so it can light even if alerts fetch fails
+    setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
 </html>
