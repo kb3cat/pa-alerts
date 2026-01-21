@@ -112,7 +112,6 @@
     }
     .modal .actions button:hover { background: #f3f3f3; }
 
-    /* Radar embed */
     .embed-wrap {
       max-width: 1200px;
       width: 100%;
@@ -124,6 +123,20 @@
       height: 520px;
       border: 0;
       display: block;
+    }
+
+    /* ==============================
+       RWS "NEW PRODUCT" INDICATOR
+       ============================== */
+    .rws-hot {
+      border-color: rgba(245, 158, 11, 0.95) !important;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
+      animation: rwsPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes rwsPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
     }
   </style>
 </head>
@@ -141,7 +154,8 @@
   <div class="controls">
     <div class="nav-toggle">
       Need the Regional Weather Summary?
-      <button type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
+      <!-- Added id="rwsBtn" so we can light it up here (not on the RWS page) -->
+      <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
     </div>
   </div>
 
@@ -176,7 +190,6 @@
 
   <h2 style="margin-top: 18px;">Live Radar</h2>
   <div class="embed-wrap">
-    <!-- Zoomed in one notch vs a wider regional view -->
     <iframe
       title="Windy Radar (embedded)"
       src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&width=1200&height=520&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
@@ -208,8 +221,14 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-
     const STORAGE_KEY = "paAlertsSnapshot_index_v1";
+
+    /* ==============================
+       RWS "NEW PRODUCT" INDICATOR
+       ============================== */
+    // Latest RWS for CTP (your rwsctp.html implies CTP; change location if needed)
+    const RWS_LATEST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP/latest";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v1";
 
     const zoneCache = new Map();
     const alertStore = new Map();
@@ -236,10 +255,19 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
+    // Prevent hang forever
+    function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(t));
+    }
+
     async function fetchZone(url) {
       if (zoneCache.has(url)) return zoneCache.get(url);
       try {
-        const r = await fetch(url);
+        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 8000);
+        if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         const info = { name: d.properties?.name, state: d.properties?.state };
         zoneCache.set(url, info);
@@ -250,18 +278,11 @@
     }
 
     function locationSortKey(name) {
-      let s = String(name || "").trim();
-
-      // "Higher Elevations of Indiana" -> "Indiana"
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-
-      // strip directional prefixes for sorting
-      s = s.replace(
-        /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-        ""
-      );
-
-      return s.trim().toLowerCase();
+      return String(name || "")
+        .trim()
+        .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
+        .trim()
+        .toLowerCase();
     }
 
     function sortLocations(arr) {
@@ -270,6 +291,17 @@
         const kb = locationSortKey(b);
         return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
       });
+    }
+
+    // Summary-only normalization (combine Upper/Lower too)
+    function normalizeSummaryCounty(name) {
+      let s = String(name || "").trim();
+
+      s = s.replace(/^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western|Upper|Lower)\s+/i, "");
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+      s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
+
+      return s.trim();
     }
 
     function typeClass(e) {
@@ -325,37 +357,77 @@
       }).join("; ");
     }
 
-    // === NEW (Summary only): collapse segmented zones to whole county when multiple segments exist on same summary row ===
-    function stripToBaseCounty(name) {
-      let s = String(name || "").trim();
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-      s = s.replace(
-        /^(N|S|E|W|NE|NW|SE|SW|North|South|East|West|Northern|Southern|Eastern|Western|Northeastern|Northwestern|Southeastern|Southwestern|Upper|Lower)\b\.?\s+/i,
-        ""
-      );
-      return s.trim();
+    function getRwsMarkerFromLatest(latestJson) {
+      // Prefer an ID/issuance time marker that will change when a new RWS is posted.
+      // The products API typically includes @id, id, issuanceTime, or similar fields.
+      const id =
+        latestJson?.id ||
+        latestJson?.["@id"] ||
+        latestJson?.["@context"]?.id ||
+        latestJson?.properties?.id ||
+        latestJson?.properties?.["@id"];
+
+      const issuance =
+        latestJson?.issuanceTime ||
+        latestJson?.issueTime ||
+        latestJson?.issued ||
+        latestJson?.properties?.issuanceTime ||
+        latestJson?.properties?.issueTime ||
+        latestJson?.properties?.issued;
+
+      // If there is a product code/text, that may also change.
+      const productCode =
+        latestJson?.wmoCollectiveId ||
+        latestJson?.properties?.wmoCollectiveId ||
+        latestJson?.productCode ||
+        latestJson?.properties?.productCode;
+
+      // Marker priority: ID > issuance time > product code > JSON string fallback
+      return (id || issuance || productCode || JSON.stringify(latestJson || {})) + "";
     }
 
-    function buildCollapsedSummaryDisplay(namesSorted) {
-      // base -> [original variants]
-      const buckets = new Map();
-      for (const original of namesSorted || []) {
-        const base = stripToBaseCounty(original);
-        const key = base.toLowerCase();
-        if (!buckets.has(key)) buckets.set(key, { base, variants: [] });
-        buckets.get(key).variants.push(original);
-      }
+    async function checkRWSIndicator() {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
 
-      const out = [];
-      for (const [, b] of buckets.entries()) {
-        if (b.variants.length > 1) out.push(b.base);     // collapse to whole county
-        else out.push(b.variants[0]);                    // keep original if only one
-      }
+      try {
+        const r = await fetchWithTimeout(
+          RWS_LATEST_URL,
+          { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
+          8000
+        );
+        if (!r.ok) return;
 
-      // keep your sorting behavior
-      return sortLocations(out);
+        const latest = await r.json();
+        const marker = getRwsMarkerFromLatest(latest);
+        if (!marker) return;
+
+        const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
+
+        // First run: initialize to current so you don't get a false "new" glow
+        if (!lastSeen) {
+          localStorage.setItem(RWS_STORAGE_KEY, marker);
+          btn.classList.remove("rws-hot");
+          return;
+        }
+
+        if (marker !== lastSeen) {
+          btn.classList.add("rws-hot");
+        } else {
+          btn.classList.remove("rws-hot");
+        }
+
+        // Acknowledge when user clicks the RWS button (on THIS page)
+        // (It will navigate away; this still records the acknowledgement instantly.)
+        btn.addEventListener("click", () => {
+          try { localStorage.setItem(RWS_STORAGE_KEY, marker); } catch {}
+          btn.classList.remove("rws-hot");
+        }, { once: true });
+
+      } catch {
+        // silent
+      }
     }
-    // === END NEW ===
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
@@ -367,7 +439,7 @@
       try {
         const prevSnap = loadSnapshot();
 
-        const r = await fetch(API_URL, { headers: { "Accept": "application/geo+json" } });
+        const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
 
@@ -379,10 +451,13 @@
           if (!p || !isWatchWarningEmergencyOnly(p)) continue;
 
           const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
-          const names = [];
+          if (!zones.length) continue;
 
-          for (const z of zones) {
-            const info = await fetchZone(z);
+          // parallel zone lookups
+          const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
+
+          const names = [];
+          for (const info of zoneInfos) {
             if (info && info.state === "PA" && info.name) names.push(info.name);
           }
 
@@ -392,7 +467,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)],
+              names: [...new Set(names)], // exact
               description: p.description,
               instruction: p.instruction
             });
@@ -402,16 +477,18 @@
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
         refreshMap();
 
+        // SUMMARY (normalized)
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
-          row.names.forEach(n => grouped.get(k).names.add(n));
+          row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
+        // LINKS snapshot (exact)
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
@@ -421,7 +498,6 @@
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
 
-        // LOCKED COL WIDTHS (ALIGNMENT)
         document.getElementById("tableContainer").innerHTML = `
           <table>
             <colgroup>
@@ -434,17 +510,11 @@
               const key = `${g.event}||${g.expires || ""}`;
               const namesSorted = sortLocations([...g.names]);
               const prevNames = prevSnap?.summary?.[key];
-
-              // NEW: collapse segmented counties on the SAME summary row
-              const collapsed = buildCollapsedSummaryDisplay(namesSorted);
-
-              // highlight based on displayed values
-              const newSet = prevSnap ? diffNewNames(collapsed, prevNames) : new Set();
-
+              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
               return `
                 <tr>
                   <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(collapsed, newSet)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
                   <td>${escapeHtml(formatTime(g.expires))}</td>
                 </tr>
               `;
@@ -452,6 +522,7 @@
           </table>
         `;
 
+        // ALERT LINKS (exact)
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -466,7 +537,6 @@
         alertStore.clear();
         rows.forEach((r, i) => alertStore.set(i, r));
 
-        // LOCKED COL WIDTHS (ALIGNMENT)
         document.getElementById("linksContainer").innerHTML = `
           <table>
             <colgroup>
@@ -492,6 +562,9 @@
         `;
 
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
+
+        // Check RWS after the page finishes its main update (so the glow isn't lost)
+        checkRWSIndicator();
 
       } catch (err) {
         console.error(err);
@@ -525,8 +598,14 @@
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
+    // Initial load
     fetchAlerts();
+
+    // Auto-refresh every 5 minutes (alerts + RWS check is triggered after alerts load)
     setInterval(fetchAlerts, 5 * 60 * 1000);
+
+    // Optional extra RWS-only check (in case alerts fetch fails but RWS still updates)
+    setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
 </html>
