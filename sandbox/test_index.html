@@ -154,7 +154,6 @@
   <div class="controls">
     <div class="nav-toggle">
       Need the Regional Weather Summary?
-      <!-- IMPORTANT: id used by RWS indicator -->
       <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
     </div>
   </div>
@@ -224,7 +223,7 @@
     const STORAGE_KEY = "paAlertsSnapshot_index_v1";
 
     /* ==============================
-       RWS "NEW PRODUCT" INDICATOR (CTP ONLY)
+       RWS INDICATOR (CTP ONLY)
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
     const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v3";
@@ -255,7 +254,6 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
-    // Prevent hang forever
     function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -293,7 +291,6 @@
       });
     }
 
-    // Summary-only normalization (combine Upper/Lower too)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
       s = s.replace(/^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western|Upper|Lower)\s+/i, "");
@@ -355,9 +352,9 @@
       }).join("; ");
     }
 
-    /* ==============================
-       RWS indicator logic (robust parsing)
-       ============================== */
+    /* ------------------------------
+       RWS indicator helpers
+       ------------------------------ */
     function normalizeListingProducts(listing) {
       if (!listing) return [];
       if (Array.isArray(listing.products)) return listing.products;
@@ -407,7 +404,9 @@
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
 
-      if (!btn.dataset.originalText) btn.dataset.originalText = btn.textContent.trim() || "Click here";
+      if (!btn.dataset.originalText) {
+        btn.dataset.originalText = (btn.textContent || "").trim() || "Click here";
+      }
 
       if (isNew) {
         btn.classList.add("rws-hot");
@@ -435,7 +434,7 @@
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
 
-        // First run: initialize so you don't get a false "new" glow
+        // First run: initialize so you don't get a false "new"
         if (!lastSeen) {
           localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
           setRwsButtonNewState(false);
@@ -443,17 +442,12 @@
         }
 
         setRwsButtonNewState(currentRwsMarker !== lastSeen);
-
       } catch {
         // silent
       }
     }
 
-    // Export for console testing
-    window.checkRWSIndicator = checkRWSIndicator;
-    window.getCurrentRwsMarker = () => currentRwsMarker;
-
-    // Acknowledge + stop flashing BEFORE navigation (and for new-tab flows)
+    // Stop flashing BEFORE navigation, and also for new-tab flows
     (function wireRwsAcknowledge() {
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
@@ -464,21 +458,12 @@
         setRwsButtonNewState(false);
       }
 
-      // Earliest + works for mouse/touch
       btn.addEventListener("pointerdown", acknowledgeRws, { passive: true });
-
-      // Middle click / open in new tab
       btn.addEventListener("auxclick", acknowledgeRws);
-
-      // Right click (user may choose "open link in new tab")
       btn.addEventListener("contextmenu", acknowledgeRws);
-
-      // Keyboard activation
       btn.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") acknowledgeRws();
       });
-
-      // Fallback
       btn.addEventListener("click", acknowledgeRws);
     })();
 
@@ -617,7 +602,6 @@
 
         // RWS check after render
         checkRWSIndicator();
-
       } catch (err) {
         console.error(err);
         document.getElementById("status").textContent = "Error loading alerts: " + err.message;
@@ -656,7 +640,7 @@
     // Auto-refresh every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
 
-    // Extra: RWS-only check (so it can still light even if alerts fetch fails)
+    // Extra: RWS-only check
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
