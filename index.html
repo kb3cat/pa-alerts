@@ -124,6 +124,20 @@
       border: 0;
       display: block;
     }
+
+    /* ==============================
+       RWS "NEW SUMMARY" INDICATOR
+       ============================== */
+    .rws-hot {
+      border-color: rgba(245, 158, 11, 0.95) !important;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
+      animation: rwsPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes rwsPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 
@@ -140,7 +154,7 @@
   <div class="controls">
     <div class="nav-toggle">
       Need the Regional Weather Summary?
-      <button type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
+      <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
     </div>
   </div>
 
@@ -208,6 +222,13 @@
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
     const STORAGE_KEY = "paAlertsSnapshot_index_v1";
 
+    /* ==============================
+       RWS INDICATOR (CTP ONLY)
+       ============================== */
+    const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v3";
+    let currentRwsMarker = null;
+
     const zoneCache = new Map();
     const alertStore = new Map();
 
@@ -233,7 +254,6 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
-    // Prevent hang forever
     function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -271,14 +291,11 @@
       });
     }
 
-    // Summary-only normalization (combine Upper/Lower too)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
-
       s = s.replace(/^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western|Upper|Lower)\s+/i, "");
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
       s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-
       return s.trim();
     }
 
@@ -335,6 +352,121 @@
       }).join("; ");
     }
 
+    /* ------------------------------
+       RWS indicator helpers
+       ------------------------------ */
+    function normalizeListingProducts(listing) {
+      if (!listing) return [];
+      if (Array.isArray(listing.products)) return listing.products;
+      if (Array.isArray(listing["@graph"])) return listing["@graph"];
+      if (Array.isArray(listing.items)) return listing.items;
+      if (Array.isArray(listing.features)) return listing.features;
+      return [];
+    }
+
+    function productIdFromAny(p) {
+      return p?.productId || p?.id || p?.["@id"] || p?.url || null;
+    }
+
+    function issuanceTimeFromAny(p) {
+      return p?.issuanceTime || p?.issueTime || p?.created || p?.validTime || "";
+    }
+
+    function pickLatestProductRobust(items) {
+      if (!Array.isArray(items) || items.length === 0) return null;
+
+      const mapped = items
+        .map(p => {
+          const pid = productIdFromAny(p);
+          const t = Date.parse(issuanceTimeFromAny(p));
+          return { p, pid, t: isNaN(t) ? -1 : t };
+        })
+        .filter(x => x.pid);
+
+      if (!mapped.length) return null;
+
+      mapped.sort((a, b) => {
+        if (a.t !== b.t) return b.t - a.t;
+        return String(b.pid).localeCompare(String(a.pid));
+      });
+
+      return mapped[0].p;
+    }
+
+    function markerForLatest(latest) {
+      const pid = productIdFromAny(latest) || "";
+      const issued = issuanceTimeFromAny(latest) || "";
+      const url = String(pid).startsWith("http") ? pid : `https://api.weather.gov/products/${pid}`;
+      return `${url}||${issued}`;
+    }
+
+    function setRwsButtonNewState(isNew) {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      if (!btn.dataset.originalText) {
+        btn.dataset.originalText = (btn.textContent || "").trim() || "Click here";
+      }
+
+      if (isNew) {
+        btn.classList.add("rws-hot");
+        btn.textContent = "New Summary";
+      } else {
+        btn.classList.remove("rws-hot");
+        btn.textContent = btn.dataset.originalText || "Click here";
+      }
+    }
+
+    async function checkRWSIndicator() {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      try {
+        const r = await fetchWithTimeout(RWS_LIST_URL, { cache: "no-store" }, 8000);
+        if (!r.ok) return;
+
+        const listing = await r.json();
+        const products = normalizeListingProducts(listing);
+        const latest = pickLatestProductRobust(products);
+        if (!latest) return;
+
+        currentRwsMarker = markerForLatest(latest);
+
+        const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
+
+        // First run: initialize so you don't get a false "new"
+        if (!lastSeen) {
+          localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
+          setRwsButtonNewState(false);
+          return;
+        }
+
+        setRwsButtonNewState(currentRwsMarker !== lastSeen);
+      } catch {
+        // silent
+      }
+    }
+
+    // Stop flashing BEFORE navigation, and also for new-tab flows
+    (function wireRwsAcknowledge() {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      function acknowledgeRws() {
+        if (!currentRwsMarker) return;
+        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+        setRwsButtonNewState(false);
+      }
+
+      btn.addEventListener("pointerdown", acknowledgeRws, { passive: true });
+      btn.addEventListener("auxclick", acknowledgeRws);
+      btn.addEventListener("contextmenu", acknowledgeRws);
+      btn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") acknowledgeRws();
+      });
+      btn.addEventListener("click", acknowledgeRws);
+    })();
+
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const btn = document.getElementById("refreshBtn");
@@ -359,7 +491,6 @@
           const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
           if (!zones.length) continue;
 
-          // parallel zone lookups
           const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
 
           const names = [];
@@ -373,7 +504,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)], // exact
+              names: [...new Set(names)],
               description: p.description,
               instruction: p.instruction
             });
@@ -469,6 +600,8 @@
 
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
+        // RWS check after render
+        checkRWSIndicator();
       } catch (err) {
         console.error(err);
         document.getElementById("status").textContent = "Error loading alerts: " + err.message;
@@ -501,8 +634,14 @@
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
+    // Initial load
     fetchAlerts();
+
+    // Auto-refresh every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
+
+    // Extra: RWS-only check
+    setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
 </html>
