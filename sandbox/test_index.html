@@ -154,7 +154,7 @@
   <div class="controls">
     <div class="nav-toggle">
       Need the Regional Weather Summary?
-      <!-- Added id="rwsBtn" so we can light it up here (not on the RWS page) -->
+      <!-- IMPORTANT: id used by RWS indicator -->
       <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
     </div>
   </div>
@@ -224,11 +224,13 @@
     const STORAGE_KEY = "paAlertsSnapshot_index_v1";
 
     /* ==============================
-       RWS "NEW PRODUCT" INDICATOR
+       RWS "NEW PRODUCT" INDICATOR (CTP ONLY)
+       Uses SAME source style as rwsctp.html:
+       https://api.weather.gov/products/types/RWS/locations/CTP
        ============================== */
-    // Latest RWS for CTP (your rwsctp.html implies CTP; change location if needed)
-    const RWS_LATEST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP/latest";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v1";
+    const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v2"; // bump key so old bad marker doesn't block you
+    let currentRwsMarker = null;
 
     const zoneCache = new Map();
     const alertStore = new Map();
@@ -357,33 +359,36 @@
       }).join("; ");
     }
 
-    function getRwsMarkerFromLatest(latestJson) {
-      // Prefer an ID/issuance time marker that will change when a new RWS is posted.
-      // The products API typically includes @id, id, issuanceTime, or similar fields.
-      const id =
-        latestJson?.id ||
-        latestJson?.["@id"] ||
-        latestJson?.["@context"]?.id ||
-        latestJson?.properties?.id ||
-        latestJson?.properties?.["@id"];
+    /* ------------------------------
+       RWS helper functions (mirrors your rwsctp.html logic)
+       ------------------------------ */
+    function pickLatestProduct(items) {
+      if (!Array.isArray(items) || items.length === 0) return null;
+      return items
+        .map(p => ({
+          p,
+          t: Date.parse(p.issuanceTime || p.issueTime || p.created || "")
+        }))
+        .sort((a, b) => b.t - a.t)[0]?.p || null;
+    }
 
-      const issuance =
-        latestJson?.issuanceTime ||
-        latestJson?.issueTime ||
-        latestJson?.issued ||
-        latestJson?.properties?.issuanceTime ||
-        latestJson?.properties?.issueTime ||
-        latestJson?.properties?.issued;
+    function getLatestUrl(latest) {
+      return (
+        latest?.["@id"] ||
+        latest?.id ||
+        latest?.url ||
+        (latest?.productId ? `https://api.weather.gov/products/${latest.productId}` : null)
+      );
+    }
 
-      // If there is a product code/text, that may also change.
-      const productCode =
-        latestJson?.wmoCollectiveId ||
-        latestJson?.properties?.wmoCollectiveId ||
-        latestJson?.productCode ||
-        latestJson?.properties?.productCode;
-
-      // Marker priority: ID > issuance time > product code > JSON string fallback
-      return (id || issuance || productCode || JSON.stringify(latestJson || {})) + "";
+    function buildRwsMarkerFromLatest(latest) {
+      // Make a marker that changes when a new product is issued.
+      // We prefer a stable product identifier, plus issuance time.
+      const latestUrl = getLatestUrl(latest) || "";
+      const issued = latest?.issuanceTime || latest?.issueTime || latest?.created || "";
+      const wmo = latest?.wmoCollectiveId || "";
+      const awips = latest?.awipsId || "";
+      return `${latestUrl}||${issued}||${wmo}||${awips}`;
     }
 
     async function checkRWSIndicator() {
@@ -392,42 +397,56 @@
 
       try {
         const r = await fetchWithTimeout(
-          RWS_LATEST_URL,
+          RWS_LIST_URL,
           { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
           8000
         );
         if (!r.ok) return;
 
-        const latest = await r.json();
-        const marker = getRwsMarkerFromLatest(latest);
-        if (!marker) return;
+        const listing = await r.json();
+        const products = listing.products || listing["@graph"] || listing.items || [];
+        const latest = pickLatestProduct(products);
+        if (!latest) return;
+
+        currentRwsMarker = buildRwsMarkerFromLatest(latest);
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
 
-        // First run: initialize to current so you don't get a false "new" glow
+        // First run: initialize so you don't get a false "new" glow
         if (!lastSeen) {
-          localStorage.setItem(RWS_STORAGE_KEY, marker);
+          localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
           btn.classList.remove("rws-hot");
           return;
         }
 
-        if (marker !== lastSeen) {
-          btn.classList.add("rws-hot");
-        } else {
-          btn.classList.remove("rws-hot");
-        }
-
-        // Acknowledge when user clicks the RWS button (on THIS page)
-        // (It will navigate away; this still records the acknowledgement instantly.)
-        btn.addEventListener("click", () => {
-          try { localStorage.setItem(RWS_STORAGE_KEY, marker); } catch {}
-          btn.classList.remove("rws-hot");
-        }, { once: true });
+        if (currentRwsMarker !== lastSeen) btn.classList.add("rws-hot");
+        else btn.classList.remove("rws-hot");
 
       } catch {
         // silent
       }
     }
+
+    // Acknowledge on click (handles normal click + open-in-new-tab scenarios better)
+    (function wireRwsAcknowledge() {
+      const btn = document.getElementById("rwsBtn");
+      if (!btn) return;
+
+      // Acknowledge on mousedown (fires before navigation; also fires before context menu)
+      btn.addEventListener("mousedown", () => {
+        if (!currentRwsMarker) return;
+        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+        btn.classList.remove("rws-hot");
+      });
+
+      // Also acknowledge on keyboard activation
+      btn.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (!currentRwsMarker) return;
+        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+        btn.classList.remove("rws-hot");
+      });
+    })();
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
@@ -563,7 +582,7 @@
 
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
-        // Check RWS after the page finishes its main update (so the glow isn't lost)
+        // RWS check after render
         checkRWSIndicator();
 
       } catch (err) {
@@ -592,20 +611,4 @@
       const title = document.getElementById("modalTitle").textContent || "";
       const meta  = document.getElementById("modalMeta").textContent || "";
       const desc  = document.getElementById("modalDescription").textContent || "";
-      const inst  = document.getElementById("modalInstruction").textContent || "";
-      navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
-    };
-
-    document.getElementById("refreshBtn").onclick = fetchAlerts;
-
-    // Initial load
-    fetchAlerts();
-
-    // Auto-refresh every 5 minutes (alerts + RWS check is triggered after alerts load)
-    setInterval(fetchAlerts, 5 * 60 * 1000);
-
-    // Optional extra RWS-only check (in case alerts fetch fails but RWS still updates)
-    setInterval(checkRWSIndicator, 5 * 60 * 1000);
-  </script>
-</body>
-</html>
+      const inst  = document.getElementById("modalInstruction").textCo
