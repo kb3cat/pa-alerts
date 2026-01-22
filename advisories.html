@@ -245,16 +245,9 @@
 
     /* ==============================
        RWS "NEW PRODUCT" INDICATOR (CTP ONLY)
-       If a NEW RWSCTP posts, the button:
-         - starts flashing/glowing
-         - changes text to "New Summary"
-       When you click (pointerdown) it:
-         - acknowledges (stores marker)
-         - stops flashing
-         - restores original button text
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v2";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v2";   // MUST MATCH index.html
     let currentRwsMarker = null;
     const RWS_BTN_TEXT_NORMAL = "Click here";
     const RWS_BTN_TEXT_NEW = "New Summary";
@@ -287,7 +280,7 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
-    // Prevent hangs forever (and improves reliability vs plain fetch)
+    // Prevent hangs forever
     function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -328,7 +321,6 @@
       });
     }
 
-    // SUMMARY ONLY normalization (does NOT affect Alert Links)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
@@ -436,6 +428,12 @@
       }
     }
 
+    function acknowledgeRwsNow() {
+      if (!currentRwsMarker) return;
+      try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+      setRwsButtonHot(false);
+    }
+
     async function checkRWSIndicator() {
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
@@ -476,20 +474,25 @@
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
 
-      btn.addEventListener("pointerdown", () => {
-        if (!currentRwsMarker) return;
-        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
-        setRwsButtonHot(false);
-      });
+      btn.addEventListener("pointerdown", acknowledgeRwsNow);
 
-      // Keyboard activation too
       btn.addEventListener("keydown", (e) => {
         if (e.key !== "Enter" && e.key !== " ") return;
-        if (!currentRwsMarker) return;
-        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
-        setRwsButtonHot(false);
+        acknowledgeRwsNow();
       });
     })();
+
+    // ✅ THIS is the missing piece: cross-page/tab sync
+    // If you acknowledge on index.html, this page stops flashing immediately (and vice-versa).
+    window.addEventListener("storage", (e) => {
+      if (e.key !== RWS_STORAGE_KEY) return;
+
+      if (currentRwsMarker) {
+        setRwsButtonHot(localStorage.getItem(RWS_STORAGE_KEY) !== currentRwsMarker);
+      } else {
+        setTimeout(checkRWSIndicator, 150);
+      }
+    });
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
@@ -528,7 +531,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)],    // EXACT NWS NAMES (used by Alert Links)
+              names: [...new Set(names)],
               description: p.description,
               instruction: p.instruction
             });
@@ -537,7 +540,6 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
-        // ===== SUMMARY GROUPING (NORMALIZED) =====
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -548,7 +550,6 @@
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-        // Alert Links snapshot stays exact (no normalization)
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
@@ -582,7 +583,6 @@
           </table>
         `;
 
-        // ===== ALERT LINKS (UNTOUCHED / EXACT) =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -606,7 +606,7 @@
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
             ${rows.map((row, i) => {
-              const namesSorted = sortLocations(row.names); // exact
+              const namesSorted = sortLocations(row.names);
               const prevNames = prevSnap?.alerts?.[row.alertId];
               const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
               return `
