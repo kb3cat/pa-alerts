@@ -146,7 +146,7 @@
     }
 
     /* ==============================
-       RWS "NEW PRODUCT" INDICATOR
+       RWS "NEW SUMMARY" INDICATOR
        ============================== */
     .rws-hot {
       border-color: rgba(245, 158, 11, 0.95) !important;
@@ -174,7 +174,6 @@
   <div class="controls">
     <div class="nav-toggle">
       Need the Regional Weather Summary?
-      <!-- IMPORTANT: id used by RWS indicator -->
       <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
     </div>
   </div>
@@ -241,16 +240,16 @@
   <script>
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
+
     const STORAGE_KEY = "paAlertsSnapshot_advisories_v1";
 
     /* ==============================
-       RWS "NEW PRODUCT" INDICATOR (CTP ONLY)
+       RWS INDICATOR (CTP ONLY)
+       Shared key so ack syncs across pages
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v2";   // MUST MATCH index.html
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared"; // <-- MUST match index page too
     let currentRwsMarker = null;
-    const RWS_BTN_TEXT_NORMAL = "Click here";
-    const RWS_BTN_TEXT_NEW = "New Summary";
 
     const zoneCache = new Map();
     const alertStore = new Map();
@@ -280,7 +279,7 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
-    // Prevent hangs forever
+    // Prevent hangs forever (and improves reliability vs plain fetch)
     function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -321,14 +320,22 @@
       });
     }
 
+    // SUMMARY ONLY normalization (does NOT affect Alert Links)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
+
+      // remove elevation prefixes
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+
+      // remove directional + upper/lower prefixes
       s = s.replace(
         /^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i,
         ""
       );
+
+      // remove ridge/elevation suffixes
       s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
+
       return s.trim();
     }
 
@@ -389,49 +396,66 @@
     /* ------------------------------
        RWS indicator helpers
        ------------------------------ */
-    function pickLatestProduct(items) {
+    function normalizeListingProducts(listing) {
+      if (!listing) return [];
+      if (Array.isArray(listing.products)) return listing.products;
+      if (Array.isArray(listing["@graph"])) return listing["@graph"];
+      if (Array.isArray(listing.items)) return listing.items;
+      if (Array.isArray(listing.features)) return listing.features;
+      return [];
+    }
+
+    function productIdFromAny(p) {
+      return p?.productId || p?.id || p?.["@id"] || p?.url || null;
+    }
+
+    function issuanceTimeFromAny(p) {
+      return p?.issuanceTime || p?.issueTime || p?.created || p?.validTime || "";
+    }
+
+    function pickLatestProductRobust(items) {
       if (!Array.isArray(items) || items.length === 0) return null;
-      return items
-        .map(p => ({ p, t: Date.parse(p.issuanceTime || p.issueTime || p.created || "") }))
-        .sort((a, b) => b.t - a.t)[0]?.p || null;
+
+      const mapped = items
+        .map(p => {
+          const pid = productIdFromAny(p);
+          const t = Date.parse(issuanceTimeFromAny(p));
+          return { p, pid, t: isNaN(t) ? -1 : t };
+        })
+        .filter(x => x.pid);
+
+      if (!mapped.length) return null;
+
+      mapped.sort((a, b) => {
+        if (a.t !== b.t) return b.t - a.t;
+        return String(b.pid).localeCompare(String(a.pid));
+      });
+
+      return mapped[0].p;
     }
 
-    function getLatestUrl(latest) {
-      return (
-        latest?.["@id"] ||
-        latest?.id ||
-        latest?.url ||
-        (latest?.productId ? `https://api.weather.gov/products/${latest.productId}` : null)
-      );
+    function markerForLatest(latest) {
+      const pid = productIdFromAny(latest) || "";
+      const issued = issuanceTimeFromAny(latest) || "";
+      const url = String(pid).startsWith("http") ? pid : `https://api.weather.gov/products/${pid}`;
+      return `${url}||${issued}`;
     }
 
-    function buildRwsMarkerFromLatest(latest) {
-      const latestUrl = getLatestUrl(latest) || "";
-      const issued = latest?.issuanceTime || latest?.issueTime || latest?.created || "";
-      const wmo = latest?.wmoCollectiveId || "";
-      const awips = latest?.awipsId || "";
-      return `${latestUrl}||${issued}||${wmo}||${awips}`;
-    }
-
-    function setRwsButtonHot(isHot) {
+    function setRwsButtonNewState(isNew) {
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
 
-      if (isHot) {
+      if (!btn.dataset.originalText) {
+        btn.dataset.originalText = (btn.textContent || "").trim() || "Click here";
+      }
+
+      if (isNew) {
         btn.classList.add("rws-hot");
-        btn.textContent = RWS_BTN_TEXT_NEW;
-        btn.setAttribute("aria-label", "New Regional Weather Summary");
+        btn.textContent = "New Summary";
       } else {
         btn.classList.remove("rws-hot");
-        btn.textContent = RWS_BTN_TEXT_NORMAL;
-        btn.setAttribute("aria-label", "Regional Weather Summary");
+        btn.textContent = btn.dataset.originalText || "Click here";
       }
-    }
-
-    function acknowledgeRwsNow() {
-      if (!currentRwsMarker) return;
-      try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
-      setRwsButtonHot(false);
     }
 
     async function checkRWSIndicator() {
@@ -447,51 +471,54 @@
         if (!r.ok) return;
 
         const listing = await r.json();
-        const products = listing.products || listing["@graph"] || listing.items || [];
-        const latest = pickLatestProduct(products);
+        const products = normalizeListingProducts(listing);
+        const latest = pickLatestProductRobust(products);
         if (!latest) return;
 
-        currentRwsMarker = buildRwsMarkerFromLatest(latest);
+        currentRwsMarker = markerForLatest(latest);
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
 
-        // First run: initialize so you don't get a false "new" glow
+        // First run: initialize so you don't get a false "new"
         if (!lastSeen) {
           localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
-          setRwsButtonHot(false);
+          setRwsButtonNewState(false);
           return;
         }
 
-        setRwsButtonHot(currentRwsMarker !== lastSeen);
+        setRwsButtonNewState(currentRwsMarker !== lastSeen);
 
       } catch {
         // silent
       }
     }
 
-    // Acknowledge on pointerdown so it stops flashing immediately before navigation
+    // Ack function (used by click + cross-page sync)
+    function acknowledgeRwsNow() {
+      if (!currentRwsMarker) return;
+      try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+      setRwsButtonNewState(false);
+    }
+
+    // Stop flashing BEFORE navigation
     (function wireRwsAcknowledge() {
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
 
-      btn.addEventListener("pointerdown", acknowledgeRwsNow);
-
+      btn.addEventListener("pointerdown", acknowledgeRwsNow, { passive: true });
+      btn.addEventListener("auxclick", acknowledgeRwsNow);
+      btn.addEventListener("contextmenu", acknowledgeRwsNow);
       btn.addEventListener("keydown", (e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        acknowledgeRwsNow();
+        if (e.key === "Enter" || e.key === " ") acknowledgeRwsNow();
       });
+      btn.addEventListener("click", acknowledgeRwsNow);
     })();
 
-    // ✅ THIS is the missing piece: cross-page/tab sync
-    // If you acknowledge on index.html, this page stops flashing immediately (and vice-versa).
+    // If the other page acks, update this page instantly
     window.addEventListener("storage", (e) => {
       if (e.key !== RWS_STORAGE_KEY) return;
-
-      if (currentRwsMarker) {
-        setRwsButtonHot(localStorage.getItem(RWS_STORAGE_KEY) !== currentRwsMarker);
-      } else {
-        setTimeout(checkRWSIndicator, 150);
-      }
+      if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
+      else checkRWSIndicator();
     });
 
     async function fetchAlerts() {
@@ -531,7 +558,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)],
+              names: [...new Set(names)],    // EXACT NWS NAMES (used by Alert Links)
               description: p.description,
               instruction: p.instruction
             });
@@ -540,16 +567,20 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
+        // ===== SUMMARY GROUPING (NORMALIZED) =====
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
+
+          // normalize ONLY for Summary
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
+        // Alert Links snapshot stays exact (no normalization)
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
@@ -567,22 +598,25 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-            ${groupedArr.map(g => {
-              const key = `${g.event}||${g.expires || ""}`;
-              const namesSorted = sortLocations([...g.names]);
-              const prevNames = prevSnap?.summary?.[key];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-              return `
-                <tr>
-                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                  <td>${escapeHtml(formatTime(g.expires))}</td>
-                </tr>
-              `;
-            }).join("")}
+            ${
+              groupedArr.map(g => {
+                const key = `${g.event}||${g.expires || ""}`;
+                const namesSorted = sortLocations([...g.names]);
+                const prevNames = prevSnap?.summary?.[key];
+                const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+                return `
+                  <tr>
+                    <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                    <td>${escapeHtml(formatTime(g.expires))}</td>
+                  </tr>
+                `;
+              }).join("")
+            }
           </table>
         `;
 
+        // ===== ALERT LINKS (UNTOUCHED / EXACT) =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -605,18 +639,20 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
-            ${rows.map((row, i) => {
-              const namesSorted = sortLocations(row.names);
-              const prevNames = prevSnap?.alerts?.[row.alertId];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-              return `
-                <tr>
-                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
-                </tr>
-              `;
-            }).join("")}
+            ${
+              rows.map((row, i) => {
+                const namesSorted = sortLocations(row.names); // exact
+                const prevNames = prevSnap?.alerts?.[row.alertId];
+                const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+                return `
+                  <tr>
+                    <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
+                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                    <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
+                  </tr>
+                `;
+              }).join("")
+            }
           </table>
           <p class="muted">“View Text” opens the full warning text.</p>
         `;
