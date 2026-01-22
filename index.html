@@ -224,9 +224,10 @@
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
+       Shared key so ack syncs across pages
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v3";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared"; // <-- MUST match advisories page too
     let currentRwsMarker = null;
 
     const zoneCache = new Map();
@@ -434,7 +435,6 @@
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
 
-        // First run: initialize so you don't get a false "new"
         if (!lastSeen) {
           localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
           setRwsButtonNewState(false);
@@ -447,25 +447,34 @@
       }
     }
 
+    // Ack function (used by click + cross-page sync)
+    function acknowledgeRwsNow() {
+      if (!currentRwsMarker) return;
+      try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+      setRwsButtonNewState(false);
+    }
+
     // Stop flashing BEFORE navigation, and also for new-tab flows
     (function wireRwsAcknowledge() {
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
 
-      function acknowledgeRws() {
-        if (!currentRwsMarker) return;
-        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
-        setRwsButtonNewState(false);
-      }
-
-      btn.addEventListener("pointerdown", acknowledgeRws, { passive: true });
-      btn.addEventListener("auxclick", acknowledgeRws);
-      btn.addEventListener("contextmenu", acknowledgeRws);
+      btn.addEventListener("pointerdown", acknowledgeRwsNow, { passive: true });
+      btn.addEventListener("auxclick", acknowledgeRwsNow);
+      btn.addEventListener("contextmenu", acknowledgeRwsNow);
       btn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") acknowledgeRws();
+        if (e.key === "Enter" || e.key === " ") acknowledgeRwsNow();
       });
-      btn.addEventListener("click", acknowledgeRws);
+      btn.addEventListener("click", acknowledgeRwsNow);
     })();
+
+    // If advisories/index acks the same key, update this page instantly
+    window.addEventListener("storage", (e) => {
+      if (e.key !== RWS_STORAGE_KEY) return;
+      // If we already know current marker, compare; otherwise just re-check.
+      if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
+      else checkRWSIndicator();
+    });
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
@@ -514,7 +523,6 @@
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
         refreshMap();
 
-        // SUMMARY (normalized)
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -525,7 +533,6 @@
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-        // LINKS snapshot (exact)
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
@@ -559,7 +566,6 @@
           </table>
         `;
 
-        // ALERT LINKS (exact)
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -600,7 +606,6 @@
 
         saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
-        // RWS check after render
         checkRWSIndicator();
       } catch (err) {
         console.error(err);
@@ -634,13 +639,8 @@
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
-    // Initial load
     fetchAlerts();
-
-    // Auto-refresh every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
-
-    // Extra: RWS-only check
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
