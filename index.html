@@ -5,9 +5,88 @@
   <title>PA Watches & Warnings</title>
 
   <style>
+    /* ==============================
+       THEME (LIGHT DEFAULT)
+       ============================== */
+    :root{
+      color-scheme: light;
+
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #555555;
+
+      --border: #333333;
+      --borderSoft: #cccccc;
+
+      --tableHeadBg: #f0f0f0;
+
+      --btnBg: #ffffff;
+      --btnBgHover: #f3f3f3;
+      --btnBorder: #333333;
+      --btnBorderSoft: #555555;
+
+      --modalBackdrop: rgba(0,0,0,0.55);
+      --modalBg: #ffffff;
+      --modalText: #111111;
+      --modalMeta: #333333;
+
+      --preBg: #f6f6f6;
+      --preBorder: #dddddd;
+
+      --newInfoBg: rgba(59, 130, 246, 0.28);
+      --newInfoBorder: rgba(59, 130, 246, 0.35);
+
+      --watchBg: rgba(255, 165, 0, 0.5);
+      --warningBg: rgba(220, 38, 38, 0.5);
+
+      --shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    /* ==============================
+       THEME (DARK)
+       ============================== */
+    :root[data-theme="dark"]{
+      color-scheme: dark;
+
+      --bg: #0f1216;
+      --text: #e9eef5;
+      --muted: #a8b2bf;
+
+      --border: #2b3646;
+      --borderSoft: #2b3646;
+
+      --tableHeadBg: #1b2330;
+
+      --btnBg: #171c22;
+      --btnBgHover: #232b36;
+      --btnBorder: #2b3646;
+      --btnBorderSoft: #2b3646;
+
+      --modalBackdrop: rgba(0,0,0,0.70);
+      --modalBg: #121820;
+      --modalText: #e9eef5;
+      --modalMeta: #a8b2bf;
+
+      --preBg: #0f141b;
+      --preBorder: #2b3646;
+
+      --newInfoBg: rgba(59, 130, 246, 0.30);
+      --newInfoBorder: rgba(59, 130, 246, 0.40);
+
+      --watchBg: rgba(255, 165, 0, 0.35);
+      --warningBg: rgba(220, 38, 38, 0.35);
+
+      --shadow: 0 20px 60px rgba(0,0,0,0.65);
+    }
+
+    html, body { background: var(--bg); color: var(--text); }
+
+    /* ==============================
+       YOUR ORIGINAL STYLES (UPDATED TO VARIABLES)
+       ============================== */
     table { border-collapse: collapse; width: 100%; max-width: 1200px; }
-    th, td { padding: 6px; border: 1px solid #333; vertical-align: top; }
-    th { background: #f0f0f0; }
+    th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
+    th { background: var(--tableHeadBg); }
 
     .controls {
       display: flex;
@@ -20,31 +99,35 @@
     .nav-toggle { font-size: 0.95em; }
 
     .nav-toggle button,
-    #refreshBtn {
+    #refreshBtn,
+    #themeToggle {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
       cursor: pointer;
       font: inherit;
+      color: var(--text);
     }
     .nav-toggle button:hover,
-    #refreshBtn:hover { background: #f3f3f3; }
+    #refreshBtn:hover,
+    #themeToggle:hover { background: var(--btnBgHover); }
+
     #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .refresh-label { font-size: 0.95em; color: #333; }
+    .refresh-label { font-size: 0.95em; color: var(--muted); }
 
     .section-title { margin-top: 16px; margin-bottom: 6px; }
-    .muted { color: #555; font-size: 0.95em; }
+    .muted { color: var(--muted); font-size: 0.95em; }
 
-    .type-cell { font-weight: 600; color: #111; }
-    .type-watch   { background-color: rgba(255, 165, 0, 0.5); }
-    .type-warning { background-color: rgba(220, 38, 38, 0.5); }
+    .type-cell { font-weight: 600; color: var(--text); }
+    .type-watch   { background-color: var(--watchBg); }
+    .type-warning { background-color: var(--warningBg); }
 
     .new-info {
-      background: rgba(59, 130, 246, 0.28);
-      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: var(--newInfoBg);
+      border: 1px solid var(--newInfoBorder);
       border-radius: 6px;
       padding: 0 4px;
       display: inline-block;
@@ -52,18 +135,19 @@
 
     button.view-btn {
       padding: 4px 10px;
-      border: 1px solid #555;
-      background: #fff;
+      border: 1px solid var(--btnBorderSoft);
+      background: var(--btnBg);
       cursor: pointer;
       border-radius: 4px;
       font: inherit;
+      color: var(--text);
     }
-    button.view-btn:hover { background: #f3f3f3; }
+    button.view-btn:hover { background: var(--btnBgHover); }
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: var(--modalBackdrop);
       display: none;
       align-items: center;
       justify-content: center;
@@ -71,30 +155,31 @@
       z-index: 9999;
     }
     .modal {
-      background: #fff;
-      color: #111;
+      background: var(--modalBg);
+      color: var(--modalText);
       width: min(900px, 100%);
       max-height: 85vh;
       overflow: auto;
       border-radius: 10px;
-      border: 1px solid #333;
+      border: 1px solid var(--border);
       padding: 14px 16px 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      box-shadow: var(--shadow);
     }
     .modal h3 { margin: 0 0 8px; }
-    .modal .meta { margin: 0 0 10px; color: #333; font-size: 0.95em; }
+    .modal .meta { margin: 0 0 10px; color: var(--modalMeta); font-size: 0.95em; }
     .modal .label { margin-top: 10px; font-weight: 700; }
     .modal pre {
       white-space: pre-wrap;
       word-break: break-word;
       margin: 6px 0 0;
       padding: 10px;
-      background: #f6f6f6;
-      border: 1px solid #ddd;
+      background: var(--preBg);
+      border: 1px solid var(--preBorder);
       border-radius: 6px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.95em;
       line-height: 1.35;
+      color: var(--modalText);
     }
     .modal .actions {
       display: flex;
@@ -105,17 +190,18 @@
     .modal .actions button {
       padding: 6px 12px;
       border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
       cursor: pointer;
       font: inherit;
+      color: var(--text);
     }
-    .modal .actions button:hover { background: #f3f3f3; }
+    .modal .actions button:hover { background: var(--btnBgHover); }
 
     .embed-wrap {
       max-width: 1200px;
       width: 100%;
-      border: 1px solid #ccc;
+      border: 1px solid var(--borderSoft);
       overflow: hidden;
     }
     .embed-wrap iframe {
@@ -124,6 +210,9 @@
       border: 0;
       display: block;
     }
+
+    /* Map border uses theme border */
+    #wwaMap { border: 1px solid var(--borderSoft) !important; }
 
     /* ==============================
        RWS "NEW SUMMARY" INDICATOR
@@ -138,11 +227,30 @@
       50%  { transform: scale(1.04); }
       100% { transform: scale(1); }
     }
+
+    /* Title row layout */
+    .title-row{
+      max-width: 1200px;
+      display:flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .title-row h1{
+      margin: 0;
+    }
+    .title-row .spacer{
+      flex: 1 1 auto;
+    }
   </style>
 </head>
 
 <body>
-  <h1>PA Watches & Warnings</h1>
+  <div class="title-row">
+    <h1>PA Watches & Warnings</h1>
+    <div class="spacer"></div>
+    <button id="themeToggle" type="button">🌙 Dark</button>
+  </div>
 
   <div class="controls">
     <div class="nav-toggle">
@@ -178,7 +286,7 @@
     id="wwaMap"
     src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
     alt="NWS Current Watches, Warnings, and Advisories (PA)"
-    style="max-width: 1200px; width: 100%; height: auto; border: 1px solid #ccc;"
+    style="max-width: 1200px; width: 100%; height: auto;"
   />
   <p class="muted">
     Map source:
@@ -218,6 +326,53 @@
   </div>
 
   <script>
+    /* ==============================
+       THEME TOGGLE (shared across pages)
+       ============================== */
+    (function () {
+      const STORAGE_KEY_THEME = "pa_alerts_theme";
+      const root = document.documentElement;
+      const btn = document.getElementById("themeToggle");
+
+      function systemPrefersDark() {
+        return window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+
+      function setTheme(theme) {
+        // theme: "dark" | "light" | "system"
+        if (theme === "system") {
+          root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
+        } else {
+          root.setAttribute("data-theme", theme);
+        }
+        if (btn) {
+          const isDark = root.getAttribute("data-theme") === "dark";
+          btn.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+        }
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
+
+      // If system, keep in sync with OS changes
+      if (saved === "system" && window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
+        else if (mq.addListener) mq.addListener(() => setTheme("system"));
+      }
+
+      setTheme(saved);
+
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const current = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+          const next = current === "dark" ? "light" : "dark";
+          localStorage.setItem(STORAGE_KEY_THEME, next);
+          setTheme(next);
+        });
+      }
+    })();
+
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
     const STORAGE_KEY = "paAlertsSnapshot_index_v1";
