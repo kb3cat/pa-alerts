@@ -5,8 +5,84 @@
   <title>Regional Weather Summary (RWSCTP)</title>
 
   <style>
+    /* ==============================
+       THEME (LIGHT DEFAULT)
+       ============================== */
+    :root{
+      color-scheme: light;
+
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #555555;
+
+      --border: #333333;
+      --borderSoft: #cccccc;
+
+      --btnBg: #ffffff;
+      --btnBgHover: #f3f3f3;
+      --btnBorder: #333333;
+
+      --panelBg: #fafafa;
+      --panelBorder: #cccccc;
+
+      --meta: #333333;
+
+      --preBg: #ffffff;
+      --preBorder: #dddddd;
+
+      --link: #1d4ed8;
+    }
+
+    /* ==============================
+       THEME (DARK)
+       ============================== */
+    :root[data-theme="dark"]{
+      color-scheme: dark;
+
+      --bg: #0f1216;
+      --text: #e9eef5;
+      --muted: #a8b2bf;
+
+      --border: #2b3646;
+      --borderSoft: #2b3646;
+
+      --btnBg: #171c22;
+      --btnBgHover: #232b36;
+      --btnBorder: #2b3646;
+
+      --panelBg: #121820;
+      --panelBorder: #2b3646;
+
+      --meta: #a8b2bf;
+
+      --preBg: #0f141b;
+      --preBorder: #2b3646;
+
+      --link: #7aa2ff;
+    }
+
+    html, body { background: var(--bg); color: var(--text); }
     body { margin: 16px; }
 
+    /* ==============================
+       TITLE ROW (MATCHES OTHER PAGES)
+       ============================== */
+    .title-row{
+      max-width: 1200px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px; /* space under header */
+    }
+    .title-row h1{
+      margin: 0; /* prevents phantom top margin */
+    }
+    .title-row .spacer{ flex: 1 1 auto; }
+
+    /* ==============================
+       CONTROLS
+       ============================== */
     .controls {
       display: flex;
       align-items: center;
@@ -17,38 +93,39 @@
     }
 
     .nav-toggle { font-size: 0.95em; }
-    .nav-toggle button {
+
+    .nav-toggle button,
+    #refreshBtn,
+    #themeToggle {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
       cursor: pointer;
       font: inherit;
+      color: var(--text);
     }
-    .nav-toggle button:hover { background: #f3f3f3; }
+    .nav-toggle button:hover,
+    #refreshBtn:hover,
+    #themeToggle:hover { background: var(--btnBgHover); }
 
-    .refresh-label { font-size: 0.95em; color: #333; }
-    #refreshBtn {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
-      cursor: pointer;
-      font: inherit;
-    }
-    #refreshBtn:hover { background: #f3f3f3; }
     #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .muted { color: #555; font-size: 0.95em; max-width: 1200px; }
-    .section-title { margin-top: 14px; margin-bottom: 6px; }
+    .refresh-label { font-size: 0.95em; color: var(--meta); }
 
+    .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
+    .section-title { margin-top: 14px; margin-bottom: 6px; max-width: 1200px; }
+
+    /* ==============================
+       PANEL
+       ============================== */
     .panel {
       max-width: 1200px;
-      border: 1px solid #ccc;
+      border: 1px solid var(--panelBorder);
       border-radius: 10px;
       padding: 12px 14px;
-      background: #fafafa;
+      background: var(--panelBg);
     }
     .panel h2 {
       margin: 0 0 6px;
@@ -56,27 +133,32 @@
     }
     .meta {
       margin: 0 0 10px;
-      color: #333;
+      color: var(--meta);
       font-size: 0.95em;
     }
     pre {
       margin: 0;
       padding: 10px;
-      border: 1px solid #ddd;
+      border: 1px solid var(--preBorder);
       border-radius: 8px;
-      background: #fff;
+      background: var(--preBg);
+      color: var(--text);
       white-space: pre-wrap;
       word-break: break-word;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       line-height: 1.35;
       font-size: 0.98em;
     }
-    a { color: #1d4ed8; }
+    a { color: var(--link); }
   </style>
 </head>
 
 <body>
-  <h1>Regional Weather Summary (RWSCTP)</h1>
+  <div class="title-row">
+    <h1>Regional Weather Summary (RWSCTP)</h1>
+    <div class="spacer"></div>
+    <button id="themeToggle" type="button">🌙 Dark</button>
+  </div>
 
   <div class="controls">
     <div class="nav-toggle">
@@ -113,6 +195,51 @@
   </p>
 
   <script>
+    /* ==============================
+       THEME TOGGLE (shared across pages)
+       ============================== */
+    (function () {
+      const STORAGE_KEY_THEME = "pa_alerts_theme";
+      const root = document.documentElement;
+      const btn = document.getElementById("themeToggle");
+
+      function systemPrefersDark() {
+        return window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+
+      function setTheme(theme) {
+        if (theme === "system") {
+          root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
+        } else {
+          root.setAttribute("data-theme", theme);
+        }
+        if (btn) {
+          const isDark = root.getAttribute("data-theme") === "dark";
+          btn.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+        }
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
+
+      if (saved === "system" && window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
+        else if (mq.addListener) mq.addListener(() => setTheme("system"));
+      }
+
+      setTheme(saved);
+
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const current = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+          const next = current === "dark" ? "light" : "dark";
+          localStorage.setItem(STORAGE_KEY_THEME, next);
+          setTheme(next);
+        });
+      }
+    })();
+
     const LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
 
     function fmtTime(v) {
