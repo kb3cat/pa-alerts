@@ -98,7 +98,8 @@
 
     .nav-toggle button,
     #refreshBtn,
-    #themeToggle {
+    #themeToggle,
+    #ackBtn {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
@@ -110,8 +111,11 @@
     }
     .nav-toggle button:hover,
     #refreshBtn:hover,
-    #themeToggle:hover { background: var(--btnBgHover); }
-    #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #themeToggle:hover,
+    #ackBtn:hover { background: var(--btnBgHover); }
+
+    #refreshBtn:disabled,
+    #ackBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -270,16 +274,21 @@
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
+
+    <!-- NEW: Ack button for persistent Summary highlights -->
+    <button id="ackBtn" type="button" disabled title="No unacknowledged changes">
+      Acknowledge Changes
+    </button>
   </div>
 
   <p id="status">Loading alerts…</p>
 
   <h2 class="section-title">Summary</h2>
-  <div class="muted">New information since the last update will be highlighted in blue.</div>
+  <div class="muted">New information since your last acknowledgment will be highlighted in blue.</div>
   <div id="tableContainer"></div>
 
   <h2 class="section-title">Alert Links</h2>
-  <div class="muted">New information since the last update will be highlighted in blue.</div>
+  <div class="muted">“View Text” opens the full warning text.</div>
   <div id="linksContainer"></div>
 
   <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
@@ -376,7 +385,12 @@
 
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-    const STORAGE_KEY = "paAlertsSnapshot_index_v1";
+
+    // NEW: Baseline vs Current snapshots
+    // Baseline = last acknowledged snapshot (used for diffing/highlights)
+    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_index_v1";
+    // Current = latest fetched snapshot (so Ack can promote it)
+    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_index_v1";
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
@@ -470,18 +484,19 @@
       document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
     }
 
-    function loadSnapshot() {
+    // NEW: snapshot helpers (baseline vs current)
+    function loadSnapshot(key) {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = localStorage.getItem(key);
         return raw ? JSON.parse(raw) : null;
       } catch {
         return null;
       }
     }
 
-    function saveSnapshot(summaryGroups, alertsById) {
+    function saveSnapshot(key, summaryGroups, alertsById) {
       const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById };
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snap)); } catch {}
+      try { localStorage.setItem(key, JSON.stringify(snap)); } catch {}
     }
 
     function diffNewNames(currentArr, prevArr) {
@@ -633,13 +648,15 @@
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
-      const btn = document.getElementById("refreshBtn");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const ackBtn = document.getElementById("ackBtn");
 
-      btn.disabled = true;
+      refreshBtn.disabled = true;
       status.textContent = "Loading alerts…";
 
       try {
-        const prevSnap = loadSnapshot();
+        // Baseline = last acknowledged (for persistent highlights)
+        let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
         const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -685,17 +702,30 @@
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
+        // Build CURRENT snapshots
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
+        // Always store latest as CURRENT (so Ack can promote it)
+        saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap);
+
+        // If no baseline exists yet, initialize baseline to current
+        if (!baselineSnap) {
+          saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap);
+          baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
+        }
+
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
+
+        // Summary highlights ONLY (persistent until Ack)
+        let hasUnackChanges = false;
 
         document.getElementById("tableContainer").innerHTML = `
           <table>
@@ -708,8 +738,10 @@
             ${groupedArr.map(g => {
               const key = `${g.event}||${g.expires || ""}`;
               const namesSorted = sortLocations([...g.names]);
-              const prevNames = prevSnap?.summary?.[key];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              const prevNames = baselineSnap?.summary?.[key];
+              const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              if (newSet && newSet.size) hasUnackChanges = true;
+
               return `
                 <tr>
                   <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
@@ -721,6 +753,14 @@
           </table>
         `;
 
+        if (ackBtn) {
+          ackBtn.disabled = !hasUnackChanges;
+          ackBtn.title = hasUnackChanges
+            ? "Mark current Summary changes as acknowledged"
+            : "No unacknowledged changes";
+        }
+
+        // Links table: NO highlights (always plain)
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -745,21 +785,16 @@
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
             ${rows.map((row, i) => {
               const namesSorted = sortLocations(row.names);
-              const prevNames = prevSnap?.alerts?.[row.alertId];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
               return `
                 <tr>
                   <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted)}</td>
                   <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
                 </tr>
               `;
             }).join("")}
           </table>
-          <p class="muted">“View Text” opens the full warning text.</p>
         `;
-
-        saveSnapshot(currentSummarySnap, currentAlertsSnap);
 
         checkRWSIndicator();
       } catch (err) {
@@ -769,6 +804,15 @@
         document.getElementById("refreshBtn").disabled = false;
       }
     }
+
+    // NEW: Acknowledge button promotes CURRENT -> BASELINE (clears Summary highlights)
+    document.getElementById("ackBtn").onclick = () => {
+      const current = loadSnapshot(STORAGE_KEY_CURRENT);
+      if (!current) return;
+
+      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
+      fetchAlerts(); // re-render immediately (and re-check changes)
+    };
 
     function openModal(i) {
       const a = alertStore.get(i);
