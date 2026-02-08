@@ -37,6 +37,10 @@
       --warningBg: rgba(220, 38, 38, 0.5);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.4);
+
+      /* ✅ Map fallback */
+      --mapFallbackBg: #f6f6f6;
+      --mapFallbackBorder: #999999;
     }
 
     :root[data-theme="dark"]{
@@ -71,6 +75,10 @@
       --warningBg: rgba(220, 38, 38, 0.35);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.65);
+
+      /* ✅ Map fallback */
+      --mapFallbackBg: #0f141b;
+      --mapFallbackBorder: #2b3646;
     }
 
     html, body { background: var(--bg); color: var(--text); }
@@ -211,6 +219,38 @@
 
     #wwaMap { border: 1px solid var(--borderSoft) !important; }
 
+    /* ✅ Map fallback panel */
+    .map-wrap{
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .map-fallback{
+      display: none;              /* shown only when map fails */
+      width: 100%;
+      min-height: 360px;
+      border: 2px dashed var(--mapFallbackBorder);
+      background: var(--mapFallbackBg);
+      border-radius: 10px;
+      padding: 18px;
+      box-sizing: border-box;
+
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .map-fallback .title{
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .map-fallback .text{
+      color: var(--muted);
+      line-height: 1.35;
+      max-width: 70ch;
+    }
+
     .rws-hot {
       border-color: rgba(245, 158, 11, 0.95) !important;
       box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
@@ -325,13 +365,29 @@
   <div id="linksContainer"></div>
 
   <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
-  <img
-    id="wwaMap"
-    src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-    alt="NWS Current Watches, Warnings, and Advisories (PA)"
-    style="max-width: 1200px; width: 100%; height: auto;"
-  />
-  <p class="muted">
+
+  <!-- ✅ Map + CSS fallback -->
+  <div class="map-wrap">
+    <img
+      id="wwaMap"
+      src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+      alt="NWS Current Watches, Warnings, and Advisories (PA)"
+      style="max-width: 1200px; width: 100%; height: auto;"
+      onerror="showWwaMapFallback()"
+    />
+
+    <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+      <div>
+        <div class="title">NWS Alert Map Unavailable</div>
+        <div class="text">
+          The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
+          Alert data remains valid and is displayed above.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="muted" id="mapSourceLine">
     Map source:
     <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
       NWS Current Watches, Warnings, and Advisories (PA)
@@ -422,11 +478,27 @@
     const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_index_v3";
 
     /* ==============================
-       RWS INDICATOR (CTP ONLY)
+       MAP FALLBACK (CSS panel when NWS map image fails)
        ============================== */
-    const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
-    let currentRwsMarker = null;
+    function showWwaMapFallback() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      const sourceLine = document.getElementById("mapSourceLine");
+
+      if (img) img.style.display = "none";
+      if (fallback) fallback.style.display = "flex";
+      if (sourceLine) sourceLine.style.display = "none";
+    }
+
+    function hideWwaMapFallback() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      const sourceLine = document.getElementById("mapSourceLine");
+
+      if (img) img.style.display = "block";
+      if (fallback) fallback.style.display = "none";
+      if (sourceLine) sourceLine.style.display = "block";
+    }
 
     const zoneCache = new Map();
     const alertStore = new Map();
@@ -516,8 +588,11 @@
       return t ? t.replace(/\n{3,}/g, "\n\n").trim() : "N/A";
     }
 
+    // ✅ UPDATED: refreshes map + resets fallback to try again
     function refreshMap() {
-      document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
+      hideWwaMapFallback();
+      const img = document.getElementById("wwaMap");
+      img.src = MAP_URL + "?t=" + Date.now();
     }
 
     function escapeHtml(s) {
@@ -545,7 +620,6 @@
     }
 
     function setSigFromNames(names) {
-      // stable signature for a county set
       const sorted = sortLocations([...new Set(names.map(String))]);
       return sorted.join("|");
     }
@@ -722,23 +796,24 @@
 
       try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
 
-      // close popup
       changesVisible = false;
       const wrap = document.getElementById("changesContainer");
       if (wrap) wrap.style.display = "none";
 
-      // reset "new" indicator
       lastChangesSignature = "";
       latestHasAnyChanges = false;
       setChangesButtonState({ hasChanges: false, isNew: false });
 
-      // rerender (clears highlights)
       fetchAlerts();
     }
 
-    /* ------------------------------
-       RWS indicator helpers
-       ------------------------------ */
+    /* ==============================
+       RWS INDICATOR (CTP ONLY)
+       ============================== */
+    const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
+    let currentRwsMarker = null;
+
     function normalizeListingProducts(listing) {
       if (!listing) return [];
       if (Array.isArray(listing.products)) return listing.products;
@@ -863,7 +938,6 @@
       status.textContent = "Loading alerts…";
 
       try {
-        // baseline (if missing/invalid, we init later)
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
         const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
@@ -904,22 +978,19 @@
         refreshMap();
 
         // ===== BUILD SUMMARY GROUPS (the source of truth for changes) =====
-        const grouped = new Map(); // key: event||expires -> {event, expires, names:Set}
+        const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
-        // summary snapshot map (for blue highlights)
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-        // alert links snapshot kept for completeness
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // rollupByEvent: event -> all counties in any Summary group
         const rollupByEvent = {};
         for (const g of grouped.values()) {
           if (!rollupByEvent[g.event]) rollupByEvent[g.event] = new Set();
@@ -930,9 +1001,7 @@
           currentRollup[event] = sortLocations([...set]);
         }
 
-        // expiresByEventAndSet: (event + countiesSig) -> expires
         const currentExpiresByEventSet = {};
-        // eventsByCountySet: countiesSig -> Set(events)  (for type change)
         const countySetToEvents = new Map();
 
         for (const g of grouped.values()) {
@@ -951,7 +1020,6 @@
           currentEventsByCountySet[sig] = Array.from(set).sort((a,b)=>String(a).localeCompare(String(b)));
         }
 
-        // store CURRENT snapshot every refresh
         saveSnapshot(STORAGE_KEY_CURRENT, {
           summary: currentSummarySnap,
           alerts: currentAlertsSnap,
@@ -960,7 +1028,6 @@
           eventsByCountySet: currentEventsByCountySet
         });
 
-        // init baseline if missing or incompatible
         const baselineOk =
           baselineSnap &&
           baselineSnap.summary && baselineSnap.rollup &&
@@ -984,7 +1051,6 @@
         const baseExpiresByEventSet = baselineSnap.expiresByEventSet || {};
         const baseEventsByCountySet = baselineSnap.eventsByCountySet || {};
 
-        // 1) added/removed counties (per event)
         for (const event of Object.keys(currentRollup)) {
           const cur = currentRollup[event] || [];
           const base = baseRollup[event] || [];
@@ -994,7 +1060,6 @@
           if (rem.length) changes.removed.push({ event, names: rem });
         }
 
-        // 2) cleared events (event existed in baseline but not current)
         for (const event of Object.keys(baseRollup)) {
           if (!(event in currentRollup)) {
             const names = Array.isArray(baseRollup[event]) ? baseRollup[event] : [];
@@ -1002,7 +1067,6 @@
           }
         }
 
-        // 3) expiration updated (same event + same countiesSig, different expires)
         for (const eventSetKey of Object.keys(currentExpiresByEventSet)) {
           if (!(eventSetKey in baseExpiresByEventSet)) continue;
           const curExp = currentExpiresByEventSet[eventSetKey] || "";
@@ -1019,15 +1083,12 @@
           }
         }
 
-        // 4) type changed (same countiesSig exists in both, but event sets differ)
         for (const countiesSig of Object.keys(currentEventsByCountySet)) {
           if (!(countiesSig in baseEventsByCountySet)) continue;
 
           const curEvents = new Set((currentEventsByCountySet[countiesSig] || []).map(String));
           const baseEvents = new Set((baseEventsByCountySet[countiesSig] || []).map(String));
 
-          // report symmetric differences as "type changed"
-          // (common case is one-to-one Watch -> Warning)
           const gained = [];
           const lost = [];
           for (const e of curEvents) if (!baseEvents.has(e)) gained.push(e);
@@ -1035,7 +1096,6 @@
 
           if (gained.length || lost.length) {
             const names = countiesSig.split("|").filter(Boolean);
-            // Pair them if possible; otherwise show combined
             if (lost.length === 1 && gained.length === 1) {
               changes.typeChanged.push({
                 from: lost[0],
@@ -1052,7 +1112,6 @@
           }
         }
 
-        // sort change groups for stability
         changes.added.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
         changes.removed.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
         changes.cleared.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
