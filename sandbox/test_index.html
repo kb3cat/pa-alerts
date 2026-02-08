@@ -831,4 +831,168 @@
                   </div>
                 ` : ""}
 
-                ${changes.added.length
+                ${changes.added.length ? `
+                  <div style="margin-top:10px;">
+                    <span class="change-tag change-added">Added</span>
+                    <ul>
+                      ${changes.added.map(x => `
+                        <li><b>${escapeHtml(formatGroupKeyHuman(x.key))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+                      `).join("")}
+                    </ul>
+                  </div>
+                ` : ""}
+
+                ${changes.cleared.length ? `
+                  <div style="margin-top:10px;">
+                    <span class="change-tag change-cleared">Cleared</span>
+                    <ul>
+                      ${changes.cleared.map(k => `<li><b>${escapeHtml(formatGroupKeyHuman(k))}</b></li>`).join("")}
+                    </ul>
+                  </div>
+                ` : ""}
+              </div>
+            `;
+          }
+        }
+
+        // ===== SUMMARY TABLE (HIGHLIGHTS ONLY HERE; PERSIST UNTIL ACK) =====
+        const groupedArr = [...grouped.values()].sort((a, b) => {
+          const ae = toTimeMs(a.expires);
+          const be = toTimeMs(b.expires);
+          return ae - be || String(a.event).localeCompare(String(b.event));
+        });
+
+        let hasUnackChangesForHighlight = false;
+
+        document.getElementById("tableContainer").innerHTML = `
+          <table>
+            <colgroup>
+              <col style="width: 22%;">
+              <col style="width: 63%;">
+              <col style="width: 15%;">
+            </colgroup>
+            <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
+            ${
+              groupedArr.map(g => {
+                const key = `${g.event}||${g.expires || ""}`;
+                const namesSorted = sortLocations([...g.names]);
+                const prevNames = baselineSnap?.summary?.[key];
+                const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+                if (newSet && newSet.size) hasUnackChangesForHighlight = true;
+
+                return `
+                  <tr>
+                    <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                    <td>${escapeHtml(formatTime(g.expires))}</td>
+                  </tr>
+                `;
+              }).join("")
+            }
+          </table>
+        `;
+
+        // Enable Ack if there are ANY unack changes (added/removed/cleared OR highlight additions)
+        // This way you can clear the "Changes since last acknowledgment" panel too.
+        const shouldEnableAck = hasAnyChanges || hasUnackChangesForHighlight;
+
+        if (ackBtn) {
+          ackBtn.disabled = !shouldEnableAck;
+          ackBtn.title = shouldEnableAck
+            ? "Mark current changes as acknowledged"
+            : "No unacknowledged changes";
+        }
+
+        // ===== ALERT LINKS (EXACT / NO HIGHLIGHTS) =====
+        rows.sort((a, b) => {
+          const ae = toTimeMs(a.expires);
+          const be = toTimeMs(b.expires);
+          if (ae !== be) return ae - be;
+          const et = String(a.event).localeCompare(String(b.event));
+          if (et !== 0) return et;
+          const an = sortLocations(a.names)[0] || "";
+          const bn = sortLocations(b.names)[0] || "";
+          return an.localeCompare(bn);
+        });
+
+        alertStore.clear();
+        rows.forEach((r, i) => alertStore.set(i, r));
+
+        document.getElementById("linksContainer").innerHTML = `
+          <table>
+            <colgroup>
+              <col style="width: 22%;">
+              <col style="width: 63%;">
+              <col style="width: 15%;">
+            </colgroup>
+            <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
+            ${
+              rows.map((row, i) => {
+                const namesSorted = sortLocations(row.names);
+                return `
+                  <tr>
+                    <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
+                    <td>${renderLocationsWithHighlight(namesSorted)}</td>
+                    <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
+                  </tr>
+                `;
+              }).join("")
+            }
+          </table>
+          <p class="muted">“View Text” opens the full alert text.</p>
+        `;
+
+        refreshMap();
+        checkRWSIndicator();
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
+      } finally {
+        document.getElementById("refreshBtn").disabled = false;
+      }
+    }
+
+    // Acknowledge: promote CURRENT -> BASELINE (clears Summary highlights + clears changes panel)
+    document.getElementById("ackBtn").onclick = () => {
+      const current = loadSnapshot(STORAGE_KEY_CURRENT);
+      if (!current) return;
+
+      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
+      fetchAlerts();
+    };
+
+    function openModal(i) {
+      const a = alertStore.get(i);
+      if (!a) return;
+      document.getElementById("modalTitle").textContent = a.event;
+      document.getElementById("modalMeta").textContent =
+        `Locations: ${sortLocations(a.names).join("; ")} | Expires: ${formatTime(a.expires)}`;
+      document.getElementById("modalDescription").textContent = cleanText(a.description);
+      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
+      document.getElementById("modalBackdrop").style.display = "flex";
+    }
+
+    document.getElementById("closeBtn").onclick = () =>
+      document.getElementById("modalBackdrop").style.display = "none";
+
+    document.getElementById("copyBtn").onclick = () => {
+      const title = document.getElementById("modalTitle").textContent || "";
+      const meta  = document.getElementById("modalMeta").textContent || "";
+      const desc  = document.getElementById("modalDescription").textContent || "";
+      const inst  = document.getElementById("modalInstruction").textContent || "";
+      navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
+    };
+
+    document.getElementById("refreshBtn").onclick = fetchAlerts;
+
+    // initial load
+    fetchAlerts();
+
+    // auto-refresh alerts every 5 minutes
+    setInterval(fetchAlerts, 5 * 60 * 1000);
+
+    // RWS-only check so it can light even if alerts fetch fails
+    setInterval(checkRWSIndicator, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
