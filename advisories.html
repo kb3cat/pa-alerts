@@ -79,7 +79,7 @@
 
     .title-row{
       max-width: 1200px;
-      display:flex;
+      display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
@@ -154,6 +154,7 @@
     }
     button.view-btn:hover { background: var(--btnBgHover); }
 
+    /* Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -208,6 +209,44 @@
     }
     .modal .actions button:hover { background: var(--btnBgHover); }
 
+    /* Changes button pulse */
+    .changes-hot{
+      border-color: rgba(59, 130, 246, 0.95) !important;
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
+      animation: changesPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes changesPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    .change-tag {
+      display:inline-block;
+      padding: 0 6px;
+      border-radius: 6px;
+      border: 1px solid var(--borderSoft);
+      font-size: 0.85em;
+      margin-right: 6px;
+    }
+    .change-added { background: rgba(59,130,246,0.18); }
+    .change-removed { background: rgba(220,38,38,0.18); }
+    .change-cleared { background: rgba(16,185,129,0.18); }
+    .change-block { margin-top: 10px; }
+    .change-block ul { margin: 6px 0 0; padding-left: 18px; }
+
+    /* RWS button pulse */
+    .rws-hot {
+      border-color: rgba(245, 158, 11, 0.95) !important;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
+      animation: rwsPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes rwsPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
     .embed-wrap {
       max-width: 1200px;
       width: 100%;
@@ -222,45 +261,6 @@
     }
 
     #wwaMap { border: 1px solid var(--borderSoft) !important; }
-
-    /* RWS indicator */
-    .rws-hot {
-      border-color: rgba(245, 158, 11, 0.95) !important;
-      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
-      animation: rwsPulse 1.25s ease-in-out infinite;
-    }
-    @keyframes rwsPulse {
-      0%   { transform: scale(1); }
-      50%  { transform: scale(1.04); }
-      100% { transform: scale(1); }
-    }
-
-    /* Changes button pulse */
-    .changes-hot{
-      border-color: rgba(59, 130, 246, 0.95) !important;
-      box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
-      animation: changesPulse 1.25s ease-in-out infinite;
-    }
-    @keyframes changesPulse {
-      0%   { transform: scale(1); }
-      50%  { transform: scale(1.04); }
-      100% { transform: scale(1); }
-    }
-
-    /* Changes modal content */
-    .change-tag {
-      display:inline-block;
-      padding: 0 6px;
-      border-radius: 6px;
-      border: 1px solid var(--borderSoft);
-      font-size: 0.85em;
-      margin-right: 6px;
-    }
-    .change-added { background: rgba(59,130,246,0.18); }
-    .change-removed { background: rgba(220,38,38,0.18); }
-    .change-cleared { background: rgba(16,185,129,0.18); }
-    .change-block { margin-top: 10px; }
-    .change-block ul { margin: 6px 0 0; padding-left: 18px; }
 
     #status,
     #tableContainer,
@@ -292,10 +292,7 @@
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
-
-    <button id="changesBtn" type="button" disabled title="No unacknowledged changes">
-      Changes
-    </button>
+    <button id="changesBtn" type="button" disabled title="No unacknowledged changes">Changes</button>
   </div>
 
   <p id="status">Loading alerts…</p>
@@ -355,7 +352,7 @@
   <!-- Changes Modal -->
   <div id="changesBackdrop" class="modal-backdrop">
     <div class="modal">
-      <h3 id="changesTitle">Changes since last acknowledgment (Summary)</h3>
+      <h3>Changes since last acknowledgment (Summary)</h3>
       <p id="changesMeta" class="meta"></p>
 
       <div id="changesBody"></div>
@@ -372,6 +369,12 @@
   </div>
 
   <script>
+    // If something blows up, don't leave "Loading..." forever
+    window.addEventListener("error", (e) => {
+      const s = document.getElementById("status");
+      if (s) s.textContent = "Script error: " + (e?.message || "Unknown error");
+    });
+
     /* ==============================
        THEME TOGGLE (shared across pages)
        ============================== */
@@ -424,9 +427,7 @@
     const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v3";
     const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v3";
 
-    /* ==============================
-       RWS INDICATOR (CTP ONLY)
-       ============================== */
+    // RWS indicator (CTP only)
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
     const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
     let currentRwsMarker = null;
@@ -434,7 +435,6 @@
     const zoneCache = new Map();
     const alertStore = new Map();
 
-    // Changes modal state
     let changesOpen = false;
     let lastChangesSignature = "";
     let latestChanges = { added: [], removed: [], cleared: [] };
@@ -464,7 +464,7 @@
       return typeof url === "string" && url.includes("/zones/marine/");
     }
 
-    function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
       return fetch(url, { ...options, signal: controller.signal })
@@ -474,7 +474,7 @@
     async function fetchZone(url) {
       if (zoneCache.has(url)) return zoneCache.get(url);
       try {
-        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 8000);
+        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 10000);
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
         const info = { name: d.properties?.name, state: d.properties?.state };
@@ -488,10 +488,7 @@
     function locationSortKey(name) {
       return String(name || "")
         .trim()
-        .replace(
-          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
-          ""
-        )
+        .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
         .trim()
         .toLowerCase();
     }
@@ -504,6 +501,7 @@
       });
     }
 
+    // Summary-only normalization
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
@@ -524,7 +522,8 @@
     }
 
     function refreshMap() {
-      document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
+      const img = document.getElementById("wwaMap");
+      if (img) img.src = MAP_URL + "?t=" + Date.now();
     }
 
     function escapeHtml(s) {
@@ -566,11 +565,10 @@
       return sortLocations(removed);
     }
 
-    function renderLocationsWithHighlight(namesSorted, newSet) {
+    function renderLocationsWithHighlight(namesSorted, addedSet) {
       return namesSorted.map(n => {
         const safe = escapeHtml(n);
-        if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
-        return safe;
+        return (addedSet && addedSet.has(n)) ? `<span class="new-info">${safe}</span>` : safe;
       }).join("; ");
     }
 
@@ -691,9 +689,7 @@
       fetchAlerts();
     }
 
-    /* ------------------------------
-       RWS indicator helpers
-       ------------------------------ */
+    // ----- RWS indicator -----
     function normalizeListingProducts(listing) {
       if (!listing) return [];
       if (Array.isArray(listing.products)) return listing.products;
@@ -764,7 +760,7 @@
         const r = await fetchWithTimeout(
           RWS_LIST_URL,
           { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
-          8000
+          10000
         );
         if (!r.ok) return;
 
@@ -784,9 +780,7 @@
         }
 
         setRwsButtonNewState(currentRwsMarker !== lastSeen);
-      } catch {
-        // silent
-      }
+      } catch {}
     }
 
     function acknowledgeRwsNow() {
@@ -814,6 +808,7 @@
       else checkRWSIndicator();
     });
 
+    // ----- Main fetch -----
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const refreshBtn = document.getElementById("refreshBtn");
@@ -824,13 +819,17 @@
       try {
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
-        const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
+        const r = await fetchWithTimeout(
+          API_URL,
+          { headers: { "Accept": "application/geo+json" }, cache: "no-store" },
+          12000
+        );
         if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
 
-        const rows = [];
+        const d = await r.json();
         const features = Array.isArray(d.features) ? d.features : [];
 
+        const rows = [];
         for (const f of features) {
           const p = f?.properties;
           if (!p || !isWantedAlert(p)) continue;
@@ -860,7 +859,7 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
-        // Summary grouping (normalized names)
+        // Summary grouping (normalized)
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -875,7 +874,7 @@
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Rollup (Summary-driven): event -> union of counties currently shown in Summary
+        // Rollup (Summary-driven)
         const rollupMap = new Map();
         for (const g of grouped.values()) {
           if (!rollupMap.has(g.event)) rollupMap.set(g.event, new Set());
@@ -886,12 +885,13 @@
 
         saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap, currentRollup);
 
+        // Init baseline if missing
         if (!baselineSnap) {
           saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap, currentRollup);
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
-        // ===== CHANGES (Summary rollup only) =====
+        // ===== Changes (rollup only) =====
         const changes = { added: [], removed: [], cleared: [] };
         const baselineRollup = baselineSnap?.rollup || {};
 
@@ -922,12 +922,9 @@
         const isNew = hasAnyChanges && signature !== lastChangesSignature;
         if (isNew) lastChangesSignature = signature;
 
-        setChangesButtonState({
-          hasChanges: hasAnyChanges,
-          isNew: (!changesOpen && isNew)
-        });
+        setChangesButtonState({ hasChanges: hasAnyChanges, isNew: (!changesOpen && isNew) });
 
-        // ===== SUMMARY TABLE (highlights are baseline-vs-current per row key) =====
+        // ===== Summary table (highlights baseline vs current per group key) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -943,14 +940,13 @@
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
             ${groupedArr.map(g => {
-              const key = \`\${g.event}||\${g.expires || ""}\`;
+              const key = `${g.event}||${g.expires || ""}`;
               const namesSorted = sortLocations([...g.names]);
-              const prevNames = baselineSnap?.summary?.[key];
+              const prevNames = baselineSnap?.summary?.[key] || [];
 
-              const prev = new Set((prevNames || []).map(String));
-              const now = new Set(namesSorted.map(String));
+              const prev = new Set(prevNames.map(String));
               const addedSet = new Set();
-              for (const n of now) if (!prev.has(n)) addedSet.add(n);
+              for (const n of namesSorted) if (!prev.has(n)) addedSet.add(n);
 
               return `
                 <tr>
@@ -963,7 +959,7 @@
           </table>
         `;
 
-        // ===== ALERT LINKS (exact, no highlights) =====
+        // ===== Alert links (exact; no highlights) =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -1005,13 +1001,25 @@
 
       } catch (err) {
         console.error(err);
-        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
+        document.getElementById("status").textContent = "Error loading alerts: " + (err?.message || String(err));
       } finally {
         document.getElementById("refreshBtn").disabled = false;
       }
     }
 
-    // Buttons
+    // Modal: alert text
+    function openModal(i) {
+      const a = alertStore.get(i);
+      if (!a) return;
+      document.getElementById("modalTitle").textContent = a.event;
+      document.getElementById("modalMeta").textContent =
+        `Locations: ${sortLocations(a.names).join("; ")} | Expires: ${formatTime(a.expires)}`;
+      document.getElementById("modalDescription").textContent = cleanText(a.description);
+      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
+      document.getElementById("modalBackdrop").style.display = "flex";
+    }
+
+    // Wire buttons
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
     document.getElementById("changesBtn").onclick = () => {
@@ -1026,18 +1034,6 @@
     document.getElementById("changesCloseBtn").onclick = closeChangesModal;
     document.getElementById("changesAckBtn").onclick = acknowledgeChangesNow;
 
-    // Alert modal wiring
-    function openModal(i) {
-      const a = alertStore.get(i);
-      if (!a) return;
-      document.getElementById("modalTitle").textContent = a.event;
-      document.getElementById("modalMeta").textContent =
-        `Locations: ${sortLocations(a.names).join("; ")} | Expires: ${formatTime(a.expires)}`;
-      document.getElementById("modalDescription").textContent = cleanText(a.description);
-      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
-      document.getElementById("modalBackdrop").style.display = "flex";
-    }
-
     document.getElementById("closeBtn").onclick = () =>
       document.getElementById("modalBackdrop").style.display = "none";
 
@@ -1049,7 +1045,7 @@
       navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
     };
 
-    // initial load + auto-refresh
+    // Initial load + timers
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
