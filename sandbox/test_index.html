@@ -2,12 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>PA Watches & Warnings</title>
+  <title>PA Watches, Warnings & Advisories</title>
 
   <style>
+    /* ==============================
+       THEME (LIGHT DEFAULT)
+       ============================== */
+    :root{
+      color-scheme: light;
+
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #555555;
+
+      --border: #333333;
+      --borderSoft: #cccccc;
+
+      --tableHeadBg: #f0f0f0;
+
+      --btnBg: #ffffff;
+      --btnBgHover: #f3f3f3;
+      --btnBorder: #333333;
+      --btnBorderSoft: #555555;
+
+      --modalBackdrop: rgba(0,0,0,0.55);
+      --modalBg: #ffffff;
+      --modalText: #111111;
+      --modalMeta: #333333;
+
+      --preBg: #f6f6f6;
+      --preBorder: #dddddd;
+
+      --newInfoBg: rgba(59, 130, 246, 0.28);
+      --newInfoBorder: rgba(59, 130, 246, 0.35);
+
+      --watchBg: rgba(255, 165, 0, 0.5);
+      --warningBg: rgba(220, 38, 38, 0.5);
+      --advBg: rgba(255, 235, 59, 0.55);
+
+      --shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    /* ==============================
+       THEME (DARK)
+       ============================== */
+    :root[data-theme="dark"]{
+      color-scheme: dark;
+
+      --bg: #0f1216;
+      --text: #e9eef5;
+      --muted: #a8b2bf;
+
+      --border: #2b3646;
+      --borderSoft: #2b3646;
+
+      --tableHeadBg: #1b2330;
+
+      --btnBg: #171c22;
+      --btnBgHover: #232b36;
+      --btnBorder: #2b3646;
+      --btnBorderSoft: #2b3646;
+
+      --modalBackdrop: rgba(0,0,0,0.70);
+      --modalBg: #121820;
+      --modalText: #e9eef5;
+      --modalMeta: #a8b2bf;
+
+      --preBg: #0f141b;
+      --preBorder: #2b3646;
+
+      --newInfoBg: rgba(59, 130, 246, 0.30);
+      --newInfoBorder: rgba(59, 130, 246, 0.40);
+
+      --watchBg: rgba(255, 165, 0, 0.35);
+      --warningBg: rgba(220, 38, 38, 0.35);
+      --advBg: rgba(255, 235, 59, 0.25);
+
+      --shadow: 0 20px 60px rgba(0,0,0,0.65);
+    }
+
+    html, body { background: var(--bg); color: var(--text); }
+
+    /* ==============================
+       TITLE ROW (WITH SPACING FIX)
+       ============================== */
+    .title-row{
+      max-width: 1200px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px; /* ✅ space under header */
+    }
+    .title-row h1{
+      margin: 0; /* ✅ prevents phantom top margin */
+    }
+    .title-row .spacer{
+      flex: 1 1 auto;
+    }
+
+    /* ==============================
+       TABLES
+       ============================== */
     table { border-collapse: collapse; width: 100%; max-width: 1200px; }
-    th, td { padding: 6px; border: 1px solid #333; vertical-align: top; }
-    th { background: #f0f0f0; }
+    th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
+    th { background: var(--tableHeadBg); }
 
     .controls {
       display: flex;
@@ -15,36 +114,45 @@
       gap: 12px;
       margin-bottom: 6px;
       flex-wrap: wrap;
+      max-width: 1200px;
     }
 
     .nav-toggle { font-size: 0.95em; }
 
     .nav-toggle button,
-    #refreshBtn {
+    #refreshBtn,
+    #themeToggle,
+    #ackBtn {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
       cursor: pointer;
       font: inherit;
+      color: var(--text);
     }
     .nav-toggle button:hover,
-    #refreshBtn:hover { background: #f3f3f3; }
-    #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #refreshBtn:hover,
+    #themeToggle:hover,
+    #ackBtn:hover { background: var(--btnBgHover); }
 
-    .refresh-label { font-size: 0.95em; color: #333; }
+    #refreshBtn:disabled,
+    #ackBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .section-title { margin-top: 16px; margin-bottom: 6px; }
-    .muted { color: #555; font-size: 0.95em; }
+    .refresh-label { font-size: 0.95em; color: var(--muted); }
 
-    .type-cell { font-weight: 600; color: #111; }
-    .type-watch   { background-color: rgba(255, 165, 0, 0.5); }
-    .type-warning { background-color: rgba(220, 38, 38, 0.5); }
+    .section-title { margin-top: 16px; margin-bottom: 6px; max-width: 1200px; }
+    .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
+
+    .type-cell { font-weight: 600; color: var(--text); }
+    .type-watch   { background-color: var(--watchBg); }
+    .type-warning { background-color: var(--warningBg); }
+    .type-adv     { background-color: var(--advBg); }
 
     .new-info {
-      background: rgba(59, 130, 246, 0.28);
-      border: 1px solid rgba(59, 130, 246, 0.35);
+      background: var(--newInfoBg);
+      border: 1px solid var(--newInfoBorder);
       border-radius: 6px;
       padding: 0 4px;
       display: inline-block;
@@ -52,18 +160,22 @@
 
     button.view-btn {
       padding: 4px 10px;
-      border: 1px solid #555;
-      background: #fff;
+      border: 1px solid var(--btnBorderSoft);
+      background: var(--btnBg);
       cursor: pointer;
       border-radius: 4px;
       font: inherit;
+      color: var(--text);
     }
-    button.view-btn:hover { background: #f3f3f3; }
+    button.view-btn:hover { background: var(--btnBgHover); }
 
+    /* ==============================
+       MODAL
+       ============================== */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: var(--modalBackdrop);
       display: none;
       align-items: center;
       justify-content: center;
@@ -71,30 +183,31 @@
       z-index: 9999;
     }
     .modal {
-      background: #fff;
-      color: #111;
+      background: var(--modalBg);
+      color: var(--modalText);
       width: min(900px, 100%);
       max-height: 85vh;
       overflow: auto;
       border-radius: 10px;
-      border: 1px solid #333;
+      border: 1px solid var(--border);
       padding: 14px 16px 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      box-shadow: var(--shadow);
     }
     .modal h3 { margin: 0 0 8px; }
-    .modal .meta { margin: 0 0 10px; color: #333; font-size: 0.95em; }
+    .modal .meta { margin: 0 0 10px; color: var(--modalMeta); font-size: 0.95em; }
     .modal .label { margin-top: 10px; font-weight: 700; }
     .modal pre {
       white-space: pre-wrap;
       word-break: break-word;
       margin: 6px 0 0;
       padding: 10px;
-      background: #f6f6f6;
-      border: 1px solid #ddd;
+      background: var(--preBg);
+      border: 1px solid var(--preBorder);
       border-radius: 6px;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.95em;
       line-height: 1.35;
+      color: var(--modalText);
     }
     .modal .actions {
       display: flex;
@@ -105,17 +218,19 @@
     .modal .actions button {
       padding: 6px 12px;
       border-radius: 6px;
-      border: 1px solid #333;
-      background: #fff;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
       cursor: pointer;
       font: inherit;
+      color: var(--text);
     }
-    .modal .actions button:hover { background: #f3f3f3; }
+    .modal .actions button:hover { background: var(--btnBgHover); }
 
+    /* Radar embed */
     .embed-wrap {
       max-width: 1200px;
       width: 100%;
-      border: 1px solid #ccc;
+      border: 1px solid var(--borderSoft);
       overflow: hidden;
     }
     .embed-wrap iframe {
@@ -123,6 +238,17 @@
       height: 520px;
       border: 0;
       display: block;
+    }
+
+    /* Map border follows theme */
+    #wwaMap { border: 1px solid var(--borderSoft) !important; }
+
+    /* lock page content width so tables line up */
+    #status,
+    #changesContainer,
+    #tableContainer,
+    #linksContainer {
+      max-width: 1200px;
     }
 
     /* ==============================
@@ -138,16 +264,44 @@
       50%  { transform: scale(1.04); }
       100% { transform: scale(1); }
     }
+
+    /* ==============================
+       CHANGE TRACKING PANEL
+       ============================== */
+    .change-panel {
+      max-width: 1200px;
+      border: 1px solid var(--borderSoft);
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    .change-panel h3 { margin: 0 0 8px; font-size: 1.05rem; }
+    .change-panel ul { margin: 6px 0 0; padding-left: 18px; }
+    .change-tag {
+      display:inline-block;
+      padding: 0 6px;
+      border-radius: 6px;
+      border: 1px solid var(--borderSoft);
+      font-size: 0.85em;
+      margin-right: 6px;
+    }
+    .change-added { background: rgba(59,130,246,0.18); }
+    .change-removed { background: rgba(220,38,38,0.18); }
+    .change-cleared { background: rgba(16,185,129,0.18); }
   </style>
 </head>
 
 <body>
-  <h1>PA Watches & Warnings</h1>
+  <div class="title-row">
+    <h1>PA Watches, Warnings & Advisories</h1>
+    <div class="spacer"></div>
+    <button id="themeToggle" type="button">🌙 Dark</button>
+  </div>
 
   <div class="controls">
     <div class="nav-toggle">
-      Want to see advisories as well?
-      <button type="button" onclick="window.location.href='advisories.html'">Click here</button>
+      Want to see just watches and warnings?
+      <button type="button" onclick="window.location.href='index.html'">Click here</button>
     </div>
   </div>
 
@@ -161,24 +315,31 @@
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
+
+    <button id="ackBtn" type="button" disabled title="No unacknowledged changes">
+      Acknowledge Changes
+    </button>
   </div>
 
   <p id="status">Loading alerts…</p>
 
+  <!-- NEW: changes panel renders here (only when there are changes) -->
+  <div id="changesContainer"></div>
+
   <h2 class="section-title">Summary</h2>
-  <div class="muted">New information since the last update will be highlighted in blue.</div>
+  <div class="muted">New information since your last acknowledgment will be highlighted in blue.</div>
   <div id="tableContainer"></div>
 
   <h2 class="section-title">Alert Links</h2>
-  <div class="muted">New information since the last update will be highlighted in blue.</div>
+  <div class="muted">“View Text” opens the full alert text.</div>
   <div id="linksContainer"></div>
 
-  <h2 style="margin-top: 18px;">Alert Map</h2>
+  <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
   <img
     id="wwaMap"
     src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
     alt="NWS Current Watches, Warnings, and Advisories (PA)"
-    style="max-width: 1200px; width: 100%; height: auto; border: 1px solid #ccc;"
+    style="max-width: 1200px; width: 100%; height: auto;"
   />
   <p class="muted">
     Map source:
@@ -187,7 +348,7 @@
     </a>
   </p>
 
-  <h2 style="margin-top: 18px;">Live Radar</h2>
+  <h2 style="margin-top: 18px; max-width:1200px;">Live Radar</h2>
   <div class="embed-wrap">
     <iframe
       title="Windy Radar (embedded)"
@@ -218,15 +379,66 @@
   </div>
 
   <script>
+    /* ==============================
+       THEME TOGGLE (shared across pages)
+       ============================== */
+    (function () {
+      const STORAGE_KEY_THEME = "pa_alerts_theme";
+      const root = document.documentElement;
+      const btn = document.getElementById("themeToggle");
+
+      function systemPrefersDark() {
+        return window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+
+      function setTheme(theme) {
+        // theme: "dark" | "light" | "system"
+        if (theme === "system") {
+          root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
+        } else {
+          root.setAttribute("data-theme", theme);
+        }
+        if (btn) {
+          const isDark = root.getAttribute("data-theme") === "dark";
+          btn.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+        }
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
+
+      // If system, keep in sync with OS changes
+      if (saved === "system" && window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
+        else if (mq.addListener) mq.addListener(() => setTheme("system"));
+      }
+
+      setTheme(saved);
+
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const current = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+          const next = current === "dark" ? "light" : "dark";
+          localStorage.setItem(STORAGE_KEY_THEME, next);
+          setTheme(next);
+        });
+      }
+    })();
+
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-    const STORAGE_KEY = "paAlertsSnapshot_index_v1";
+
+    // Baseline vs Current snapshots (advisories page)
+    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v1";
+    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v1";
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
+       Shared key so ack syncs across pages
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_v3";
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared"; // MUST match index page too
     let currentRwsMarker = null;
 
     const zoneCache = new Map();
@@ -243,11 +455,14 @@
       return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
     }
 
-    function isWatchWarningEmergencyOnly(p) {
+    function isWantedAlert(p) {
       const e = (p.event || "").toLowerCase();
-      const wanted = (e.includes("watch") || e.includes("warning") || e.includes("emergency"));
-      const unwanted = (e.includes("advisory") || e.includes("statement") || e.includes("outlook") || e.includes("test"));
-      return wanted && !unwanted;
+      return (
+        (e.includes("watch") || e.includes("warning") || e.includes("advisory") || e.includes("emergency")) &&
+        !e.includes("statement") &&
+        !e.includes("outlook") &&
+        !e.includes("test")
+      );
     }
 
     function isMarineZone(url) {
@@ -278,7 +493,10 @@
     function locationSortKey(name) {
       return String(name || "")
         .trim()
-        .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
+        .replace(
+          /^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i,
+          ""
+        )
         .trim()
         .toLowerCase();
     }
@@ -291,10 +509,14 @@
       });
     }
 
+    // SUMMARY ONLY normalization (does NOT affect Alert Links)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
-      s = s.replace(/^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western|Upper|Lower)\s+/i, "");
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+      s = s.replace(
+        /^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i,
+        ""
+      );
       s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
       return s.trim();
     }
@@ -302,7 +524,8 @@
     function typeClass(e) {
       e = (e || "").toLowerCase();
       if (e.includes("watch")) return "type-watch";
-      return "type-warning";
+      if (e.includes("warning") || e.includes("emergency")) return "type-warning";
+      return "type-adv";
     }
 
     function cleanText(t) {
@@ -313,28 +536,6 @@
       document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
     }
 
-    function loadSnapshot() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
-      }
-    }
-
-    function saveSnapshot(summaryGroups, alertsById) {
-      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById };
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(snap)); } catch {}
-    }
-
-    function diffNewNames(currentArr, prevArr) {
-      const prev = new Set((prevArr || []).map(String));
-      const now = new Set((currentArr || []).map(String));
-      const added = new Set();
-      for (const n of now) if (!prev.has(n)) added.add(n);
-      return added;
-    }
-
     function escapeHtml(s) {
       return String(s)
         .replaceAll("&", "&amp;")
@@ -342,6 +543,43 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function loadSnapshot(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function saveSnapshot(key, summaryGroups, alertsById) {
+      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById };
+      try { localStorage.setItem(key, JSON.stringify(snap)); } catch {}
+    }
+
+    function diffNewNames(currentArr, prevArr) {
+      // added = current - prev
+      const prev = new Set((prevArr || []).map(String));
+      const now = new Set((currentArr || []).map(String));
+      const added = new Set();
+      for (const n of now) if (!prev.has(n)) added.add(n);
+      return added;
+    }
+
+    function diffRemovedNames(currentArr, prevArr) {
+      // removed = prev - current
+      const prev = new Set((prevArr || []).map(String));
+      const now = new Set((currentArr || []).map(String));
+      const removed = new Set();
+      for (const n of prev) if (!now.has(n)) removed.add(n);
+      return removed;
+    }
+
+    function formatGroupKeyHuman(key) {
+      const [event, expires] = String(key || "").split("||");
+      return `${event || "Alert"} (expires ${formatTime(expires || "")})`;
     }
 
     function renderLocationsWithHighlight(namesSorted, newSet) {
@@ -422,7 +660,11 @@
       if (!btn) return;
 
       try {
-        const r = await fetchWithTimeout(RWS_LIST_URL, { cache: "no-store" }, 8000);
+        const r = await fetchWithTimeout(
+          RWS_LIST_URL,
+          { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
+          8000
+        );
         if (!r.ok) return;
 
         const listing = await r.json();
@@ -434,7 +676,6 @@
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
 
-        // First run: initialize so you don't get a false "new"
         if (!lastSeen) {
           localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
           setRwsButtonNewState(false);
@@ -447,35 +688,42 @@
       }
     }
 
-    // Stop flashing BEFORE navigation, and also for new-tab flows
+    function acknowledgeRwsNow() {
+      if (!currentRwsMarker) return;
+      try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
+      setRwsButtonNewState(false);
+    }
+
     (function wireRwsAcknowledge() {
       const btn = document.getElementById("rwsBtn");
       if (!btn) return;
 
-      function acknowledgeRws() {
-        if (!currentRwsMarker) return;
-        try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
-        setRwsButtonNewState(false);
-      }
-
-      btn.addEventListener("pointerdown", acknowledgeRws, { passive: true });
-      btn.addEventListener("auxclick", acknowledgeRws);
-      btn.addEventListener("contextmenu", acknowledgeRws);
+      btn.addEventListener("pointerdown", acknowledgeRwsNow, { passive: true });
+      btn.addEventListener("auxclick", acknowledgeRwsNow);
+      btn.addEventListener("contextmenu", acknowledgeRwsNow);
       btn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") acknowledgeRws();
+        if (e.key === "Enter" || e.key === " ") acknowledgeRwsNow();
       });
-      btn.addEventListener("click", acknowledgeRws);
+      btn.addEventListener("click", acknowledgeRwsNow);
     })();
+
+    window.addEventListener("storage", (e) => {
+      if (e.key !== RWS_STORAGE_KEY) return;
+      if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
+      else checkRWSIndicator();
+    });
 
     async function fetchAlerts() {
       const status = document.getElementById("status");
-      const btn = document.getElementById("refreshBtn");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const ackBtn = document.getElementById("ackBtn");
 
-      btn.disabled = true;
+      refreshBtn.disabled = true;
       status.textContent = "Loading alerts…";
 
       try {
-        const prevSnap = loadSnapshot();
+        // Baseline = last acknowledged snapshot (for persistent highlights + changes panel)
+        let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
         const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -486,7 +734,7 @@
 
         for (const f of features) {
           const p = f?.properties;
-          if (!p || !isWatchWarningEmergencyOnly(p)) continue;
+          if (!p || !isWantedAlert(p)) continue;
 
           const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
           if (!zones.length) continue;
@@ -504,7 +752,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)],
+              names: [...new Set(names)],    // exact NWS names (for modal + alert links)
               description: p.description,
               instruction: p.instruction
             });
@@ -512,9 +760,8 @@
         }
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
-        refreshMap();
 
-        // SUMMARY (normalized)
+        // ===== SUMMARY GROUPING (NORMALIZED) =====
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -522,126 +769,66 @@
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
+        // Build CURRENT snapshots
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-        // LINKS snapshot (exact)
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        const groupedArr = [...grouped.values()].sort((a, b) => {
-          const ae = toTimeMs(a.expires);
-          const be = toTimeMs(b.expires);
-          return ae - be || String(a.event).localeCompare(String(b.event));
-        });
+        // Always store CURRENT so Ack can promote it
+        saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap);
 
-        document.getElementById("tableContainer").innerHTML = `
-          <table>
-            <colgroup>
-              <col style="width: 22%;">
-              <col style="width: 63%;">
-              <col style="width: 15%;">
-            </colgroup>
-            <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-            ${groupedArr.map(g => {
-              const key = `${g.event}||${g.expires || ""}`;
-              const namesSorted = sortLocations([...g.names]);
-              const prevNames = prevSnap?.summary?.[key];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-              return `
-                <tr>
-                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                  <td>${escapeHtml(formatTime(g.expires))}</td>
-                </tr>
-              `;
-            }).join("")}
-          </table>
-        `;
+        // First run: initialize baseline so you don't highlight everything
+        if (!baselineSnap) {
+          saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap);
+          baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
+        }
 
-        // ALERT LINKS (exact)
-        rows.sort((a, b) => {
-          const ae = toTimeMs(a.expires);
-          const be = toTimeMs(b.expires);
-          if (ae !== be) return ae - be;
-          const et = String(a.event).localeCompare(String(b.event));
-          if (et !== 0) return et;
-          const an = sortLocations(a.names)[0] || "";
-          const bn = sortLocations(b.names)[0] || "";
-          return an.localeCompare(bn);
-        });
+        // ===== CHANGE TRACKING (added/removed/cleared) SINCE BASELINE =====
+        const changes = { added: [], removed: [], cleared: [] };
+        const baselineSummary = baselineSnap?.summary || {};
+        const currentSummary = currentSummarySnap || {};
 
-        alertStore.clear();
-        rows.forEach((r, i) => alertStore.set(i, r));
+        // added/removed within groups that still exist
+        for (const key of Object.keys(currentSummary)) {
+          const cur = currentSummary[key] || [];
+          const base = baselineSummary[key] || [];
+          const addedSet = diffNewNames(cur, base);
+          const removedSet = diffRemovedNames(cur, base);
+          if (addedSet.size) changes.added.push({ key, names: [...addedSet] });
+          if (removedSet.size) changes.removed.push({ key, names: [...removedSet] });
+        }
 
-        document.getElementById("linksContainer").innerHTML = `
-          <table>
-            <colgroup>
-              <col style="width: 22%;">
-              <col style="width: 63%;">
-              <col style="width: 15%;">
-            </colgroup>
-            <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
-            ${rows.map((row, i) => {
-              const namesSorted = sortLocations(row.names);
-              const prevNames = prevSnap?.alerts?.[row.alertId];
-              const newSet = prevSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-              return `
-                <tr>
-                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
-                </tr>
-              `;
-            }).join("")}
-          </table>
-          <p class="muted">“View Text” opens the full warning text.</p>
-        `;
+        // groups that cleared entirely
+        for (const key of Object.keys(baselineSummary)) {
+          if (!(key in currentSummary)) changes.cleared.push(key);
+        }
 
-        saveSnapshot(currentSummarySnap, currentAlertsSnap);
+        const changesDiv = document.getElementById("changesContainer");
+        const hasAnyChanges = (changes.added.length || changes.removed.length || changes.cleared.length);
 
-        // RWS check after render
-        checkRWSIndicator();
-      } catch (err) {
-        console.error(err);
-        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
-      } finally {
-        document.getElementById("refreshBtn").disabled = false;
-      }
-    }
+        if (changesDiv) {
+          if (!hasAnyChanges) {
+            changesDiv.innerHTML = "";
+          } else {
+            changes.added.forEach(x => x.names = sortLocations(x.names));
+            changes.removed.forEach(x => x.names = sortLocations(x.names));
+            changes.cleared.sort();
 
-    function openModal(i) {
-      const a = alertStore.get(i);
-      if (!a) return;
-      document.getElementById("modalTitle").textContent = a.event;
-      document.getElementById("modalMeta").textContent =
-        `Locations: ${sortLocations(a.names).join("; ")} | Expires: ${formatTime(a.expires)}`;
-      document.getElementById("modalDescription").textContent = cleanText(a.description);
-      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
-      document.getElementById("modalBackdrop").style.display = "flex";
-    }
+            changesDiv.innerHTML = `
+              <div class="change-panel">
+                <h3>Changes since last acknowledgment</h3>
 
-    document.getElementById("closeBtn").onclick = () =>
-      document.getElementById("modalBackdrop").style.display = "none";
+                ${changes.removed.length ? `
+                  <div>
+                    <span class="change-tag change-removed">Removed</span>
+                    <ul>
+                      ${changes.removed.map(x => `
+                        <li><b>${escapeHtml(formatGroupKeyHuman(x.key))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+                      `).join("")}
+                    </ul>
+                  </div>
+                ` : ""}
 
-    document.getElementById("copyBtn").onclick = () => {
-      const title = document.getElementById("modalTitle").textContent || "";
-      const meta  = document.getElementById("modalMeta").textContent || "";
-      const desc  = document.getElementById("modalDescription").textContent || "";
-      const inst  = document.getElementById("modalInstruction").textContent || "";
-      navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
-    };
-
-    document.getElementById("refreshBtn").onclick = fetchAlerts;
-
-    // Initial load
-    fetchAlerts();
-
-    // Auto-refresh every 5 minutes
-    setInterval(fetchAlerts, 5 * 60 * 1000);
-
-    // Extra: RWS-only check
-    setInterval(checkRWSIndicator, 5 * 60 * 1000);
-  </script>
-</body>
-</html>
+                ${changes.added.length
