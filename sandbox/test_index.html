@@ -5,9 +5,6 @@
   <title>PA Watches & Warnings</title>
 
   <style>
-    /* ==============================
-       THEME (LIGHT DEFAULT)
-       ============================== */
     :root{
       color-scheme: light;
 
@@ -42,9 +39,6 @@
       --shadow: 0 20px 60px rgba(0,0,0,0.4);
     }
 
-    /* ==============================
-       THEME (DARK)
-       ============================== */
     :root[data-theme="dark"]{
       color-scheme: dark;
 
@@ -99,8 +93,8 @@
     .nav-toggle button,
     #refreshBtn,
     #themeToggle,
-    #ackBtn,
-    #changesBtn {
+    #changesBtn,
+    .ack-inline {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
@@ -113,12 +107,12 @@
     .nav-toggle button:hover,
     #refreshBtn:hover,
     #themeToggle:hover,
-    #ackBtn:hover,
-    #changesBtn:hover { background: var(--btnBgHover); }
+    #changesBtn:hover,
+    .ack-inline:hover { background: var(--btnBgHover); }
 
     #refreshBtn:disabled,
-    #ackBtn:disabled,
-    #changesBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #changesBtn:disabled,
+    .ack-inline:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -215,12 +209,8 @@
       display: block;
     }
 
-    /* Map border uses theme border */
     #wwaMap { border: 1px solid var(--borderSoft) !important; }
 
-    /* ==============================
-       RWS "NEW SUMMARY" INDICATOR
-       ============================== */
     .rws-hot {
       border-color: rgba(245, 158, 11, 0.95) !important;
       box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
@@ -232,9 +222,6 @@
       100% { transform: scale(1); }
     }
 
-    /* ==============================
-       CHANGES BUTTON "NEW" INDICATOR
-       ============================== */
     .changes-hot{
       border-color: rgba(59, 130, 246, 0.95) !important;
       box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
@@ -246,9 +233,6 @@
       100% { transform: scale(1); }
     }
 
-    /* ==============================
-       CHANGE TRACKING PANEL
-       ============================== */
     .change-panel {
       border: 1px solid var(--borderSoft);
       padding: 10px 12px;
@@ -270,7 +254,13 @@
     .change-removed { background: rgba(220,38,38,0.18); }
     .change-cleared { background: rgba(16,185,129,0.18); }
 
-    /* Title row layout + spacing under header */
+    .change-panel .panel-actions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 10px;
+    }
+
     .title-row{
       max-width: 1200px;
       display:flex;
@@ -282,7 +272,6 @@
     .title-row h1{ margin: 0; }
     .title-row .spacer{ flex: 1 1 auto; }
 
-    /* Keep status aligned with content width */
     #status,
     #changesContainer,
     #tableContainer,
@@ -317,10 +306,6 @@
 
     <button id="changesBtn" type="button" disabled title="No unacknowledged changes">
       Changes
-    </button>
-
-    <button id="ackBtn" type="button" disabled title="No unacknowledged changes">
-      Acknowledge Changes
     </button>
   </div>
 
@@ -447,6 +432,8 @@
     // UI state
     let changesVisible = false;
     let lastChangesSignature = "";
+    let latestChangesForPanel = { added: [], removed: [], cleared: [] };
+    let latestHasAnyChanges = false;
 
     function formatTime(v) {
       if (!v) return "N/A";
@@ -538,10 +525,7 @@
         .replaceAll("'", "&#039;");
     }
 
-    // Snapshots now include:
-    // - summaryGroups (event||expires -> county list) for rendering
-    // - alerts (for completeness)
-    // - rollup (event -> county list) for change tracking (Summary-based)
+    // Snapshots include rollup for Summary-based changes
     function loadSnapshot(key) {
       try {
         const raw = localStorage.getItem(key);
@@ -582,7 +566,6 @@
 
     /* ==============================
        CHANGES BUTTON + PANEL
-       (SOURCED FROM SUMMARY ROLLUP)
        ============================== */
     function setChangesButtonState({ hasChanges, isNew }) {
       const btn = document.getElementById("changesBtn");
@@ -611,11 +594,12 @@
     function toggleChangesPanel() {
       const wrap = document.getElementById("changesContainer");
       if (!wrap) return;
+
       changesVisible = !changesVisible;
       wrap.style.display = changesVisible ? "block" : "none";
 
-      // When user opens it, stop flashing "New Changes" (but keep button enabled)
-      if (changesVisible) {
+      // When user opens it, stop flashing "New Changes"
+      if (changesVisible && latestHasAnyChanges) {
         setChangesButtonState({ hasChanges: true, isNew: false });
       }
     }
@@ -628,7 +612,7 @@
       return parts.join("||");
     }
 
-    function renderChangesPanel(changes) {
+    function renderChangesPanel(changes, canAck) {
       const wrap = document.getElementById("changesContainer");
       if (!wrap) return;
 
@@ -678,10 +662,54 @@
               </ul>
             </div>
           ` : ""}
+
+          <div class="panel-actions">
+            <button id="ackInlineBtn" class="ack-inline" type="button" ${canAck ? "" : "disabled"}>
+              Acknowledge Changes
+            </button>
+            <button id="closeChangesBtn" class="ack-inline" type="button">
+              Close
+            </button>
+          </div>
+          <div class="muted" style="margin-top:8px;">
+            Acknowledge sets the current Summary state as your new baseline for highlights and change tracking.
+          </div>
         </div>
       `;
 
+      // wire buttons
+      const ackInline = document.getElementById("ackInlineBtn");
+      if (ackInline) {
+        ackInline.addEventListener("click", acknowledgeChangesNow);
+      }
+      const closeBtn = document.getElementById("closeChangesBtn");
+      if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+          changesVisible = false;
+          wrap.style.display = "none";
+        });
+      }
+
       wrap.style.display = changesVisible ? "block" : "none";
+    }
+
+    // Acknowledge: promote CURRENT -> BASELINE
+    function acknowledgeChangesNow() {
+      const current = loadSnapshot(STORAGE_KEY_CURRENT);
+      if (!current) return;
+
+      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
+
+      // Hide panel and clear "new" indicator
+      changesVisible = false;
+      const wrap = document.getElementById("changesContainer");
+      if (wrap) wrap.style.display = "none";
+
+      lastChangesSignature = "";
+      setChangesButtonState({ hasChanges: false, isNew: false });
+
+      // Re-render immediately (highlights should clear)
+      fetchAlerts();
     }
 
     /* ------------------------------
@@ -806,7 +834,6 @@
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const refreshBtn = document.getElementById("refreshBtn");
-      const ackBtn = document.getElementById("ackBtn");
 
       refreshBtn.disabled = true;
       status.textContent = "Loading alerts…";
@@ -865,7 +892,7 @@
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Rollup (Summary-driven change tracking): event -> all counties in Summary (any expires)
+        // Rollup (Summary-driven): event -> all counties in Summary (any expires)
         const rollupMap = new Map();
         for (const g of grouped.values()) {
           if (!rollupMap.has(g.event)) rollupMap.set(g.event, new Set());
@@ -908,20 +935,23 @@
           }
         }
 
-        // Render changes panel (hidden until click)
-        renderChangesPanel(changes);
-
-        // Update button state
+        latestChangesForPanel = changes;
         const signature = buildChangesSignature(changes);
-        const hasAnyChanges = !!signature;
-        const isNewChanges = hasAnyChanges && signature !== lastChangesSignature;
+        latestHasAnyChanges = !!signature;
+
+        // Update changes panel content (even if hidden)
+        renderChangesPanel(latestChangesForPanel, latestHasAnyChanges);
+
+        // Update button state + "new" indicator
+        const isNewChanges = latestHasAnyChanges && signature !== lastChangesSignature;
         if (isNewChanges) lastChangesSignature = signature;
 
-        setChangesButtonState({ hasChanges: hasAnyChanges, isNew: (!changesVisible && isNewChanges) });
+        setChangesButtonState({
+          hasChanges: latestHasAnyChanges,
+          isNew: (!changesVisible && isNewChanges)
+        });
 
         // ===== Summary highlights ONLY (baseline vs current per group key) =====
-        let hasUnackHighlight = false;
-
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -941,7 +971,6 @@
               const namesSorted = sortLocations([...g.names]);
               const prevNames = baselineSnap?.summary?.[key];
               const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-              if (newSet && newSet.size) hasUnackHighlight = true;
 
               return `
                 <tr>
@@ -954,14 +983,7 @@
           </table>
         `;
 
-        // Enable ack if EITHER changes exist OR highlights exist (safer)
-        const enableAck = hasAnyChanges || hasUnackHighlight;
-        if (ackBtn) {
-          ackBtn.disabled = !enableAck;
-          ackBtn.title = enableAck ? "Mark current Summary state as acknowledged" : "No unacknowledged changes";
-        }
-
-        // Alert Links (plain, no highlights)
+        // Alert Links (plain)
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -1006,27 +1028,15 @@
       }
     }
 
-    // ACK: promote CURRENT -> BASELINE
-    document.getElementById("ackBtn").onclick = () => {
-      const current = loadSnapshot(STORAGE_KEY_CURRENT);
-      if (!current) return;
-
-      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
-
-      // Hide changes panel on ack
-      changesVisible = false;
-      const wrap = document.getElementById("changesContainer");
-      if (wrap) wrap.style.display = "none";
-
-      // reset "new changes" detection
-      lastChangesSignature = "";
-
-      fetchAlerts();
-    };
-
     // Changes toggle
     document.getElementById("changesBtn").onclick = () => {
+      // Open/close
       toggleChangesPanel();
+
+      // if opening, stop flashing "New Changes"
+      if (changesVisible && latestHasAnyChanges) {
+        setChangesButtonState({ hasChanges: true, isNew: false });
+      }
     };
 
     function openModal(i) {
