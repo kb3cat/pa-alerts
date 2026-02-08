@@ -5,9 +5,6 @@
   <title>PA Watches, Warnings & Advisories</title>
 
   <style>
-    /* ==============================
-       THEME (LIGHT DEFAULT)
-       ============================== */
     :root{
       color-scheme: light;
 
@@ -41,15 +38,8 @@
       --advBg: rgba(255, 235, 59, 0.55);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.4);
-
-      /* "New Changes" button glow */
-      --changesHotBorder: rgba(59, 130, 246, 0.95);
-      --changesHotShadow: rgba(59, 130, 246, 0.65);
     }
 
-    /* ==============================
-       THEME (DARK)
-       ============================== */
     :root[data-theme="dark"]{
       color-scheme: dark;
 
@@ -83,19 +73,13 @@
       --advBg: rgba(255, 235, 59, 0.25);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.65);
-
-      --changesHotBorder: rgba(96, 165, 250, 0.95);
-      --changesHotShadow: rgba(96, 165, 250, 0.55);
     }
 
     html, body { background: var(--bg); color: var(--text); }
 
-    /* ==============================
-       TITLE ROW
-       ============================== */
     .title-row{
       max-width: 1200px;
-      display: flex;
+      display:flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
@@ -104,9 +88,6 @@
     .title-row h1{ margin: 0; }
     .title-row .spacer{ flex: 1 1 auto; }
 
-    /* ==============================
-       TABLES
-       ============================== */
     table { border-collapse: collapse; width: 100%; max-width: 1200px; }
     th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
     th { background: var(--tableHeadBg); }
@@ -141,7 +122,8 @@
     #themeToggle:hover,
     #changesBtn:hover { background: var(--btnBgHover); }
 
-    #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #refreshBtn:disabled,
+    #changesBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -172,63 +154,6 @@
     }
     button.view-btn:hover { background: var(--btnBgHover); }
 
-    /* ==============================
-       CHANGES BUTTON + PANEL
-       ============================== */
-    .changes-hot{
-      border-color: var(--changesHotBorder) !important;
-      box-shadow: 0 0 14px var(--changesHotShadow);
-      animation: changesPulse 1.25s ease-in-out infinite;
-    }
-    @keyframes changesPulse {
-      0%   { transform: scale(1); }
-      50%  { transform: scale(1.03); }
-      100% { transform: scale(1); }
-    }
-
-    #changesPanel{
-      max-width: 1200px;
-      border: 1px solid var(--borderSoft);
-      border-radius: 10px;
-      padding: 10px 12px;
-      margin: 8px 0 2px;
-      display: none;
-      background: rgba(127,127,127,0.06);
-    }
-    #changesPanel h3{
-      margin: 0 0 8px;
-      font-size: 1.05rem;
-    }
-    #changesPanel .row{
-      margin: 6px 0;
-    }
-    #changesPanel .label{
-      font-weight: 700;
-      margin-right: 8px;
-    }
-    #changesPanel ul{
-      margin: 6px 0 0 18px;
-    }
-    #changesPanel code{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.95em;
-    }
-    #ackBtnInPanel{
-      margin-top: 10px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--btnBorder);
-      background: var(--btnBg);
-      cursor: pointer;
-      font: inherit;
-      color: var(--text);
-    }
-    #ackBtnInPanel:hover { background: var(--btnBgHover); }
-    #ackBtnInPanel:disabled{ opacity: .6; cursor:not-allowed; }
-
-    /* ==============================
-       MODAL
-       ============================== */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -283,7 +208,6 @@
     }
     .modal .actions button:hover { background: var(--btnBgHover); }
 
-    /* Radar embed */
     .embed-wrap {
       max-width: 1200px;
       width: 100%;
@@ -297,19 +221,9 @@
       display: block;
     }
 
-    /* Map border follows theme */
     #wwaMap { border: 1px solid var(--borderSoft) !important; }
 
-    /* lock page content width so tables line up */
-    #status,
-    #tableContainer,
-    #linksContainer {
-      max-width: 1200px;
-    }
-
-    /* ==============================
-       RWS "NEW SUMMARY" INDICATOR
-       ============================== */
+    /* RWS indicator */
     .rws-hot {
       border-color: rgba(245, 158, 11, 0.95) !important;
       box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
@@ -320,6 +234,37 @@
       50%  { transform: scale(1.04); }
       100% { transform: scale(1); }
     }
+
+    /* Changes button pulse */
+    .changes-hot{
+      border-color: rgba(59, 130, 246, 0.95) !important;
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
+      animation: changesPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes changesPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* Changes modal content */
+    .change-tag {
+      display:inline-block;
+      padding: 0 6px;
+      border-radius: 6px;
+      border: 1px solid var(--borderSoft);
+      font-size: 0.85em;
+      margin-right: 6px;
+    }
+    .change-added { background: rgba(59,130,246,0.18); }
+    .change-removed { background: rgba(220,38,38,0.18); }
+    .change-cleared { background: rgba(16,185,129,0.18); }
+    .change-block { margin-top: 10px; }
+    .change-block ul { margin: 6px 0 0; padding-left: 18px; }
+
+    #status,
+    #tableContainer,
+    #linksContainer { max-width: 1200px; }
   </style>
 </head>
 
@@ -348,15 +293,9 @@
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
 
-    <!-- Changes button (lights up when new changes exist) -->
-    <button id="changesBtn" type="button" title="No new changes">Changes</button>
-  </div>
-
-  <!-- Collapsible changes panel -->
-  <div id="changesPanel" role="region" aria-label="Changes since last acknowledgement">
-    <h3>Changes since last acknowledgement</h3>
-    <div id="changesBody" class="muted"></div>
-    <button id="ackBtnInPanel" type="button" disabled>Acknowledge Changes</button>
+    <button id="changesBtn" type="button" disabled title="No unacknowledged changes">
+      Changes
+    </button>
   </div>
 
   <p id="status">Loading alerts…</p>
@@ -394,7 +333,7 @@
     </iframe>
   </div>
 
-  <!-- Modal -->
+  <!-- Alert Text Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
       <h3 id="modalTitle"></h3>
@@ -410,6 +349,25 @@
         <button id="copyBtn">Copy Text</button>
         <button id="closeBtn">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Changes Modal -->
+  <div id="changesBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3 id="changesTitle">Changes since last acknowledgment (Summary)</h3>
+      <p id="changesMeta" class="meta"></p>
+
+      <div id="changesBody"></div>
+
+      <div class="actions">
+        <button id="changesAckBtn">Acknowledge Changes</button>
+        <button id="changesCloseBtn">Close</button>
+      </div>
+
+      <p class="muted" style="margin-top:10px;">
+        Acknowledge sets the current Summary state as your new baseline for highlights and change tracking.
+      </p>
     </div>
   </div>
 
@@ -462,9 +420,9 @@
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-    // Baseline vs Current snapshots (advisories page)
-    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v1";
-    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v1";
+    // Summary-driven baseline/current snapshots
+    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v3";
+    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v3";
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
@@ -475,6 +433,11 @@
 
     const zoneCache = new Map();
     const alertStore = new Map();
+
+    // Changes modal state
+    let changesOpen = false;
+    let lastChangesSignature = "";
+    let latestChanges = { added: [], removed: [], cleared: [] };
 
     function formatTime(v) {
       if (!v) return "N/A";
@@ -541,7 +504,6 @@
       });
     }
 
-    // Summary normalization (same as before)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
@@ -562,8 +524,7 @@
     }
 
     function refreshMap() {
-      const el = document.getElementById("wwaMap");
-      if (el) el.src = MAP_URL + "?t=" + Date.now();
+      document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
     }
 
     function escapeHtml(s) {
@@ -584,17 +545,25 @@
       }
     }
 
-    function saveSnapshot(key, summaryGroups, alertsById) {
-      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById };
+    function saveSnapshot(key, summaryGroups, alertsById, rollup) {
+      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById, rollup: rollup || {} };
       try { localStorage.setItem(key, JSON.stringify(snap)); } catch {}
     }
 
-    function diffNewNames(currentArr, prevArr) {
+    function diffAdded(currentArr, prevArr) {
       const prev = new Set((prevArr || []).map(String));
       const now = new Set((currentArr || []).map(String));
-      const added = new Set();
-      for (const n of now) if (!prev.has(n)) added.add(n);
-      return added;
+      const added = [];
+      for (const n of now) if (!prev.has(n)) added.push(n);
+      return sortLocations(added);
+    }
+
+    function diffRemoved(currentArr, prevArr) {
+      const prev = new Set((prevArr || []).map(String));
+      const now = new Set((currentArr || []).map(String));
+      const removed = [];
+      for (const n of prev) if (!now.has(n)) removed.push(n);
+      return sortLocations(removed);
     }
 
     function renderLocationsWithHighlight(namesSorted, newSet) {
@@ -605,152 +574,121 @@
       }).join("; ");
     }
 
-    /* ==============================
-       Summary-based diff for "Changes panel"
-       ============================== */
+    function setChangesButtonState({ hasChanges, isNew }) {
+      const btn = document.getElementById("changesBtn");
+      if (!btn) return;
 
-    function snapshotToTriples(summaryObj) {
-      // summaryObj: { "event||expires": ["CountyA","CountyB",...] }
-      const triples = new Set();
-      const byGroup = new Map();
+      btn.disabled = !hasChanges;
 
-      for (const [k, counties] of Object.entries(summaryObj || {})) {
-        const parts = String(k).split("||");
-        const event = parts[0] || "";
-        const expires = parts.slice(1).join("||") || "";
-        const list = Array.isArray(counties) ? counties : [];
-
-        const groupKey = `${event}||${expires}`;
-        if (!byGroup.has(groupKey)) byGroup.set(groupKey, new Set());
-        list.forEach(c => byGroup.get(groupKey).add(String(c)));
-      }
-
-      for (const [groupKey, set] of byGroup.entries()) {
-        for (const c of set) triples.add(`${groupKey}||${c}`);
-      }
-      return { triples, byGroup };
-    }
-
-    function computeSummaryChanges(baselineSnap, currentSnap) {
-      const baseSummary = baselineSnap?.summary || {};
-      const curSummary  = currentSnap?.summary  || {};
-
-      const b = snapshotToTriples(baseSummary);
-      const c = snapshotToTriples(curSummary);
-
-      const addedTriples = [];
-      const removedTriples = [];
-
-      for (const t of c.triples) if (!b.triples.has(t)) addedTriples.push(t);
-      for (const t of b.triples) if (!c.triples.has(t)) removedTriples.push(t);
-
-      function parseTriple(t) {
-        const parts = String(t).split("||");
-        const county = parts.pop();
-        const expires = parts.pop() || "";
-        const event = parts.join("||") || "";
-        return { event, expires, county };
-      }
-
-      const addedByGroup = new Map();
-      const removedByGroup = new Map();
-
-      for (const t of addedTriples) {
-        const x = parseTriple(t);
-        const gk = `${x.event}||${x.expires}`;
-        if (!addedByGroup.has(gk)) addedByGroup.set(gk, { event: x.event, expires: x.expires, counties: [] });
-        addedByGroup.get(gk).counties.push(x.county);
-      }
-
-      for (const t of removedTriples) {
-        const x = parseTriple(t);
-        const gk = `${x.event}||${x.expires}`;
-        if (!removedByGroup.has(gk)) removedByGroup.set(gk, { event: x.event, expires: x.expires, counties: [] });
-        removedByGroup.get(gk).counties.push(x.county);
-      }
-
-      // "Cleared" = groups present in baseline, missing entirely in current
-      const clearedGroups = [];
-      for (const gk of b.byGroup.keys()) {
-        if (!c.byGroup.has(gk)) {
-          const parts = String(gk).split("||");
-          const event = parts[0] || "";
-          const expires = parts.slice(1).join("||") || "";
-          const counties = Array.from(b.byGroup.get(gk) || []);
-          clearedGroups.push({ event, expires, counties });
-        }
-      }
-
-      // Sort helpers
-      const sortCounties = (arr) => sortLocations(arr.map(String));
-      for (const v of addedByGroup.values()) v.counties = sortCounties(v.counties);
-      for (const v of removedByGroup.values()) v.counties = sortCounties(v.counties);
-      for (const g of clearedGroups) g.counties = sortCounties(g.counties);
-
-      const added = Array.from(addedByGroup.values()).sort((a,b)=>toTimeMs(a.expires)-toTimeMs(b.expires) || a.event.localeCompare(b.event));
-      const removed = Array.from(removedByGroup.values()).sort((a,b)=>toTimeMs(a.expires)-toTimeMs(b.expires) || a.event.localeCompare(b.event));
-      clearedGroups.sort((a,b)=>toTimeMs(a.expires)-toTimeMs(b.expires) || a.event.localeCompare(b.event));
-
-      const hasAny = added.length || removed.length || clearedGroups.length;
-      return { hasAny, added, removed, cleared: clearedGroups };
-    }
-
-    function renderChangesPanel(ch) {
-      const body = document.getElementById("changesBody");
-      if (!body) return;
-
-      if (!ch || !ch.hasAny) {
-        body.innerHTML = `<div class="row">No unacknowledged changes.</div>`;
+      if (!hasChanges) {
+        btn.classList.remove("changes-hot");
+        btn.textContent = "Changes";
+        btn.title = "No unacknowledged changes";
         return;
       }
 
-      const blockGroup = (title, items, kind) => {
-        if (!items || !items.length) return "";
-        return `
-          <div class="row">
-            <span class="label">${escapeHtml(title)}:</span>
-            <ul>
-              ${items.map(g => {
-                const expires = formatTime(g.expires);
-                const counties = (g.counties || []).join("; ");
-                return `<li><code>${escapeHtml(g.event)}</code> (exp: ${escapeHtml(expires)}) — ${escapeHtml(counties)}</li>`;
-              }).join("")}
-            </ul>
-          </div>
-        `;
-      };
-
-      body.innerHTML = `
-        ${blockGroup("Added", ch.added)}
-        ${blockGroup("Removed", ch.removed)}
-        ${blockGroup("Cleared", ch.cleared)}
-      `;
-    }
-
-    function setChangesButtonState(hasChanges) {
-      const btn = document.getElementById("changesBtn");
-      const ack = document.getElementById("ackBtnInPanel");
-      if (!btn || !ack) return;
-
-      if (hasChanges) {
+      if (isNew) {
         btn.classList.add("changes-hot");
         btn.textContent = "New Changes";
-        btn.title = "New changes since last acknowledgement";
-        ack.disabled = false;
+        btn.title = "Click to view changes since last acknowledgment";
       } else {
         btn.classList.remove("changes-hot");
         btn.textContent = "Changes";
-        btn.title = "No new changes";
-        ack.disabled = true;
+        btn.title = "Click to view changes since last acknowledgment";
       }
     }
 
-    function toggleChangesPanel(forceOpen) {
-      const panel = document.getElementById("changesPanel");
-      if (!panel) return;
-      const isOpen = panel.style.display === "block";
-      const nextOpen = (typeof forceOpen === "boolean") ? forceOpen : !isOpen;
-      panel.style.display = nextOpen ? "block" : "none";
+    function buildChangesSignature(changes) {
+      const parts = [];
+      for (const x of changes.added)   parts.push("A|" + x.key + "|" + x.names.join(","));
+      for (const x of changes.removed) parts.push("R|" + x.key + "|" + x.names.join(","));
+      for (const x of changes.cleared) parts.push("C|" + x.key + "|" + x.names.join(","));
+      return parts.join("||");
+    }
+
+    function renderChangesModal(changes) {
+      const body = document.getElementById("changesBody");
+      const meta = document.getElementById("changesMeta");
+      const ack  = document.getElementById("changesAckBtn");
+
+      const total =
+        (changes.added?.length || 0) +
+        (changes.removed?.length || 0) +
+        (changes.cleared?.length || 0);
+
+      meta.textContent = total
+        ? `Groups with changes: ${total} | Baseline compares to your last Acknowledge`
+        : "No changes";
+
+      const hasAny =
+        changes.added.length || changes.removed.length || changes.cleared.length;
+
+      ack.disabled = !hasAny;
+
+      if (!hasAny) {
+        body.innerHTML = "<p class='muted'>No unacknowledged Summary rollup changes right now.</p>";
+        return;
+      }
+
+      body.innerHTML = `
+        ${changes.removed.length ? `
+          <div class="change-block">
+            <span class="change-tag change-removed">Removed</span>
+            <ul>
+              ${changes.removed.map(x => `
+                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
+
+        ${changes.added.length ? `
+          <div class="change-block">
+            <span class="change-tag change-added">Added</span>
+            <ul>
+              ${changes.added.map(x => `
+                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
+
+        ${changes.cleared.length ? `
+          <div class="change-block">
+            <span class="change-tag change-cleared">Cleared</span>
+            <ul>
+              ${changes.cleared.map(x => `
+                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
+      `;
+    }
+
+    function openChangesModal() {
+      changesOpen = true;
+      document.getElementById("changesBackdrop").style.display = "flex";
+
+      const hasAny =
+        latestChanges.added.length || latestChanges.removed.length || latestChanges.cleared.length;
+      setChangesButtonState({ hasChanges: hasAny, isNew: false });
+    }
+
+    function closeChangesModal() {
+      changesOpen = false;
+      document.getElementById("changesBackdrop").style.display = "none";
+    }
+
+    function acknowledgeChangesNow() {
+      const current = loadSnapshot(STORAGE_KEY_CURRENT);
+      if (!current) return;
+
+      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
+
+      closeChangesModal();
+      lastChangesSignature = "";
+      fetchAlerts();
     }
 
     /* ------------------------------
@@ -823,7 +761,11 @@
       if (!btn) return;
 
       try {
-        const r = await fetchWithTimeout(RWS_LIST_URL, { cache: "no-store" }, 8000);
+        const r = await fetchWithTimeout(
+          RWS_LIST_URL,
+          { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
+          8000
+        );
         if (!r.ok) return;
 
         const listing = await r.json();
@@ -834,11 +776,13 @@
         currentRwsMarker = markerForLatest(latest);
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
+
         if (!lastSeen) {
           localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
           setRwsButtonNewState(false);
           return;
         }
+
         setRwsButtonNewState(currentRwsMarker !== lastSeen);
       } catch {
         // silent
@@ -865,15 +809,11 @@
     })();
 
     window.addEventListener("storage", (e) => {
-      if (e.key === RWS_STORAGE_KEY) {
-        if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
-        else checkRWSIndicator();
-      }
+      if (e.key !== RWS_STORAGE_KEY) return;
+      if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
+      else checkRWSIndicator();
     });
 
-    /* ==============================
-       MAIN FETCH
-       ============================== */
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const refreshBtn = document.getElementById("refreshBtn");
@@ -891,11 +831,6 @@
         const rows = [];
         const features = Array.isArray(d.features) ? d.features : [];
 
-        // ✅ REVERTED / SAFE PULL LOGIC:
-        // - Use affectedZones
-        // - Fetch each zone
-        // - Only keep zones where state === "PA"
-        // - Exclude marine zones
         for (const f of features) {
           const p = f?.properties;
           if (!p || !isWantedAlert(p)) continue;
@@ -910,22 +845,22 @@
             if (info && info.state === "PA" && info.name) names.push(info.name);
           }
 
-          if (!names.length) continue;
-
-          const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + p.areaDesc);
-          rows.push({
-            alertId,
-            event: p.event,
-            expires: p.ends || p.expires,
-            names: [...new Set(names)],    // PA-only exact zone names
-            description: p.description,
-            instruction: p.instruction
-          });
+          if (names.length) {
+            const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + p.areaDesc);
+            rows.push({
+              alertId,
+              event: p.event,
+              expires: p.ends || p.expires,
+              names: [...new Set(names)],
+              description: p.description,
+              instruction: p.instruction
+            });
+          }
         }
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
-        // ===== SUMMARY GROUPING (NORMALIZED) =====
+        // Summary grouping (normalized names)
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -933,20 +868,66 @@
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
+        // CURRENT snapshot pieces
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap);
+        // Rollup (Summary-driven): event -> union of counties currently shown in Summary
+        const rollupMap = new Map();
+        for (const g of grouped.values()) {
+          if (!rollupMap.has(g.event)) rollupMap.set(g.event, new Set());
+          for (const n of g.names) rollupMap.get(g.event).add(n);
+        }
+        const currentRollup = {};
+        for (const [event, set] of rollupMap.entries()) currentRollup[event] = sortLocations([...set]);
+
+        saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap, currentRollup);
 
         if (!baselineSnap) {
-          saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap);
+          saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap, currentRollup);
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
-        // ===== SUMMARY TABLE (highlights persist until ack) =====
+        // ===== CHANGES (Summary rollup only) =====
+        const changes = { added: [], removed: [], cleared: [] };
+        const baselineRollup = baselineSnap?.rollup || {};
+
+        for (const event of Object.keys(currentRollup)) {
+          const cur = currentRollup[event] || [];
+          const base = baselineRollup[event] || [];
+
+          const addedNames = diffAdded(cur, base);
+          const removedNames = diffRemoved(cur, base);
+
+          if (addedNames.length)   changes.added.push({ key: event, names: addedNames });
+          if (removedNames.length) changes.removed.push({ key: event, names: removedNames });
+        }
+
+        for (const event of Object.keys(baselineRollup)) {
+          if (!(event in currentRollup)) {
+            const names = Array.isArray(baselineRollup[event]) ? baselineRollup[event] : [];
+            changes.cleared.push({ key: event, names: sortLocations(names) });
+          }
+        }
+
+        latestChanges = changes;
+        renderChangesModal(latestChanges);
+
+        const signature = buildChangesSignature(changes);
+        const hasAnyChanges = !!signature;
+
+        const isNew = hasAnyChanges && signature !== lastChangesSignature;
+        if (isNew) lastChangesSignature = signature;
+
+        setChangesButtonState({
+          hasChanges: hasAnyChanges,
+          isNew: (!changesOpen && isNew)
+        });
+
+        // ===== SUMMARY TABLE (highlights are baseline-vs-current per row key) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -962,14 +943,19 @@
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
             ${groupedArr.map(g => {
-              const key = `${g.event}||${g.expires || ""}`;
+              const key = \`\${g.event}||\${g.expires || ""}\`;
               const namesSorted = sortLocations([...g.names]);
               const prevNames = baselineSnap?.summary?.[key];
-              const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+
+              const prev = new Set((prevNames || []).map(String));
+              const now = new Set(namesSorted.map(String));
+              const addedSet = new Set();
+              for (const n of now) if (!prev.has(n)) addedSet.add(n);
+
               return `
                 <tr>
                   <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, addedSet)}</td>
                   <td>${escapeHtml(formatTime(g.expires))}</td>
                 </tr>
               `;
@@ -977,13 +963,7 @@
           </table>
         `;
 
-        // ===== CHANGES PANEL (summary-based) =====
-        const currentSnap = loadSnapshot(STORAGE_KEY_CURRENT);
-        const changes = computeSummaryChanges(baselineSnap, currentSnap);
-        renderChangesPanel(changes);
-        setChangesButtonState(!!changes?.hasAny);
-
-        // ===== ALERT LINKS (PA-only exact) =====
+        // ===== ALERT LINKS (exact, no highlights) =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -1011,12 +991,13 @@
               return `
                 <tr>
                   <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted)}</td>
+                  <td>${namesSorted.map(escapeHtml).join("; ")}</td>
                   <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
                 </tr>
               `;
             }).join("")}
           </table>
+          <p class="muted">“View Text” opens the full alert text.</p>
         `;
 
         refreshMap();
@@ -1030,26 +1011,22 @@
       }
     }
 
-    /* ==============================
-       UI WIRING
-       ============================== */
-
+    // Buttons
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
-    document.getElementById("changesBtn").addEventListener("click", () => {
-      toggleChangesPanel();
-    });
+    document.getElementById("changesBtn").onclick = () => {
+      const hasAny =
+        latestChanges.added.length || latestChanges.removed.length || latestChanges.cleared.length;
+      if (!hasAny) return;
 
-    // Acknowledge (promote current -> baseline)
-    document.getElementById("ackBtnInPanel").addEventListener("click", () => {
-      const current = loadSnapshot(STORAGE_KEY_CURRENT);
-      if (!current) return;
-      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
-      // after ack, keep panel open but refresh content / button state
-      fetchAlerts();
-      toggleChangesPanel(false);
-    });
+      renderChangesModal(latestChanges);
+      openChangesModal();
+    };
 
+    document.getElementById("changesCloseBtn").onclick = closeChangesModal;
+    document.getElementById("changesAckBtn").onclick = acknowledgeChangesNow;
+
+    // Alert modal wiring
     function openModal(i) {
       const a = alertStore.get(i);
       if (!a) return;
@@ -1072,7 +1049,7 @@
       navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
     };
 
-    // initial load
+    // initial load + auto-refresh
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
