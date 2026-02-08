@@ -39,7 +39,7 @@
 
       --shadow: 0 20px 60px rgba(0,0,0,0.4);
 
-      /* ✅ Map fallback */
+      /* Map fallback palette */
       --mapFallbackBg: #f6f6f6;
       --mapFallbackBorder: #999999;
     }
@@ -78,7 +78,7 @@
 
       --shadow: 0 20px 60px rgba(0,0,0,0.65);
 
-      /* ✅ Map fallback */
+      /* Map fallback palette */
       --mapFallbackBg: #0f141b;
       --mapFallbackBorder: #2b3646;
     }
@@ -273,16 +273,19 @@
       display: block;
     }
 
-    #wwaMap { border: 1px solid var(--borderSoft) !important; }
+    /* MAP: prevent blip by starting hidden until onload */
+    #wwaMap {
+      border: 1px solid var(--borderSoft) !important;
+      visibility: hidden; /* ✅ prevents broken-image flash */
+    }
 
-    /* ✅ Map fallback panel */
     .map-wrap{
       max-width: 1200px;
       width: 100%;
     }
 
     .map-fallback{
-      display: none; /* shown only when map fails */
+      display: none;
       width: 100%;
       min-height: 360px;
       border: 2px dashed var(--mapFallbackBorder);
@@ -290,12 +293,10 @@
       border-radius: 10px;
       padding: 18px;
       box-sizing: border-box;
-
       align-items: center;
       justify-content: center;
       text-align: center;
     }
-
     .map-fallback .title{
       font-weight: 700;
       font-size: 1.05rem;
@@ -352,39 +353,35 @@
 
   <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
 
- <!-- ✅ Map + CSS fallback -->
-<div class="map-wrap">
-  <img
-    id="wwaMap"
-    src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-    alt="NWS Current Watches, Warnings, and Advisories (PA)"
-    style="max-width: 1200px; width: 100%; height: auto;"
-    onerror="showWwaMapFallback()"
-  />
+  <!-- ✅ Map + CSS fallback -->
+  <div class="map-wrap">
+    <img
+      id="wwaMap"
+      src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+      alt="NWS Current Watches, Warnings, and Advisories (PA)"
+      style="max-width: 1200px; width: 100%; height: auto;"
+      onload="handleWwaMapLoad()"
+      onerror="showWwaMapFallback()"
+    />
 
-  <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
-    <div>
-      <div class="title">NWS Alert Map Unavailable</div>
-      <div class="text">
-        The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
-        Alert data remains valid and is displayed above.
+    <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+      <div>
+        <div class="title">NWS Alert Map Unavailable</div>
+        <div class="text">
+          The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
+          Alert data remains valid and is displayed above.
+        </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- ✅ Source link is BELOW the map/fallback (not inside the dashed box) -->
-<p class="muted" id="mapSourceLine">
-  Map source:
-  <a
-    href="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    NWS Current Watches, Warnings, and Advisories (PA)
-  </a>
-</p>
-
+  <!-- ✅ Source link BELOW the map/fallback (always visible) -->
+  <p class="muted" id="mapSourceLine">
+    Map source:
+    <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
+      NWS Current Watches, Warnings, and Advisories (PA)
+    </a>
+  </p>
 
   <h2 style="margin-top: 18px; max-width:1200px;">Live Radar</h2>
   <div class="embed-wrap">
@@ -494,6 +491,49 @@
     const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v3";
     const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v3";
 
+    /* ==============================
+       MAP FALLBACK (no-blip)
+       ============================== */
+    function showWwaMapFallback() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      if (img) {
+        img.style.display = "none";
+        img.style.visibility = "hidden";
+      }
+      if (fallback) fallback.style.display = "flex";
+    }
+
+    function handleWwaMapLoad() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      if (fallback) fallback.style.display = "none";
+      if (img) {
+        img.style.display = "block";
+        img.style.visibility = "visible";
+      }
+    }
+
+    function refreshMap() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      if (fallback) fallback.style.display = "none";
+      if (img) {
+        img.style.display = "block";
+        img.style.visibility = "hidden";
+        img.src = MAP_URL + "?t=" + Date.now();
+      }
+    }
+
+    window.addEventListener("load", () => {
+      const img = document.getElementById("wwaMap");
+      if (!img) return;
+      if (img.complete) {
+        if (img.naturalWidth > 0) handleWwaMapLoad();
+        else showWwaMapFallback();
+      }
+    });
+
     // RWS indicator (CTP only)
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
     const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
@@ -587,36 +627,6 @@
 
     function cleanText(t) {
       return t ? t.replace(/\n{3,}/g, "\n\n").trim() : "N/A";
-    }
-
-    /* ==============================
-       MAP FALLBACK (CSS panel when NWS map image fails)
-       ============================== */
-    function showWwaMapFallback() {
-      const img = document.getElementById("wwaMap");
-      const fallback = document.getElementById("wwaMapFallback");
-      const sourceLine = document.getElementById("mapSourceLine");
-
-      if (img) img.style.display = "none";
-      if (fallback) fallback.style.display = "flex";
-      if (sourceLine) sourceLine.style.display = "none";
-    }
-
-    function hideWwaMapFallback() {
-      const img = document.getElementById("wwaMap");
-      const fallback = document.getElementById("wwaMapFallback");
-      const sourceLine = document.getElementById("mapSourceLine");
-
-      if (img) img.style.display = "block";
-      if (fallback) fallback.style.display = "none";
-      if (sourceLine) sourceLine.style.display = "block";
-    }
-
-    // ✅ UPDATED: refreshes map + resets fallback to try again
-    function refreshMap() {
-      hideWwaMapFallback();
-      const img = document.getElementById("wwaMap");
-      if (img) img.src = MAP_URL + "?t=" + Date.now();
     }
 
     function escapeHtml(s) {
@@ -1129,7 +1139,7 @@
 
         setChangesButtonState({ hasChanges: latestHasAnyChanges, isNew: (!changesOpen && isNew) });
 
-        // ===== Summary table (blue highlights: baseline vs current per group key) =====
+        // ===== Summary table =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
