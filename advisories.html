@@ -41,6 +41,10 @@
       --advBg: rgba(255, 235, 59, 0.55);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.4);
+
+      /* "New Changes" button glow */
+      --changesHotBorder: rgba(59, 130, 246, 0.95);
+      --changesHotShadow: rgba(59, 130, 246, 0.65);
     }
 
     /* ==============================
@@ -79,12 +83,15 @@
       --advBg: rgba(255, 235, 59, 0.25);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.65);
+
+      --changesHotBorder: rgba(96, 165, 250, 0.95);
+      --changesHotShadow: rgba(96, 165, 250, 0.55);
     }
 
     html, body { background: var(--bg); color: var(--text); }
 
     /* ==============================
-       TITLE ROW (WITH SPACING FIX)
+       TITLE ROW
        ============================== */
     .title-row{
       max-width: 1200px;
@@ -92,14 +99,10 @@
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 12px; /* ✅ space under header */
+      margin-bottom: 12px;
     }
-    .title-row h1{
-      margin: 0; /* ✅ prevents phantom top margin */
-    }
-    .title-row .spacer{
-      flex: 1 1 auto;
-    }
+    .title-row h1{ margin: 0; }
+    .title-row .spacer{ flex: 1 1 auto; }
 
     /* ==============================
        TABLES
@@ -122,7 +125,7 @@
     .nav-toggle button,
     #refreshBtn,
     #themeToggle,
-    #ackBtn {
+    #changesBtn {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
@@ -132,13 +135,13 @@
       font: inherit;
       color: var(--text);
     }
+
     .nav-toggle button:hover,
     #refreshBtn:hover,
     #themeToggle:hover,
-    #ackBtn:hover { background: var(--btnBgHover); }
+    #changesBtn:hover { background: var(--btnBgHover); }
 
-    #refreshBtn:disabled,
-    #ackBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #refreshBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -168,6 +171,60 @@
       color: var(--text);
     }
     button.view-btn:hover { background: var(--btnBgHover); }
+
+    /* ==============================
+       CHANGES BUTTON + PANEL
+       ============================== */
+    .changes-hot{
+      border-color: var(--changesHotBorder) !important;
+      box-shadow: 0 0 14px var(--changesHotShadow);
+      animation: changesPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes changesPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.03); }
+      100% { transform: scale(1); }
+    }
+
+    #changesPanel{
+      max-width: 1200px;
+      border: 1px solid var(--borderSoft);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin: 8px 0 2px;
+      display: none;
+      background: rgba(127,127,127,0.06);
+    }
+    #changesPanel h3{
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+    #changesPanel .row{
+      margin: 6px 0;
+    }
+    #changesPanel .label{
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    #changesPanel ul{
+      margin: 6px 0 0 18px;
+    }
+    #changesPanel code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.95em;
+    }
+    #ackBtnInPanel{
+      margin-top: 10px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
+      cursor: pointer;
+      font: inherit;
+      color: var(--text);
+    }
+    #ackBtnInPanel:hover { background: var(--btnBgHover); }
+    #ackBtnInPanel:disabled{ opacity: .6; cursor:not-allowed; }
 
     /* ==============================
        MODAL
@@ -291,10 +348,15 @@
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
 
-    <!-- Ack button for persistent Summary highlights -->
-    <button id="ackBtn" type="button" disabled title="No unacknowledged changes">
-      Acknowledge Changes
-    </button>
+    <!-- Changes button (lights up when new changes exist) -->
+    <button id="changesBtn" type="button" title="No new changes">Changes</button>
+  </div>
+
+  <!-- Collapsible changes panel -->
+  <div id="changesPanel" role="region" aria-label="Changes since last acknowledgement">
+    <h3>Changes since last acknowledgement</h3>
+    <div id="changesBody" class="muted"></div>
+    <button id="ackBtnInPanel" type="button" disabled>Acknowledge Changes</button>
   </div>
 
   <p id="status">Loading alerts…</p>
@@ -366,7 +428,6 @@
       }
 
       function setTheme(theme) {
-        // theme: "dark" | "light" | "system"
         if (theme === "system") {
           root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
         } else {
@@ -380,7 +441,6 @@
 
       const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
 
-      // If system, keep in sync with OS changes
       if (saved === "system" && window.matchMedia) {
         const mq = window.matchMedia("(prefers-color-scheme: dark)");
         if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
@@ -408,12 +468,12 @@
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
-       Shared key so ack syncs across pages
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared"; // <-- MUST match index page too
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
     let currentRwsMarker = null;
 
+    const zoneCache = new Map();
     const alertStore = new Map();
 
     function formatTime(v) {
@@ -437,12 +497,29 @@
       );
     }
 
-    // Prevent hangs forever (and improves reliability vs plain fetch)
-    function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+    function isMarineZone(url) {
+      return typeof url === "string" && url.includes("/zones/marine/");
+    }
+
+    function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
       const controller = new AbortController();
       const t = setTimeout(() => controller.abort(), timeoutMs);
       return fetch(url, { ...options, signal: controller.signal })
         .finally(() => clearTimeout(t));
+    }
+
+    async function fetchZone(url) {
+      if (zoneCache.has(url)) return zoneCache.get(url);
+      try {
+        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 8000);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        const info = { name: d.properties?.name, state: d.properties?.state };
+        zoneCache.set(url, info);
+        return info;
+      } catch {
+        return null;
+      }
     }
 
     function locationSortKey(name) {
@@ -464,19 +541,12 @@
       });
     }
 
-    // SUMMARY ONLY normalization
+    // Summary normalization (same as before)
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
-
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-
-      s = s.replace(
-        /^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i,
-        ""
-      );
-
+      s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
       s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-
       return s.trim();
     }
 
@@ -492,7 +562,8 @@
     }
 
     function refreshMap() {
-      document.getElementById("wwaMap").src = MAP_URL + "?t=" + Date.now();
+      const el = document.getElementById("wwaMap");
+      if (el) el.src = MAP_URL + "?t=" + Date.now();
     }
 
     function escapeHtml(s) {
@@ -504,7 +575,6 @@
         .replaceAll("'", "&#039;");
     }
 
-    // Snapshot helpers (baseline vs current)
     function loadSnapshot(key) {
       try {
         const raw = localStorage.getItem(key);
@@ -535,14 +605,152 @@
       }).join("; ");
     }
 
-    // NEW: FAST county parsing (no zone lookups)
-    function parseAreaDescToNames(areaDesc) {
-      const raw = String(areaDesc || "")
-        .replace(/\band\b/gi, ";")
-        .split(";")
-        .map(s => s.trim())
-        .filter(Boolean);
-      return [...new Set(raw)];
+    /* ==============================
+       Summary-based diff for "Changes panel"
+       ============================== */
+
+    function snapshotToTriples(summaryObj) {
+      // summaryObj: { "event||expires": ["CountyA","CountyB",...] }
+      const triples = new Set();
+      const byGroup = new Map();
+
+      for (const [k, counties] of Object.entries(summaryObj || {})) {
+        const parts = String(k).split("||");
+        const event = parts[0] || "";
+        const expires = parts.slice(1).join("||") || "";
+        const list = Array.isArray(counties) ? counties : [];
+
+        const groupKey = `${event}||${expires}`;
+        if (!byGroup.has(groupKey)) byGroup.set(groupKey, new Set());
+        list.forEach(c => byGroup.get(groupKey).add(String(c)));
+      }
+
+      for (const [groupKey, set] of byGroup.entries()) {
+        for (const c of set) triples.add(`${groupKey}||${c}`);
+      }
+      return { triples, byGroup };
+    }
+
+    function computeSummaryChanges(baselineSnap, currentSnap) {
+      const baseSummary = baselineSnap?.summary || {};
+      const curSummary  = currentSnap?.summary  || {};
+
+      const b = snapshotToTriples(baseSummary);
+      const c = snapshotToTriples(curSummary);
+
+      const addedTriples = [];
+      const removedTriples = [];
+
+      for (const t of c.triples) if (!b.triples.has(t)) addedTriples.push(t);
+      for (const t of b.triples) if (!c.triples.has(t)) removedTriples.push(t);
+
+      function parseTriple(t) {
+        const parts = String(t).split("||");
+        const county = parts.pop();
+        const expires = parts.pop() || "";
+        const event = parts.join("||") || "";
+        return { event, expires, county };
+      }
+
+      const addedByGroup = new Map();
+      const removedByGroup = new Map();
+
+      for (const t of addedTriples) {
+        const x = parseTriple(t);
+        const gk = `${x.event}||${x.expires}`;
+        if (!addedByGroup.has(gk)) addedByGroup.set(gk, { event: x.event, expires: x.expires, counties: [] });
+        addedByGroup.get(gk).counties.push(x.county);
+      }
+
+      for (const t of removedTriples) {
+        const x = parseTriple(t);
+        const gk = `${x.event}||${x.expires}`;
+        if (!removedByGroup.has(gk)) removedByGroup.set(gk, { event: x.event, expires: x.expires, counties: [] });
+        removedByGroup.get(gk).counties.push(x.county);
+      }
+
+      // "Cleared" = groups present in baseline, missing entirely in current
+      const clearedGroups = [];
+      for (const gk of b.byGroup.keys()) {
+        if (!c.byGroup.has(gk)) {
+          const parts = String(gk).split("||");
+          const event = parts[0] || "";
+          const expires = parts.slice(1).join("||") || "";
+          const counties = Array.from(b.byGroup.get(gk) || []);
+          clearedGroups.push({ event, expires, counties });
+        }
+      }
+
+      // Sort helpers
+      const sortCounties = (arr) => sortLocations(arr.map(String));
+      for (const v of addedByGroup.values()) v.counties = sortCounties(v.counties);
+      for (const v of removedByGroup.values()) v.counties = sortCounties(v.counties);
+      for (const g of clearedGroups) g.counties = sortCounties(g.counties);
+
+      const added = Array.from(addedByGroup.values()).sort((a,b)=>toTimeMs(a.expires)-toTimeMs(b.expires) || a.event.localeCompare(b.event));
+      const removed = Array.from(removedByGroup.values()).sort((a,b)=>toTimeMs(a.expires)-toTimeMs(b.expires) || a.event.localeCompare(b.event));
+      clearedGroups.sort((a,b)=>toTimeMs(a.expires)-toTimeMs(b.expires) || a.event.localeCompare(b.event));
+
+      const hasAny = added.length || removed.length || clearedGroups.length;
+      return { hasAny, added, removed, cleared: clearedGroups };
+    }
+
+    function renderChangesPanel(ch) {
+      const body = document.getElementById("changesBody");
+      if (!body) return;
+
+      if (!ch || !ch.hasAny) {
+        body.innerHTML = `<div class="row">No unacknowledged changes.</div>`;
+        return;
+      }
+
+      const blockGroup = (title, items, kind) => {
+        if (!items || !items.length) return "";
+        return `
+          <div class="row">
+            <span class="label">${escapeHtml(title)}:</span>
+            <ul>
+              ${items.map(g => {
+                const expires = formatTime(g.expires);
+                const counties = (g.counties || []).join("; ");
+                return `<li><code>${escapeHtml(g.event)}</code> (exp: ${escapeHtml(expires)}) — ${escapeHtml(counties)}</li>`;
+              }).join("")}
+            </ul>
+          </div>
+        `;
+      };
+
+      body.innerHTML = `
+        ${blockGroup("Added", ch.added)}
+        ${blockGroup("Removed", ch.removed)}
+        ${blockGroup("Cleared", ch.cleared)}
+      `;
+    }
+
+    function setChangesButtonState(hasChanges) {
+      const btn = document.getElementById("changesBtn");
+      const ack = document.getElementById("ackBtnInPanel");
+      if (!btn || !ack) return;
+
+      if (hasChanges) {
+        btn.classList.add("changes-hot");
+        btn.textContent = "New Changes";
+        btn.title = "New changes since last acknowledgement";
+        ack.disabled = false;
+      } else {
+        btn.classList.remove("changes-hot");
+        btn.textContent = "Changes";
+        btn.title = "No new changes";
+        ack.disabled = true;
+      }
+    }
+
+    function toggleChangesPanel(forceOpen) {
+      const panel = document.getElementById("changesPanel");
+      if (!panel) return;
+      const isOpen = panel.style.display === "block";
+      const nextOpen = (typeof forceOpen === "boolean") ? forceOpen : !isOpen;
+      panel.style.display = nextOpen ? "block" : "none";
     }
 
     /* ------------------------------
@@ -615,11 +823,7 @@
       if (!btn) return;
 
       try {
-        const r = await fetchWithTimeout(
-          RWS_LIST_URL,
-          { headers: { "Accept": "application/ld+json" }, cache: "no-store" },
-          8000
-        );
+        const r = await fetchWithTimeout(RWS_LIST_URL, { cache: "no-store" }, 8000);
         if (!r.ok) return;
 
         const listing = await r.json();
@@ -630,16 +834,12 @@
         currentRwsMarker = markerForLatest(latest);
 
         const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
-
-        // First run: initialize so you don't get a false "new"
         if (!lastSeen) {
           localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
           setRwsButtonNewState(false);
           return;
         }
-
         setRwsButtonNewState(currentRwsMarker !== lastSeen);
-
       } catch {
         // silent
       }
@@ -665,21 +865,23 @@
     })();
 
     window.addEventListener("storage", (e) => {
-      if (e.key !== RWS_STORAGE_KEY) return;
-      if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
-      else checkRWSIndicator();
+      if (e.key === RWS_STORAGE_KEY) {
+        if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
+        else checkRWSIndicator();
+      }
     });
 
+    /* ==============================
+       MAIN FETCH
+       ============================== */
     async function fetchAlerts() {
       const status = document.getElementById("status");
       const refreshBtn = document.getElementById("refreshBtn");
-      const ackBtn = document.getElementById("ackBtn");
 
       refreshBtn.disabled = true;
       status.textContent = "Loading alerts…";
 
       try {
-        // Baseline = last acknowledged (persistent highlights)
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
         const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
@@ -689,21 +891,33 @@
         const rows = [];
         const features = Array.isArray(d.features) ? d.features : [];
 
+        // ✅ REVERTED / SAFE PULL LOGIC:
+        // - Use affectedZones
+        // - Fetch each zone
+        // - Only keep zones where state === "PA"
+        // - Exclude marine zones
         for (const f of features) {
           const p = f?.properties;
           if (!p || !isWantedAlert(p)) continue;
 
-          // FAST: use areaDesc (no affectedZones zone fetches)
-          const names = parseAreaDescToNames(p.areaDesc);
+          const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
+          if (!zones.length) continue;
+
+          const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
+
+          const names = [];
+          for (const info of zoneInfos) {
+            if (info && info.state === "PA" && info.name) names.push(info.name);
+          }
+
           if (!names.length) continue;
 
           const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + p.areaDesc);
-
           rows.push({
             alertId,
             event: p.event,
             expires: p.ends || p.expires,
-            names: [...new Set(names)],    // used by Alert Links
+            names: [...new Set(names)],    // PA-only exact zone names
             description: p.description,
             instruction: p.instruction
           });
@@ -716,35 +930,28 @@
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
-
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
-        // Build CURRENT snapshots
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-        // Alert Links snapshot stays exact
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Always store CURRENT so Ack can promote it
         saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap);
 
-        // First run: initialize baseline so you don't highlight everything
         if (!baselineSnap) {
           saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap);
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
+        // ===== SUMMARY TABLE (highlights persist until ack) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
-
-        // ===== SUMMARY (HIGHLIGHTS ONLY HERE) =====
-        let hasUnackChanges = false;
 
         document.getElementById("tableContainer").innerHTML = `
           <table>
@@ -754,34 +961,29 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-            ${
-              groupedArr.map(g => {
-                const key = `${g.event}||${g.expires || ""}`;
-                const namesSorted = sortLocations([...g.names]);
-                const prevNames = baselineSnap?.summary?.[key];
-                const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-                if (newSet && newSet.size) hasUnackChanges = true;
-
-                return `
-                  <tr>
-                    <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                    <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                    <td>${escapeHtml(formatTime(g.expires))}</td>
-                  </tr>
-                `;
-              }).join("")
-            }
+            ${groupedArr.map(g => {
+              const key = `${g.event}||${g.expires || ""}`;
+              const namesSorted = sortLocations([...g.names]);
+              const prevNames = baselineSnap?.summary?.[key];
+              const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${escapeHtml(formatTime(g.expires))}</td>
+                </tr>
+              `;
+            }).join("")}
           </table>
         `;
 
-        if (ackBtn) {
-          ackBtn.disabled = !hasUnackChanges;
-          ackBtn.title = hasUnackChanges
-            ? "Mark current Summary changes as acknowledged"
-            : "No unacknowledged changes";
-        }
+        // ===== CHANGES PANEL (summary-based) =====
+        const currentSnap = loadSnapshot(STORAGE_KEY_CURRENT);
+        const changes = computeSummaryChanges(baselineSnap, currentSnap);
+        renderChangesPanel(changes);
+        setChangesButtonState(!!changes?.hasAny);
 
-        // ===== ALERT LINKS (EXACT / NO HIGHLIGHTS) =====
+        // ===== ALERT LINKS (PA-only exact) =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -804,20 +1006,17 @@
               <col style="width: 15%;">
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
-            ${
-              rows.map((row, i) => {
-                const namesSorted = sortLocations(row.names);
-                return `
-                  <tr>
-                    <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                    <td>${renderLocationsWithHighlight(namesSorted)}</td>
-                    <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
-                  </tr>
-                `;
-              }).join("")
-            }
+            ${rows.map((row, i) => {
+              const namesSorted = sortLocations(row.names);
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted)}</td>
+                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
+                </tr>
+              `;
+            }).join("")}
           </table>
-          <p class="muted">“View Text” opens the full alert text.</p>
         `;
 
         refreshMap();
@@ -825,20 +1024,31 @@
 
       } catch (err) {
         console.error(err);
-        document.getElementById("status").textContent = "Error loading alerts: " + (err && err.message ? err.message : String(err));
+        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
       } finally {
         document.getElementById("refreshBtn").disabled = false;
       }
     }
 
-    // Acknowledge button promotes CURRENT -> BASELINE (clears Summary highlights)
-    document.getElementById("ackBtn").onclick = () => {
+    /* ==============================
+       UI WIRING
+       ============================== */
+
+    document.getElementById("refreshBtn").onclick = fetchAlerts;
+
+    document.getElementById("changesBtn").addEventListener("click", () => {
+      toggleChangesPanel();
+    });
+
+    // Acknowledge (promote current -> baseline)
+    document.getElementById("ackBtnInPanel").addEventListener("click", () => {
       const current = loadSnapshot(STORAGE_KEY_CURRENT);
       if (!current) return;
-
       try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
+      // after ack, keep panel open but refresh content / button state
       fetchAlerts();
-    };
+      toggleChangesPanel(true);
+    });
 
     function openModal(i) {
       const a = alertStore.get(i);
@@ -862,15 +1072,9 @@
       navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
     };
 
-    document.getElementById("refreshBtn").onclick = fetchAlerts;
-
     // initial load
     fetchAlerts();
-
-    // auto-refresh alerts every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
-
-    // extra: RWS-only check so it can light even if alerts fetch fails
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
