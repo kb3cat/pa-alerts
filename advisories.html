@@ -38,6 +38,10 @@
       --advBg: rgba(255, 235, 59, 0.55);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.4);
+
+      /* ✅ Map fallback */
+      --mapFallbackBg: #f6f6f6;
+      --mapFallbackBorder: #999999;
     }
 
     :root[data-theme="dark"]{
@@ -73,6 +77,10 @@
       --advBg: rgba(255, 235, 59, 0.25);
 
       --shadow: 0 20px 60px rgba(0,0,0,0.65);
+
+      /* ✅ Map fallback */
+      --mapFallbackBg: #0f141b;
+      --mapFallbackBorder: #2b3646;
     }
 
     html, body { background: var(--bg); color: var(--text); }
@@ -267,6 +275,38 @@
 
     #wwaMap { border: 1px solid var(--borderSoft) !important; }
 
+    /* ✅ Map fallback panel */
+    .map-wrap{
+      max-width: 1200px;
+      width: 100%;
+    }
+
+    .map-fallback{
+      display: none; /* shown only when map fails */
+      width: 100%;
+      min-height: 360px;
+      border: 2px dashed var(--mapFallbackBorder);
+      background: var(--mapFallbackBg);
+      border-radius: 10px;
+      padding: 18px;
+      box-sizing: border-box;
+
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .map-fallback .title{
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .map-fallback .text{
+      color: var(--muted);
+      line-height: 1.35;
+      max-width: 70ch;
+    }
+
     #status,
     #tableContainer,
     #linksContainer { max-width: 1200px; }
@@ -311,13 +351,29 @@
   <div id="linksContainer"></div>
 
   <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
-  <img
-    id="wwaMap"
-    src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-    alt="NWS Current Watches, Warnings, and Advisories (PA)"
-    style="max-width: 1200px; width: 100%; height: auto;"
-  />
-  <p class="muted">
+
+  <!-- ✅ Map + CSS fallback -->
+  <div class="map-wrap">
+    <img
+      id="wwaMap"
+      src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+      alt="NWS Current Watches, Warnings, and Advisories (PA)"
+      style="max-width: 1200px; width: 100%; height: auto;"
+      onerror="showWwaMapFallback()"
+    />
+
+    <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+      <div>
+        <div class="title">NWS Alert Map Unavailable</div>
+        <div class="text">
+          The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
+          Alert data remains valid and is displayed above.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="muted" id="mapSourceLine">
     Map source:
     <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
       NWS Current Watches, Warnings, and Advisories (PA)
@@ -527,7 +583,32 @@
       return t ? t.replace(/\n{3,}/g, "\n\n").trim() : "N/A";
     }
 
+    /* ==============================
+       MAP FALLBACK (CSS panel when NWS map image fails)
+       ============================== */
+    function showWwaMapFallback() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      const sourceLine = document.getElementById("mapSourceLine");
+
+      if (img) img.style.display = "none";
+      if (fallback) fallback.style.display = "flex";
+      if (sourceLine) sourceLine.style.display = "none";
+    }
+
+    function hideWwaMapFallback() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      const sourceLine = document.getElementById("mapSourceLine");
+
+      if (img) img.style.display = "block";
+      if (fallback) fallback.style.display = "none";
+      if (sourceLine) sourceLine.style.display = "block";
+    }
+
+    // ✅ UPDATED: refreshes map + resets fallback to try again
     function refreshMap() {
+      hideWwaMapFallback();
       const img = document.getElementById("wwaMap");
       if (img) img.src = MAP_URL + "?t=" + Date.now();
     }
