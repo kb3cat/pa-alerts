@@ -93,8 +93,7 @@
     .nav-toggle button,
     #refreshBtn,
     #themeToggle,
-    #changesBtn,
-    .ack-inline {
+    #changesBtn {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
@@ -107,12 +106,10 @@
     .nav-toggle button:hover,
     #refreshBtn:hover,
     #themeToggle:hover,
-    #changesBtn:hover,
-    .ack-inline:hover { background: var(--btnBgHover); }
+    #changesBtn:hover { background: var(--btnBgHover); }
 
     #refreshBtn:disabled,
-    #changesBtn:disabled,
-    .ack-inline:disabled { opacity: 0.6; cursor: not-allowed; }
+    #changesBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -211,6 +208,7 @@
 
     #wwaMap { border: 1px solid var(--borderSoft) !important; }
 
+    /* RWS indicator */
     .rws-hot {
       border-color: rgba(245, 158, 11, 0.95) !important;
       box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
@@ -222,6 +220,7 @@
       100% { transform: scale(1); }
     }
 
+    /* Changes button pulse */
     .changes-hot{
       border-color: rgba(59, 130, 246, 0.95) !important;
       box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
@@ -233,15 +232,7 @@
       100% { transform: scale(1); }
     }
 
-    .change-panel {
-      border: 1px solid var(--borderSoft);
-      padding: 10px 12px;
-      border-radius: 10px;
-      margin-top: 10px;
-      max-width: 1200px;
-    }
-    .change-panel h3 { margin: 0 0 8px; font-size: 1.05rem; }
-    .change-panel ul { margin: 6px 0 0; padding-left: 18px; }
+    /* Changes modal content */
     .change-tag {
       display:inline-block;
       padding: 0 6px;
@@ -253,14 +244,10 @@
     .change-added { background: rgba(59,130,246,0.18); }
     .change-removed { background: rgba(220,38,38,0.18); }
     .change-cleared { background: rgba(16,185,129,0.18); }
+    .change-block { margin-top: 10px; }
+    .change-block ul { margin: 6px 0 0; padding-left: 18px; }
 
-    .change-panel .panel-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top: 10px;
-    }
-
+    /* Title row */
     .title-row{
       max-width: 1200px;
       display:flex;
@@ -272,8 +259,8 @@
     .title-row h1{ margin: 0; }
     .title-row .spacer{ flex: 1 1 auto; }
 
+    /* alignment */
     #status,
-    #changesContainer,
     #tableContainer,
     #linksContainer { max-width: 1200px; }
   </style>
@@ -311,9 +298,6 @@
 
   <p id="status">Loading alerts…</p>
 
-  <!-- Hidden until user clicks Changes -->
-  <div id="changesContainer" style="display:none;"></div>
-
   <h2 class="section-title">Summary</h2>
   <div class="muted">New information since your last acknowledgment will be highlighted in blue.</div>
   <div id="tableContainer"></div>
@@ -347,7 +331,7 @@
     </iframe>
   </div>
 
-  <!-- Modal -->
+  <!-- Alert Text Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
       <h3 id="modalTitle"></h3>
@@ -363,6 +347,25 @@
         <button id="copyBtn">Copy Text</button>
         <button id="closeBtn">Close</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Changes Modal -->
+  <div id="changesBackdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3 id="changesTitle">Changes since last acknowledgment (Summary)</h3>
+      <p id="changesMeta" class="meta"></p>
+
+      <div id="changesBody"></div>
+
+      <div class="actions">
+        <button id="changesAckBtn">Acknowledge Changes</button>
+        <button id="changesCloseBtn">Close</button>
+      </div>
+
+      <p class="muted" style="margin-top:10px;">
+        Acknowledge sets the current Summary state as your new baseline for highlights and change tracking.
+      </p>
     </div>
   </div>
 
@@ -415,9 +418,9 @@
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-    // Baseline vs Current snapshots (summary driven)
-    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_index_v2";
-    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_index_v2";
+    // Summary-driven baseline/current snapshots
+    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_index_v3";
+    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_index_v3";
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
@@ -429,11 +432,10 @@
     const zoneCache = new Map();
     const alertStore = new Map();
 
-    // UI state
-    let changesVisible = false;
+    // Changes modal state
+    let changesOpen = false;
     let lastChangesSignature = "";
-    let latestChangesForPanel = { added: [], removed: [], cleared: [] };
-    let latestHasAnyChanges = false;
+    let latestChanges = { added: [], removed: [], cleared: [] };
 
     function formatTime(v) {
       if (!v) return "N/A";
@@ -525,7 +527,6 @@
         .replaceAll("'", "&#039;");
     }
 
-    // Snapshots include rollup for Summary-based changes
     function loadSnapshot(key) {
       try {
         const raw = localStorage.getItem(key);
@@ -540,20 +541,20 @@
       try { localStorage.setItem(key, JSON.stringify(snap)); } catch {}
     }
 
-    function diffNewNames(currentArr, prevArr) {
+    function diffAdded(currentArr, prevArr) {
       const prev = new Set((prevArr || []).map(String));
       const now = new Set((currentArr || []).map(String));
-      const added = new Set();
-      for (const n of now) if (!prev.has(n)) added.add(n);
-      return added;
+      const added = [];
+      for (const n of now) if (!prev.has(n)) added.push(n);
+      return sortLocations(added);
     }
 
-    function diffRemovedNames(currentArr, prevArr) {
+    function diffRemoved(currentArr, prevArr) {
       const prev = new Set((prevArr || []).map(String));
       const now = new Set((currentArr || []).map(String));
-      const removed = new Set();
-      for (const n of prev) if (!now.has(n)) removed.add(n);
-      return removed;
+      const removed = [];
+      for (const n of prev) if (!now.has(n)) removed.push(n);
+      return sortLocations(removed);
     }
 
     function renderLocationsWithHighlight(namesSorted, newSet) {
@@ -564,9 +565,6 @@
       }).join("; ");
     }
 
-    /* ==============================
-       CHANGES BUTTON + PANEL
-       ============================== */
     function setChangesButtonState({ hasChanges, isNew }) {
       const btn = document.getElementById("changesBtn");
       if (!btn) return;
@@ -591,19 +589,6 @@
       }
     }
 
-    function toggleChangesPanel() {
-      const wrap = document.getElementById("changesContainer");
-      if (!wrap) return;
-
-      changesVisible = !changesVisible;
-      wrap.style.display = changesVisible ? "block" : "none";
-
-      // When user opens it, stop flashing "New Changes"
-      if (changesVisible && latestHasAnyChanges) {
-        setChangesButtonState({ hasChanges: true, isNew: false });
-      }
-    }
-
     function buildChangesSignature(changes) {
       const parts = [];
       for (const x of changes.added)   parts.push("A|" + x.key + "|" + x.names.join(","));
@@ -612,103 +597,93 @@
       return parts.join("||");
     }
 
-    function renderChangesPanel(changes, canAck) {
-      const wrap = document.getElementById("changesContainer");
-      if (!wrap) return;
+    function renderChangesModal(changes) {
+      const body = document.getElementById("changesBody");
+      const meta = document.getElementById("changesMeta");
+      const ack  = document.getElementById("changesAckBtn");
+
+      const total =
+        (changes.added?.length || 0) +
+        (changes.removed?.length || 0) +
+        (changes.cleared?.length || 0);
+
+      meta.textContent = total
+        ? `Groups with changes: ${total} | Baseline compares to your last Acknowledge`
+        : "No changes";
 
       const hasAny =
         changes.added.length || changes.removed.length || changes.cleared.length;
 
+      ack.disabled = !hasAny;
+
       if (!hasAny) {
-        wrap.innerHTML = "";
-        wrap.style.display = "none";
-        changesVisible = false;
+        body.innerHTML = "<p class='muted'>No unacknowledged Summary rollup changes right now.</p>";
         return;
       }
 
-      wrap.innerHTML = `
-        <div class="change-panel">
-          <h3>Changes since last acknowledgment (Summary)</h3>
-
-          ${changes.removed.length ? `
-            <div>
-              <span class="change-tag change-removed">Removed</span>
-              <ul>
-                ${changes.removed.map(x => `
-                  <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-                `).join("")}
-              </ul>
-            </div>
-          ` : ""}
-
-          ${changes.added.length ? `
-            <div style="margin-top:10px;">
-              <span class="change-tag change-added">Added</span>
-              <ul>
-                ${changes.added.map(x => `
-                  <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-                `).join("")}
-              </ul>
-            </div>
-          ` : ""}
-
-          ${changes.cleared.length ? `
-            <div style="margin-top:10px;">
-              <span class="change-tag change-cleared">Cleared</span>
-              <ul>
-                ${changes.cleared.map(x => `
-                  <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-                `).join("")}
-              </ul>
-            </div>
-          ` : ""}
-
-          <div class="panel-actions">
-            <button id="ackInlineBtn" class="ack-inline" type="button" ${canAck ? "" : "disabled"}>
-              Acknowledge Changes
-            </button>
-            <button id="closeChangesBtn" class="ack-inline" type="button">
-              Close
-            </button>
+      body.innerHTML = `
+        ${changes.removed.length ? `
+          <div class="change-block">
+            <span class="change-tag change-removed">Removed</span>
+            <ul>
+              ${changes.removed.map(x => `
+                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+              `).join("")}
+            </ul>
           </div>
-          <div class="muted" style="margin-top:8px;">
-            Acknowledge sets the current Summary state as your new baseline for highlights and change tracking.
+        ` : ""}
+
+        ${changes.added.length ? `
+          <div class="change-block">
+            <span class="change-tag change-added">Added</span>
+            <ul>
+              ${changes.added.map(x => `
+                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+              `).join("")}
+            </ul>
           </div>
-        </div>
+        ` : ""}
+
+        ${changes.cleared.length ? `
+          <div class="change-block">
+            <span class="change-tag change-cleared">Cleared</span>
+            <ul>
+              ${changes.cleared.map(x => `
+                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+              `).join("")}
+            </ul>
+          </div>
+        ` : ""}
       `;
-
-      // wire buttons
-      const ackInline = document.getElementById("ackInlineBtn");
-      if (ackInline) {
-        ackInline.addEventListener("click", acknowledgeChangesNow);
-      }
-      const closeBtn = document.getElementById("closeChangesBtn");
-      if (closeBtn) {
-        closeBtn.addEventListener("click", () => {
-          changesVisible = false;
-          wrap.style.display = "none";
-        });
-      }
-
-      wrap.style.display = changesVisible ? "block" : "none";
     }
 
-    // Acknowledge: promote CURRENT -> BASELINE
+    function openChangesModal() {
+      changesOpen = true;
+      document.getElementById("changesBackdrop").style.display = "flex";
+
+      // opening stops the "New Changes" pulse
+      const hasAny =
+        latestChanges.added.length || latestChanges.removed.length || latestChanges.cleared.length;
+      setChangesButtonState({ hasChanges: hasAny, isNew: false });
+    }
+
+    function closeChangesModal() {
+      changesOpen = false;
+      document.getElementById("changesBackdrop").style.display = "none";
+    }
+
     function acknowledgeChangesNow() {
       const current = loadSnapshot(STORAGE_KEY_CURRENT);
       if (!current) return;
 
       try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
 
-      // Hide panel and clear "new" indicator
-      changesVisible = false;
-      const wrap = document.getElementById("changesContainer");
-      if (wrap) wrap.style.display = "none";
+      closeChangesModal();
 
+      // reset signature so next real change will pulse again
       lastChangesSignature = "";
-      setChangesButtonState({ hasChanges: false, isNew: false });
 
-      // Re-render immediately (highlights should clear)
+      // re-render (clears highlights + changes)
       fetchAlerts();
     }
 
@@ -878,7 +853,7 @@
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
         refreshMap();
 
-        // Summary groups (rendering)
+        // Summary groups
         const grouped = new Map();
         for (const row of rows) {
           const k = `${row.event}||${row.expires || ""}`;
@@ -886,72 +861,72 @@
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
+        // Build CURRENT snapshots
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Rollup (Summary-driven): event -> all counties in Summary (any expires)
+        // Rollup (Summary-driven): event -> union of counties currently shown in Summary
         const rollupMap = new Map();
         for (const g of grouped.values()) {
           if (!rollupMap.has(g.event)) rollupMap.set(g.event, new Set());
           for (const n of g.names) rollupMap.get(g.event).add(n);
         }
         const currentRollup = {};
-        for (const [event, set] of rollupMap.entries()) {
-          currentRollup[event] = sortLocations([...set]);
-        }
+        for (const [event, set] of rollupMap.entries()) currentRollup[event] = sortLocations([...set]);
 
         // Store CURRENT snapshot every refresh
         saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap, currentRollup);
 
-        // Init BASELINE if missing
+        // Init BASELINE if missing (prevents “everything changed” on first run)
         if (!baselineSnap) {
           saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap, currentRollup);
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
-        // ===== CHANGES (ONLY FROM SUMMARY ROLLUP) =====
+        // ===== CHANGES (Summary rollup only) =====
         const changes = { added: [], removed: [], cleared: [] };
-
         const baselineRollup = baselineSnap?.rollup || {};
-        const currentRollupSnap = currentRollup || {};
 
-        for (const event of Object.keys(currentRollupSnap)) {
-          const cur = currentRollupSnap[event] || [];
+        // events present now: compute added/removed counties
+        for (const event of Object.keys(currentRollup)) {
+          const cur = currentRollup[event] || [];
           const base = baselineRollup[event] || [];
-          const addedSet = diffNewNames(cur, base);
-          const removedSet = diffRemovedNames(cur, base);
 
-          if (addedSet.size)   changes.added.push({ key: event, names: sortLocations([...addedSet]) });
-          if (removedSet.size) changes.removed.push({ key: event, names: sortLocations([...removedSet]) });
+          const addedNames = diffAdded(cur, base);
+          const removedNames = diffRemoved(cur, base);
+
+          if (addedNames.length)   changes.added.push({ key: event, names: addedNames });
+          if (removedNames.length) changes.removed.push({ key: event, names: removedNames });
         }
 
+        // events present in baseline but gone now: cleared
         for (const event of Object.keys(baselineRollup)) {
-          if (!(event in currentRollupSnap)) {
+          if (!(event in currentRollup)) {
             const names = Array.isArray(baselineRollup[event]) ? baselineRollup[event] : [];
             changes.cleared.push({ key: event, names: sortLocations(names) });
           }
         }
 
-        latestChangesForPanel = changes;
+        // store latest for modal
+        latestChanges = changes;
+        renderChangesModal(latestChanges);
+
         const signature = buildChangesSignature(changes);
-        latestHasAnyChanges = !!signature;
+        const hasAnyChanges = !!signature;
 
-        // Update changes panel content (even if hidden)
-        renderChangesPanel(latestChangesForPanel, latestHasAnyChanges);
-
-        // Update button state + "new" indicator
-        const isNewChanges = latestHasAnyChanges && signature !== lastChangesSignature;
-        if (isNewChanges) lastChangesSignature = signature;
+        // button states
+        const isNew = hasAnyChanges && signature !== lastChangesSignature;
+        if (isNew) lastChangesSignature = signature;
 
         setChangesButtonState({
-          hasChanges: latestHasAnyChanges,
-          isNew: (!changesVisible && isNewChanges)
+          hasChanges: hasAnyChanges,
+          isNew: (!changesOpen && isNew)
         });
 
-        // ===== Summary highlights ONLY (baseline vs current per group key) =====
+        // ===== Summary highlights (baseline vs current per group key) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -967,15 +942,20 @@
             </colgroup>
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
             ${groupedArr.map(g => {
-              const key = `${g.event}||${g.expires || ""}`;
+              const key = \`\${g.event}||\${g.expires || ""}\`;
               const namesSorted = sortLocations([...g.names]);
               const prevNames = baselineSnap?.summary?.[key];
-              const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
+
+              // highlight added counties within that specific summary row
+              const prev = new Set((prevNames || []).map(String));
+              const now = new Set(namesSorted.map(String));
+              const addedSet = new Set();
+              for (const n of now) if (!prev.has(n)) addedSet.add(n);
 
               return `
                 <tr>
                   <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
+                  <td>${renderLocationsWithHighlight(namesSorted, addedSet)}</td>
                   <td>${escapeHtml(formatTime(g.expires))}</td>
                 </tr>
               `;
@@ -1028,17 +1008,23 @@
       }
     }
 
-    // Changes toggle
-    document.getElementById("changesBtn").onclick = () => {
-      // Open/close
-      toggleChangesPanel();
+    // Buttons
+    document.getElementById("refreshBtn").onclick = fetchAlerts;
 
-      // if opening, stop flashing "New Changes"
-      if (changesVisible && latestHasAnyChanges) {
-        setChangesButtonState({ hasChanges: true, isNew: false });
-      }
+    document.getElementById("changesBtn").onclick = () => {
+      // Only open if we have changes
+      const hasAny =
+        latestChanges.added.length || latestChanges.removed.length || latestChanges.cleared.length;
+      if (!hasAny) return;
+
+      renderChangesModal(latestChanges);
+      openChangesModal();
     };
 
+    document.getElementById("changesCloseBtn").onclick = closeChangesModal;
+    document.getElementById("changesAckBtn").onclick = acknowledgeChangesNow;
+
+    // Alert modal wiring
     function openModal(i) {
       const a = alertStore.get(i);
       if (!a) return;
@@ -1060,8 +1046,6 @@
       const inst  = document.getElementById("modalInstruction").textContent || "";
       navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
     };
-
-    document.getElementById("refreshBtn").onclick = fetchAlerts;
 
     // initial load + auto-refresh
     fetchAlerts();
