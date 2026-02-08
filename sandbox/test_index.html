@@ -84,7 +84,7 @@
     html, body { background: var(--bg); color: var(--text); }
 
     /* ==============================
-       TITLE ROW (WITH SPACING FIX)
+       TITLE ROW
        ============================== */
     .title-row{
       max-width: 1200px;
@@ -92,14 +92,10 @@
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 12px; /* ✅ space under header */
+      margin-bottom: 12px;
     }
-    .title-row h1{
-      margin: 0; /* ✅ prevents phantom top margin */
-    }
-    .title-row .spacer{
-      flex: 1 1 auto;
-    }
+    .title-row h1{ margin: 0; }
+    .title-row .spacer{ flex: 1 1 auto; }
 
     /* ==============================
        TABLES
@@ -122,7 +118,8 @@
     .nav-toggle button,
     #refreshBtn,
     #themeToggle,
-    #ackBtn {
+    #ackBtn,
+    #changesBtn {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
@@ -135,10 +132,12 @@
     .nav-toggle button:hover,
     #refreshBtn:hover,
     #themeToggle:hover,
-    #ackBtn:hover { background: var(--btnBgHover); }
+    #ackBtn:hover,
+    #changesBtn:hover { background: var(--btnBgHover); }
 
     #refreshBtn:disabled,
-    #ackBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #ackBtn:disabled,
+    #changesBtn:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -266,10 +265,23 @@
     }
 
     /* ==============================
+       CHANGES BUTTON "NEW" INDICATOR
+       ============================== */
+    .changes-hot{
+      border-color: rgba(59, 130, 246, 0.95) !important;
+      box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
+      animation: changesPulse 1.25s ease-in-out infinite;
+    }
+    @keyframes changesPulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* ==============================
        CHANGE TRACKING PANEL
        ============================== */
     .change-panel {
-      max-width: 1200px;
       border: 1px solid var(--borderSoft);
       padding: 10px 12px;
       border-radius: 10px;
@@ -316,6 +328,10 @@
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
     <button id="refreshBtn" type="button">Refresh Now</button>
 
+    <button id="changesBtn" type="button" disabled title="No unacknowledged changes">
+      Changes
+    </button>
+
     <button id="ackBtn" type="button" disabled title="No unacknowledged changes">
       Acknowledge Changes
     </button>
@@ -323,8 +339,8 @@
 
   <p id="status">Loading alerts…</p>
 
-  <!-- NEW: changes panel renders here (only when there are changes) -->
-  <div id="changesContainer"></div>
+  <!-- Hidden until user clicks Changes -->
+  <div id="changesContainer" style="display:none;"></div>
 
   <h2 class="section-title">Summary</h2>
   <div class="muted">New information since your last acknowledgment will be highlighted in blue.</div>
@@ -380,7 +396,7 @@
 
   <script>
     /* ==============================
-       THEME TOGGLE (shared across pages)
+       THEME TOGGLE
        ============================== */
     (function () {
       const STORAGE_KEY_THEME = "pa_alerts_theme";
@@ -393,7 +409,6 @@
       }
 
       function setTheme(theme) {
-        // theme: "dark" | "light" | "system"
         if (theme === "system") {
           root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
         } else {
@@ -407,7 +422,6 @@
 
       const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
 
-      // If system, keep in sync with OS changes
       if (saved === "system" && window.matchMedia) {
         const mq = window.matchMedia("(prefers-color-scheme: dark)");
         if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
@@ -429,20 +443,22 @@
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-    // Baseline vs Current snapshots (advisories page)
     const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v1";
     const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v1";
 
     /* ==============================
        RWS INDICATOR (CTP ONLY)
-       Shared key so ack syncs across pages
        ============================== */
     const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared"; // MUST match index page too
+    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
     let currentRwsMarker = null;
 
     const zoneCache = new Map();
     const alertStore = new Map();
+
+    // UI state
+    let changesVisible = false;
+    let lastChangesSignature = "";
 
     function formatTime(v) {
       if (!v) return "N/A";
@@ -509,7 +525,7 @@
       });
     }
 
-    // SUMMARY ONLY normalization (does NOT affect Alert Links)
+    // SUMMARY ONLY normalization
     function normalizeSummaryCounty(name) {
       let s = String(name || "").trim();
       s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
@@ -560,7 +576,6 @@
     }
 
     function diffNewNames(currentArr, prevArr) {
-      // added = current - prev
       const prev = new Set((prevArr || []).map(String));
       const now = new Set((currentArr || []).map(String));
       const added = new Set();
@@ -569,7 +584,6 @@
     }
 
     function diffRemovedNames(currentArr, prevArr) {
-      // removed = prev - current
       const prev = new Set((prevArr || []).map(String));
       const now = new Set((currentArr || []).map(String));
       const removed = new Set();
@@ -577,9 +591,22 @@
       return removed;
     }
 
-    function formatGroupKeyHuman(key) {
-      const [event, expires] = String(key || "").split("||");
-      return `${event || "Alert"} (expires ${formatTime(expires || "")})`;
+    /* ==============================
+       KEY NORMALIZATION TO FILTER “REFRESH UPDATES”
+       ============================== */
+    function normalizeExpireKey(v) {
+      // minute bucket epoch key: avoids string format churn (Z vs -05:00, etc.)
+      if (!v) return "noexp";
+      const ms = new Date(v).getTime();
+      if (isNaN(ms)) return String(v);
+      return String(Math.floor(ms / 60000));
+    }
+
+    function formatGroupKeyHuman(key, displayExpiresMap) {
+      // key: "Event||expireKey"
+      const [event, expireKey] = String(key || "").split("||");
+      const display = (displayExpiresMap && displayExpiresMap[key]) ? displayExpiresMap[key] : "";
+      return `${event || "Alert"} (expires ${formatTime(display)})`;
     }
 
     function renderLocationsWithHighlight(namesSorted, newSet) {
@@ -588,6 +615,109 @@
         if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
         return safe;
       }).join("; ");
+    }
+
+    /* ==============================
+       CHANGES BUTTON + PANEL
+       ============================== */
+    function setChangesButtonState({ hasChanges, isNew }) {
+      const btn = document.getElementById("changesBtn");
+      if (!btn) return;
+
+      btn.disabled = !hasChanges;
+
+      if (!hasChanges) {
+        btn.classList.remove("changes-hot");
+        btn.textContent = "Changes";
+        btn.title = "No unacknowledged changes";
+        return;
+      }
+
+      if (isNew) {
+        btn.classList.add("changes-hot");
+        btn.textContent = "New Changes";
+        btn.title = "Click to view changes since last acknowledgment";
+      } else {
+        btn.classList.remove("changes-hot");
+        btn.textContent = "Changes";
+        btn.title = "Click to view changes since last acknowledgment";
+      }
+    }
+
+    function toggleChangesPanel() {
+      const wrap = document.getElementById("changesContainer");
+      if (!wrap) return;
+      changesVisible = !changesVisible;
+      wrap.style.display = changesVisible ? "block" : "none";
+
+      // When user opens it, stop "New Changes" flashing (but keep button enabled)
+      if (changesVisible) {
+        setChangesButtonState({ hasChanges: true, isNew: false });
+      }
+    }
+
+    function buildChangesSignature(changes) {
+      const parts = [];
+      for (const x of changes.added)   parts.push("A|" + x.key + "|" + x.names.join(","));
+      for (const x of changes.removed) parts.push("R|" + x.key + "|" + x.names.join(","));
+      for (const x of changes.cleared) parts.push("C|" + x.key + "|" + (x.names || []).join(","));
+      return parts.join("||");
+    }
+
+    function renderChangesPanel(changes, displayExpiresMap) {
+      const wrap = document.getElementById("changesContainer");
+      if (!wrap) return;
+
+      const hasAny =
+        changes.added.length || changes.removed.length || changes.cleared.length;
+
+      if (!hasAny) {
+        wrap.innerHTML = "";
+        wrap.style.display = "none";
+        changesVisible = false;
+        return;
+      }
+
+      wrap.innerHTML = `
+        <div class="change-panel">
+          <h3>Changes since last acknowledgment</h3>
+
+          ${changes.removed.length ? `
+            <div>
+              <span class="change-tag change-removed">Removed</span>
+              <ul>
+                ${changes.removed.map(x => `
+                  <li><b>${escapeHtml(formatGroupKeyHuman(x.key, displayExpiresMap))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+                `).join("")}
+              </ul>
+            </div>
+          ` : ""}
+
+          ${changes.added.length ? `
+            <div style="margin-top:10px;">
+              <span class="change-tag change-added">Added</span>
+              <ul>
+                ${changes.added.map(x => `
+                  <li><b>${escapeHtml(formatGroupKeyHuman(x.key, displayExpiresMap))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+                `).join("")}
+              </ul>
+            </div>
+          ` : ""}
+
+          ${changes.cleared.length ? `
+            <div style="margin-top:10px;">
+              <span class="change-tag change-cleared">Cleared</span>
+              <ul>
+                ${changes.cleared.map(x => `
+                  <li><b>${escapeHtml(formatGroupKeyHuman(x.key, displayExpiresMap))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+                `).join("")}
+              </ul>
+            </div>
+          ` : ""}
+        </div>
+      `;
+
+      wrap.style.display = changesVisible ? "block" : "none";
     }
 
     /* ------------------------------
@@ -717,12 +847,12 @@
       const status = document.getElementById("status");
       const refreshBtn = document.getElementById("refreshBtn");
       const ackBtn = document.getElementById("ackBtn");
+      const changesBtn = document.getElementById("changesBtn");
 
       refreshBtn.disabled = true;
       status.textContent = "Loading alerts…";
 
       try {
-        // Baseline = last acknowledged snapshot (for persistent highlights + changes panel)
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
         const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
@@ -752,7 +882,7 @@
               alertId,
               event: p.event,
               expires: p.ends || p.expires,
-              names: [...new Set(names)],    // exact NWS names (for modal + alert links)
+              names: [...new Set(names)],
               description: p.description,
               instruction: p.instruction
             });
@@ -761,108 +891,73 @@
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${rows.length}`;
 
-        // ===== SUMMARY GROUPING (NORMALIZED) =====
+        // ===== SUMMARY GROUPING (NORMALIZED COUNTIES + NORMALIZED EXPIRE KEY) =====
         const grouped = new Map();
+        const displayExpiresMap = {}; // key -> raw expires string for display
+
         for (const row of rows) {
-          const k = `${row.event}||${row.expires || ""}`;
-          if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
+          const expKey = normalizeExpireKey(row.expires);
+          const k = `${row.event}||${expKey}`;
+          if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, key: k, names: new Set() });
+          // store a display-friendly expires per key (first seen wins)
+          if (!displayExpiresMap[k]) displayExpiresMap[k] = row.expires || "";
           row.names.forEach(n => grouped.get(k).names.add(normalizeSummaryCounty(n)));
         }
 
-        // Build CURRENT snapshots
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Always store CURRENT so Ack can promote it
         saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap);
 
-        // First run: initialize baseline so you don't highlight everything
         if (!baselineSnap) {
           saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap);
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
-        // ===== CHANGE TRACKING (added/removed/cleared) SINCE BASELINE =====
+        // ===== CHANGE TRACKING (since baseline) =====
         const changes = { added: [], removed: [], cleared: [] };
         const baselineSummary = baselineSnap?.summary || {};
         const currentSummary = currentSummarySnap || {};
 
-        // added/removed within groups that still exist
         for (const key of Object.keys(currentSummary)) {
           const cur = currentSummary[key] || [];
           const base = baselineSummary[key] || [];
           const addedSet = diffNewNames(cur, base);
           const removedSet = diffRemovedNames(cur, base);
-          if (addedSet.size) changes.added.push({ key, names: [...addedSet] });
-          if (removedSet.size) changes.removed.push({ key, names: [...removedSet] });
+          if (addedSet.size) changes.added.push({ key, names: sortLocations([...addedSet]) });
+          if (removedSet.size) changes.removed.push({ key, names: sortLocations([...removedSet]) });
         }
 
-        // groups that cleared entirely
         for (const key of Object.keys(baselineSummary)) {
-          if (!(key in currentSummary)) changes.cleared.push(key);
-        }
-
-        const changesDiv = document.getElementById("changesContainer");
-        const hasAnyChanges = (changes.added.length || changes.removed.length || changes.cleared.length);
-
-        if (changesDiv) {
-          if (!hasAnyChanges) {
-            changesDiv.innerHTML = "";
-          } else {
-            changes.added.forEach(x => x.names = sortLocations(x.names));
-            changes.removed.forEach(x => x.names = sortLocations(x.names));
-            changes.cleared.sort();
-
-            changesDiv.innerHTML = `
-              <div class="change-panel">
-                <h3>Changes since last acknowledgment</h3>
-
-                ${changes.removed.length ? `
-                  <div>
-                    <span class="change-tag change-removed">Removed</span>
-                    <ul>
-                      ${changes.removed.map(x => `
-                        <li><b>${escapeHtml(formatGroupKeyHuman(x.key))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-                      `).join("")}
-                    </ul>
-                  </div>
-                ` : ""}
-
-                ${changes.added.length ? `
-                  <div style="margin-top:10px;">
-                    <span class="change-tag change-added">Added</span>
-                    <ul>
-                      ${changes.added.map(x => `
-                        <li><b>${escapeHtml(formatGroupKeyHuman(x.key))}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-                      `).join("")}
-                    </ul>
-                  </div>
-                ` : ""}
-
-                ${changes.cleared.length ? `
-                  <div style="margin-top:10px;">
-                    <span class="change-tag change-cleared">Cleared</span>
-                    <ul>
-                      ${changes.cleared.map(k => `<li><b>${escapeHtml(formatGroupKeyHuman(k))}</b></li>`).join("")}
-                    </ul>
-                  </div>
-                ` : ""}
-              </div>
-            `;
+          if (!(key in currentSummary)) {
+            const names = Array.isArray(baselineSummary[key]) ? baselineSummary[key] : [];
+            changes.cleared.push({ key, names: sortLocations(names) });
+            // if key only exists in baseline, still let it display a time (fallback to "" if not known)
+            if (!displayExpiresMap[key]) displayExpiresMap[key] = ""; 
           }
         }
 
-        // ===== SUMMARY TABLE (HIGHLIGHTS ONLY HERE; PERSIST UNTIL ACK) =====
+        // render panel HTML (but keep hidden until user clicks Changes)
+        renderChangesPanel(changes, displayExpiresMap);
+
+        // update "New Changes" button state (signature based)
+        const signature = buildChangesSignature(changes);
+        const hasAnyChanges = !!signature;
+        const isNewChanges = hasAnyChanges && signature !== lastChangesSignature;
+        if (isNewChanges) lastChangesSignature = signature;
+
+        // If panel is open, don't flash "New" (user is already looking)
+        setChangesButtonState({ hasChanges: hasAnyChanges, isNew: (!changesVisible && isNewChanges) });
+
+        // ===== SUMMARY TABLE (HIGHLIGHTS ONLY FOR ADDED COUNTIES) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
-
-        let hasUnackChangesForHighlight = false;
 
         document.getElementById("tableContainer").innerHTML = `
           <table>
@@ -874,11 +969,10 @@
             <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
             ${
               groupedArr.map(g => {
-                const key = `${g.event}||${g.expires || ""}`;
+                const key = g.key;
                 const namesSorted = sortLocations([...g.names]);
                 const prevNames = baselineSnap?.summary?.[key];
                 const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-                if (newSet && newSet.size) hasUnackChangesForHighlight = true;
 
                 return `
                   <tr>
@@ -892,15 +986,10 @@
           </table>
         `;
 
-        // Enable Ack if there are ANY unack changes (added/removed/cleared OR highlight additions)
-        // This way you can clear the "Changes since last acknowledgment" panel too.
-        const shouldEnableAck = hasAnyChanges || hasUnackChangesForHighlight;
-
+        // ACK button enabled when any changes exist
         if (ackBtn) {
-          ackBtn.disabled = !shouldEnableAck;
-          ackBtn.title = shouldEnableAck
-            ? "Mark current changes as acknowledged"
-            : "No unacknowledged changes";
+          ackBtn.disabled = !hasAnyChanges;
+          ackBtn.title = hasAnyChanges ? "Mark current changes as acknowledged" : "No unacknowledged changes";
         }
 
         // ===== ALERT LINKS (EXACT / NO HIGHLIGHTS) =====
@@ -932,7 +1021,7 @@
                 return `
                   <tr>
                     <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                    <td>${renderLocationsWithHighlight(namesSorted)}</td>
+                    <td>${namesSorted.map(escapeHtml).join("; ")}</td>
                     <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
                   </tr>
                 `;
@@ -952,13 +1041,21 @@
       }
     }
 
-    // Acknowledge: promote CURRENT -> BASELINE (clears Summary highlights + clears changes panel)
+    // Acknowledge: promote CURRENT -> BASELINE
     document.getElementById("ackBtn").onclick = () => {
       const current = loadSnapshot(STORAGE_KEY_CURRENT);
       if (!current) return;
-
       try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
+      // hide changes panel and clear "new" indicator on next render
+      changesVisible = false;
+      document.getElementById("changesContainer").style.display = "none";
+      lastChangesSignature = "";
       fetchAlerts();
+    };
+
+    // Changes toggle
+    document.getElementById("changesBtn").onclick = () => {
+      toggleChangesPanel();
     };
 
     function openModal(i) {
@@ -985,13 +1082,49 @@
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
+    /* ==============================
+       RWS (shared) helpers
+       ============================== */
+    function normalizeListingProducts(listing) {
+      if (!listing) return [];
+      if (Array.isArray(listing.products)) return listing.products;
+      if (Array.isArray(listing["@graph"])) return listing["@graph"];
+      if (Array.isArray(listing.items)) return listing.items;
+      if (Array.isArray(listing.features)) return listing.features;
+      return [];
+    }
+    function productIdFromAny(p) {
+      return p?.productId || p?.id || p?.["@id"] || p?.url || null;
+    }
+    function issuanceTimeFromAny(p) {
+      return p?.issuanceTime || p?.issueTime || p?.created || p?.validTime || "";
+    }
+    function pickLatestProductRobust(items) {
+      if (!Array.isArray(items) || items.length === 0) return null;
+      const mapped = items
+        .map(p => {
+          const pid = productIdFromAny(p);
+          const t = Date.parse(issuanceTimeFromAny(p));
+          return { p, pid, t: isNaN(t) ? -1 : t };
+        })
+        .filter(x => x.pid);
+      if (!mapped.length) return null;
+      mapped.sort((a, b) => {
+        if (a.t !== b.t) return b.t - a.t;
+        return String(b.pid).localeCompare(String(a.pid));
+      });
+      return mapped[0].p;
+    }
+    function markerForLatest(latest) {
+      const pid = productIdFromAny(latest) || "";
+      const issued = issuanceTimeFromAny(latest) || "";
+      const url = String(pid).startsWith("http") ? pid : `https://api.weather.gov/products/${pid}`;
+      return `${url}||${issued}`;
+    }
+
     // initial load
     fetchAlerts();
-
-    // auto-refresh alerts every 5 minutes
     setInterval(fetchAlerts, 5 * 60 * 1000);
-
-    // RWS-only check so it can light even if alerts fetch fails
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
   </script>
 </body>
