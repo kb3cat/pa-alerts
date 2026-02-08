@@ -352,32 +352,39 @@
 
   <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
 
-  <!-- ✅ Map + CSS fallback -->
-  <div class="map-wrap">
-    <img
-      id="wwaMap"
-      src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-      alt="NWS Current Watches, Warnings, and Advisories (PA)"
-      style="max-width: 1200px; width: 100%; height: auto;"
-      onerror="showWwaMapFallback()"
-    />
+ <!-- ✅ Map + CSS fallback -->
+<div class="map-wrap">
+  <img
+    id="wwaMap"
+    src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+    alt="NWS Current Watches, Warnings, and Advisories (PA)"
+    style="max-width: 1200px; width: 100%; height: auto;"
+    onerror="showWwaMapFallback()"
+  />
 
-   <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
-  <div>
-    <div class="title">NWS Alert Map Unavailable</div>
-    <div class="text">
-      The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
-      Alert data remains valid and is displayed above.
+  <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+    <div>
+      <div class="title">NWS Alert Map Unavailable</div>
+      <div class="text">
+        The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
+        Alert data remains valid and is displayed above.
+      </div>
     </div>
   </div>
 </div>
 
-  <p class="muted" id="mapSourceLine">
-    Map source:
-    <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
-      NWS Current Watches, Warnings, and Advisories (PA)
-    </a>
-  </p>
+<!-- ✅ Source link is BELOW the map/fallback (not inside the dashed box) -->
+<p class="muted" id="mapSourceLine">
+  Map source:
+  <a
+    href="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    NWS Current Watches, Warnings, and Advisories (PA)
+  </a>
+</p>
+
 
   <h2 style="margin-top: 18px; max-width:1200px;">Live Radar</h2>
   <div class="embed-wrap">
