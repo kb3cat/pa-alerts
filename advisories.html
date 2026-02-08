@@ -106,7 +106,8 @@
     .nav-toggle button,
     #refreshBtn,
     #themeToggle,
-    #changesBtn {
+    #changesBtn,
+    .ack-inline {
       margin-left: 8px;
       padding: 6px 12px;
       border-radius: 6px;
@@ -120,10 +121,12 @@
     .nav-toggle button:hover,
     #refreshBtn:hover,
     #themeToggle:hover,
-    #changesBtn:hover { background: var(--btnBgHover); }
+    #changesBtn:hover,
+    .ack-inline:hover { background: var(--btnBgHover); }
 
     #refreshBtn:disabled,
-    #changesBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+    #changesBtn:disabled,
+    .ack-inline:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
@@ -154,7 +157,7 @@
     }
     button.view-btn:hover { background: var(--btnBgHover); }
 
-    /* Modal */
+    /* Alert Text Modal */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -231,6 +234,8 @@
     }
     .change-added { background: rgba(59,130,246,0.18); }
     .change-removed { background: rgba(220,38,38,0.18); }
+    .change-time { background: rgba(168,85,247,0.18); }
+    .change-type { background: rgba(245,158,11,0.18); }
     .change-cleared { background: rgba(16,185,129,0.18); }
     .change-block { margin-top: 10px; }
     .change-block ul { margin: 6px 0 0; padding-left: 18px; }
@@ -423,7 +428,7 @@
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-    // Summary-driven baseline/current snapshots
+    // ✅ Summary-driven baseline/current snapshots (v3 schema)
     const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v3";
     const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_advisories_v3";
 
@@ -437,7 +442,8 @@
 
     let changesOpen = false;
     let lastChangesSignature = "";
-    let latestChanges = { added: [], removed: [], cleared: [] };
+    let latestHasAnyChanges = false;
+    let latestChanges = { added: [], removed: [], timeChanged: [], typeChanged: [], cleared: [] };
 
     function formatTime(v) {
       if (!v) return "N/A";
@@ -544,9 +550,14 @@
       }
     }
 
-    function saveSnapshot(key, summaryGroups, alertsById, rollup) {
-      const snap = { ts: Date.now(), summary: summaryGroups, alerts: alertsById, rollup: rollup || {} };
+    function saveSnapshot(key, payload) {
+      const snap = { ts: Date.now(), ...payload };
       try { localStorage.setItem(key, JSON.stringify(snap)); } catch {}
+    }
+
+    function setSigFromNames(names) {
+      const sorted = sortLocations([...new Set(names.map(String))]);
+      return sorted.join("|");
     }
 
     function diffAdded(currentArr, prevArr) {
@@ -596,11 +607,13 @@
       }
     }
 
-    function buildChangesSignature(changes) {
+    function buildChangesSignature(ch) {
       const parts = [];
-      for (const x of changes.added)   parts.push("A|" + x.key + "|" + x.names.join(","));
-      for (const x of changes.removed) parts.push("R|" + x.key + "|" + x.names.join(","));
-      for (const x of changes.cleared) parts.push("C|" + x.key + "|" + x.names.join(","));
+      for (const x of ch.added)       parts.push("A|" + x.event + "|" + x.names.join(","));
+      for (const x of ch.removed)     parts.push("R|" + x.event + "|" + x.names.join(","));
+      for (const x of ch.timeChanged) parts.push("T|" + x.event + "|" + x.from + "->" + x.to + "|" + x.names.join(","));
+      for (const x of ch.typeChanged) parts.push("Y|" + x.from + "->" + x.to + "|" + x.names.join(","));
+      for (const x of ch.cleared)     parts.push("C|" + x.event + "|" + x.names.join(","));
       return parts.join("||");
     }
 
@@ -610,6 +623,8 @@
       const ack  = document.getElementById("changesAckBtn");
 
       const total =
+        (changes.typeChanged?.length || 0) +
+        (changes.timeChanged?.length || 0) +
         (changes.added?.length || 0) +
         (changes.removed?.length || 0) +
         (changes.cleared?.length || 0);
@@ -618,47 +633,59 @@
         ? `Groups with changes: ${total} | Baseline compares to your last Acknowledge`
         : "No changes";
 
-      const hasAny =
-        changes.added.length || changes.removed.length || changes.cleared.length;
-
+      const hasAny = total > 0;
       ack.disabled = !hasAny;
 
       if (!hasAny) {
-        body.innerHTML = "<p class='muted'>No unacknowledged Summary rollup changes right now.</p>";
+        body.innerHTML = "<p class='muted'>No unacknowledged Summary changes right now.</p>";
         return;
       }
 
+      const list = (items, fmt) => `<ul>${items.map(fmt).join("")}</ul>`;
+
       body.innerHTML = `
+        ${changes.typeChanged.length ? `
+          <div class="change-block">
+            <span class="change-tag change-type">Type changed</span>
+            ${list(changes.typeChanged, x => `
+              <li><b>${escapeHtml(x.from)} → ${escapeHtml(x.to)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+            `)}
+          </div>
+        ` : ""}
+
+        ${changes.timeChanged.length ? `
+          <div class="change-block">
+            <span class="change-tag change-time">Expiration updated</span>
+            ${list(changes.timeChanged, x => `
+              <li><b>${escapeHtml(x.event)}</b> (${escapeHtml(x.from)} → ${escapeHtml(x.to)}): ${x.names.map(escapeHtml).join("; ")}</li>
+            `)}
+          </div>
+        ` : ""}
+
         ${changes.removed.length ? `
           <div class="change-block">
-            <span class="change-tag change-removed">Removed</span>
-            <ul>
-              ${changes.removed.map(x => `
-                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `).join("")}
-            </ul>
+            <span class="change-tag change-removed">County removed</span>
+            ${list(changes.removed, x => `
+              <li><b>${escapeHtml(x.event)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+            `)}
           </div>
         ` : ""}
 
         ${changes.added.length ? `
           <div class="change-block">
-            <span class="change-tag change-added">Added</span>
-            <ul>
-              ${changes.added.map(x => `
-                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `).join("")}
-            </ul>
+            <span class="change-tag change-added">County added</span>
+            ${list(changes.added, x => `
+              <li><b>${escapeHtml(x.event)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+            `)}
           </div>
         ` : ""}
 
         ${changes.cleared.length ? `
           <div class="change-block">
             <span class="change-tag change-cleared">Cleared</span>
-            <ul>
-              ${changes.cleared.map(x => `
-                <li><b>${escapeHtml(x.key)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `).join("")}
-            </ul>
+            ${list(changes.cleared, x => `
+              <li><b>${escapeHtml(x.event)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
+            `)}
           </div>
         ` : ""}
       `;
@@ -667,10 +694,7 @@
     function openChangesModal() {
       changesOpen = true;
       document.getElementById("changesBackdrop").style.display = "flex";
-
-      const hasAny =
-        latestChanges.added.length || latestChanges.removed.length || latestChanges.cleared.length;
-      setChangesButtonState({ hasChanges: hasAny, isNew: false });
+      if (latestHasAnyChanges) setChangesButtonState({ hasChanges: true, isNew: false });
     }
 
     function closeChangesModal() {
@@ -686,6 +710,9 @@
 
       closeChangesModal();
       lastChangesSignature = "";
+      latestHasAnyChanges = false;
+      setChangesButtonState({ hasChanges: false, isNew: false });
+
       fetchAlerts();
     }
 
@@ -874,7 +901,7 @@
         const currentAlertsSnap = {};
         for (const row of rows) currentAlertsSnap[row.alertId] = sortLocations(row.names);
 
-        // Rollup (Summary-driven)
+        // Rollup by event (Summary-driven)
         const rollupMap = new Map();
         for (const g of grouped.values()) {
           if (!rollupMap.has(g.event)) rollupMap.set(g.event, new Set());
@@ -883,48 +910,139 @@
         const currentRollup = {};
         for (const [event, set] of rollupMap.entries()) currentRollup[event] = sortLocations([...set]);
 
-        saveSnapshot(STORAGE_KEY_CURRENT, currentSummarySnap, currentAlertsSnap, currentRollup);
+        // expiresByEventSet + eventsByCountySet (for time/type changes)
+        const currentExpiresByEventSet = {};
+        const countySetToEvents = new Map();
 
-        // Init baseline if missing
-        if (!baselineSnap) {
-          saveSnapshot(STORAGE_KEY_BASELINE, currentSummarySnap, currentAlertsSnap, currentRollup);
+        for (const g of grouped.values()) {
+          const counties = sortLocations([...g.names]);
+          const countiesSig = setSigFromNames(counties);
+
+          const eventSetKey = `${g.event}||${countiesSig}`;
+          currentExpiresByEventSet[eventSetKey] = g.expires || "";
+
+          if (!countySetToEvents.has(countiesSig)) countySetToEvents.set(countiesSig, new Set());
+          countySetToEvents.get(countiesSig).add(g.event);
+        }
+
+        const currentEventsByCountySet = {};
+        for (const [sig, set] of countySetToEvents.entries()) {
+          currentEventsByCountySet[sig] = Array.from(set).sort((a,b)=>String(a).localeCompare(String(b)));
+        }
+
+        saveSnapshot(STORAGE_KEY_CURRENT, {
+          summary: currentSummarySnap,
+          alerts: currentAlertsSnap,
+          rollup: currentRollup,
+          expiresByEventSet: currentExpiresByEventSet,
+          eventsByCountySet: currentEventsByCountySet
+        });
+
+        // init baseline if missing/incompatible
+        const baselineOk =
+          baselineSnap &&
+          baselineSnap.summary && baselineSnap.rollup &&
+          baselineSnap.expiresByEventSet && baselineSnap.eventsByCountySet;
+
+        if (!baselineOk) {
+          saveSnapshot(STORAGE_KEY_BASELINE, {
+            summary: currentSummarySnap,
+            alerts: currentAlertsSnap,
+            rollup: currentRollup,
+            expiresByEventSet: currentExpiresByEventSet,
+            eventsByCountySet: currentEventsByCountySet
+          });
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
-        // ===== Changes (rollup only) =====
-        const changes = { added: [], removed: [], cleared: [] };
-        const baselineRollup = baselineSnap?.rollup || {};
+        // ===== CHANGES (from Summary models) =====
+        const changes = { added: [], removed: [], timeChanged: [], typeChanged: [], cleared: [] };
 
+        const baseRollup = baselineSnap.rollup || {};
+        const baseExpiresByEventSet = baselineSnap.expiresByEventSet || {};
+        const baseEventsByCountySet = baselineSnap.eventsByCountySet || {};
+
+        // county added/removed (per event)
         for (const event of Object.keys(currentRollup)) {
           const cur = currentRollup[event] || [];
-          const base = baselineRollup[event] || [];
-
-          const addedNames = diffAdded(cur, base);
-          const removedNames = diffRemoved(cur, base);
-
-          if (addedNames.length)   changes.added.push({ key: event, names: addedNames });
-          if (removedNames.length) changes.removed.push({ key: event, names: removedNames });
+          const base = baseRollup[event] || [];
+          const add = diffAdded(cur, base);
+          const rem = diffRemoved(cur, base);
+          if (add.length) changes.added.push({ event, names: add });
+          if (rem.length) changes.removed.push({ event, names: rem });
         }
 
-        for (const event of Object.keys(baselineRollup)) {
+        // cleared (event missing now)
+        for (const event of Object.keys(baseRollup)) {
           if (!(event in currentRollup)) {
-            const names = Array.isArray(baselineRollup[event]) ? baselineRollup[event] : [];
-            changes.cleared.push({ key: event, names: sortLocations(names) });
+            const names = Array.isArray(baseRollup[event]) ? baseRollup[event] : [];
+            changes.cleared.push({ event, names: sortLocations(names) });
           }
         }
+
+        // expiration changes (same event + same countiesSig)
+        for (const eventSetKey of Object.keys(currentExpiresByEventSet)) {
+          if (!(eventSetKey in baseExpiresByEventSet)) continue;
+          const curExp = currentExpiresByEventSet[eventSetKey] || "";
+          const baseExp = baseExpiresByEventSet[eventSetKey] || "";
+          if (String(curExp) !== String(baseExp)) {
+            const [event, countiesSig] = eventSetKey.split("||");
+            const names = countiesSig ? countiesSig.split("|").filter(Boolean) : [];
+            changes.timeChanged.push({
+              event,
+              from: formatTime(baseExp),
+              to: formatTime(curExp),
+              names: sortLocations(names)
+            });
+          }
+        }
+
+        // type changes (same county set, different event set)
+        for (const countiesSig of Object.keys(currentEventsByCountySet)) {
+          if (!(countiesSig in baseEventsByCountySet)) continue;
+
+          const curEvents = new Set((currentEventsByCountySet[countiesSig] || []).map(String));
+          const baseEvents = new Set((baseEventsByCountySet[countiesSig] || []).map(String));
+
+          const gained = [];
+          const lost = [];
+          for (const e of curEvents) if (!baseEvents.has(e)) gained.push(e);
+          for (const e of baseEvents) if (!curEvents.has(e)) lost.push(e);
+
+          if (gained.length || lost.length) {
+            const names = countiesSig.split("|").filter(Boolean);
+
+            if (lost.length === 1 && gained.length === 1) {
+              changes.typeChanged.push({ from: lost[0], to: gained[0], names: sortLocations(names) });
+            } else {
+              changes.typeChanged.push({
+                from: (lost.length ? lost.join(", ") : "—"),
+                to: (gained.length ? gained.join(", ") : "—"),
+                names: sortLocations(names)
+              });
+            }
+          }
+        }
+
+        // stable sorting
+        changes.added.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
+        changes.removed.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
+        changes.cleared.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
+        changes.timeChanged.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
+        changes.typeChanged.sort((a,b)=>String(a.from).localeCompare(String(b.from)));
 
         latestChanges = changes;
         renderChangesModal(latestChanges);
 
         const signature = buildChangesSignature(changes);
-        const hasAnyChanges = !!signature;
+        latestHasAnyChanges = !!signature;
 
-        const isNew = hasAnyChanges && signature !== lastChangesSignature;
+        const isNew = latestHasAnyChanges && signature !== lastChangesSignature;
         if (isNew) lastChangesSignature = signature;
 
-        setChangesButtonState({ hasChanges: hasAnyChanges, isNew: (!changesOpen && isNew) });
+        setChangesButtonState({ hasChanges: latestHasAnyChanges, isNew: (!changesOpen && isNew) });
 
-        // ===== Summary table (highlights baseline vs current per group key) =====
+        // ===== Summary table (blue highlights: baseline vs current per group key) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -959,7 +1077,7 @@
           </table>
         `;
 
-        // ===== Alert links (exact; no highlights) =====
+        // ===== Alert links =====
         rows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -993,7 +1111,6 @@
               `;
             }).join("")}
           </table>
-          <p class="muted">“View Text” opens the full alert text.</p>
         `;
 
         refreshMap();
@@ -1023,10 +1140,7 @@
     document.getElementById("refreshBtn").onclick = fetchAlerts;
 
     document.getElementById("changesBtn").onclick = () => {
-      const hasAny =
-        latestChanges.added.length || latestChanges.removed.length || latestChanges.cleared.length;
-      if (!hasAny) return;
-
+      if (!latestHasAnyChanges) return;
       renderChangesModal(latestChanges);
       openChangesModal();
     };
@@ -1044,6 +1158,14 @@
       const inst  = document.getElementById("modalInstruction").textContent || "";
       navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
     };
+
+    // Close modals on backdrop click
+    document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+      if (e.target.id === "modalBackdrop") document.getElementById("modalBackdrop").style.display = "none";
+    });
+    document.getElementById("changesBackdrop").addEventListener("click", (e) => {
+      if (e.target.id === "changesBackdrop") closeChangesModal();
+    });
 
     // Initial load + timers
     fetchAlerts();
