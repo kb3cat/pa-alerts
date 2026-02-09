@@ -7,12 +7,39 @@
 
 <style>
   :root{
+    color-scheme: light;
     --bg:#ffffff;
-    --text:#111;
-    --muted:#555;
-    --border:#333;
-    --soft:#ddd;
+    --text:#111111;
+    --muted:#555555;
+
+    --border:#333333;
+    --soft:#dddddd;
     --head:#f0f0f0;
+
+    --panelBg:#ffffff;
+
+    /* accent pills/borders */
+    --warn:#b00000;
+    --watch:#d97706;
+    --adv:#2563eb;
+
+    --rowHi: rgba(59, 130, 246, 0.10);
+  }
+
+  /* Dark mode (toggled via [data-theme="dark"]) */
+  html[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0b0f17;
+    --text:#e8eefc;
+    --muted:#a8b3c7;
+
+    --border:#445069;
+    --soft:#2b3344;
+    --head:#151c2b;
+
+    --panelBg:#0f1626;
+
+    --rowHi: rgba(59, 130, 246, 0.18);
   }
 
   body{
@@ -22,7 +49,6 @@
     color:var(--text);
   }
 
-  /* Entire screen */
   .wrap{
     height:100vh;
     display:grid;
@@ -32,7 +58,6 @@
     box-sizing:border-box;
   }
 
-  /* Header */
   .topbar{
     display:flex;
     justify-content:space-between;
@@ -41,7 +66,7 @@
     padding:8px 12px;
     border:1px solid var(--border);
     border-radius:10px;
-    background:#fafafa;
+    background:var(--panelBg);
   }
 
   .title{
@@ -49,12 +74,26 @@
     letter-spacing:.2px;
   }
 
-  .updated{
-    font-size:.9em;
+  .meta{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
     color:var(--muted);
+    font-size:.95em;
   }
 
-  /* Main grid */
+  .btn{
+    border:1px solid var(--border);
+    background:transparent;
+    color:var(--text);
+    padding:6px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    font:inherit;
+  }
+  .btn:hover{ background: rgba(255,255,255,0.06); }
+
   .grid{
     display:grid;
     grid-template-columns:40% 60%;
@@ -70,13 +109,20 @@
     min-height:0;
   }
 
+  .right{
+    display:grid;
+    grid-template-rows:40% 60%;
+    gap:8px;
+    min-height:0;
+  }
+
   .panel{
     border:1px solid var(--border);
     border-radius:10px;
     overflow:hidden;
     display:flex;
     flex-direction:column;
-    background:#fff;
+    background:var(--panelBg);
     min-height:0;
   }
 
@@ -86,48 +132,103 @@
     background:var(--head);
     border-bottom:1px solid var(--border);
     font-size:1em;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
   }
 
   .panel .body{
     padding:8px 10px;
     overflow:auto;
     font-size:.95em;
-  }
-
-  /* Alerts */
-  .alert{
-    padding:6px 8px;
-    border-left:5px solid #999;
-    margin-bottom:6px;
-    background:#f9f9f9;
-  }
-  .alert.warning{ border-color:#b00000; }
-  .alert.watch{ border-color:#d97706; }
-  .alert.advisory{ border-color:#2563eb; }
-
-  .alert strong{ display:block; }
-
-  /* Right side visuals */
-  .right{
-    display:grid;
-    grid-template-rows:40% 60%;
-    gap:8px;
     min-height:0;
+  }
+
+  /* Summary boxes */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:8px;
+  }
+  .stat{
+    border:1px solid var(--soft);
+    border-radius:10px;
+    padding:8px 10px;
+    background:transparent;
+    min-width:0;
+  }
+  .stat .k{ font-size:.85em; color:var(--muted); }
+  .stat .v{ font-size:1.2em; font-weight:800; margin-top:2px; }
+
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    font-size:.85em;
+    white-space:nowrap;
+  }
+  .pill.warn{ border-color: var(--warn); }
+  .pill.watch{ border-color: var(--watch); }
+  .pill.adv{ border-color: var(--adv); }
+
+  /* Table like your index/advisories style */
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:.93em;
+  }
+  th, td{
+    border:1px solid var(--border);
+    padding:6px;
+    vertical-align:top;
+  }
+  th{
+    position:sticky;
+    top:0;
+    z-index:1;
+    background:var(--head);
+    text-align:left;
+  }
+  tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
+  tbody tr:hover{ background: var(--rowHi); }
+
+  .col-num{ width:56px; white-space:nowrap; }
+  .col-type{ width:130px; }
+  .col-sev{ width:95px; white-space:nowrap; }
+  .col-time{ width:170px; }
+
+  .typeBar{
+    border-left:6px solid #999;
+    padding-left:8px;
+  }
+  .typeBar.warn{ border-left-color: var(--warn); }
+  .typeBar.watch{ border-left-color: var(--watch); }
+  .typeBar.adv{ border-left-color: var(--adv); }
+
+  .small{
+    color:var(--muted);
+    font-size:.9em;
+  }
+
+  .countline{
+    font-weight:700;
   }
 
   .map img{
     width:100%;
     height:100%;
     object-fit:contain;
-    background:#eee;
+    background:#0000;
   }
 
-  /* Radar iframe locked */
+  /* lock radar interaction */
   .radar iframe{
     width:100%;
     height:100%;
     border:0;
-    pointer-events:none; /* 👈 prevents interaction */
+    pointer-events:none;
   }
 </style>
 </head>
@@ -137,7 +238,12 @@
 
   <div class="topbar">
     <div class="title">Pennsylvania Watches, Warnings & Advisories</div>
-    <div class="updated" id="updated">Loading…</div>
+
+    <div class="meta">
+      <span id="updated">Loading…</span>
+      <button class="btn" id="themeBtn" title="Toggle light/dark">🌓</button>
+      <button class="btn" id="refreshBtn" title="Refresh now">Refresh</button>
+    </div>
   </div>
 
   <div class="grid">
@@ -146,15 +252,23 @@
     <div class="left">
 
       <div class="panel">
-        <h2>Active Alerts Summary</h2>
+        <h2>
+          <span>Summary</span>
+          <span class="small" id="summaryMeta"></span>
+        </h2>
         <div class="body" id="summary">
-          Loading alert data…
+          Loading…
         </div>
       </div>
 
       <div class="panel">
-        <h2>Active Alerts</h2>
-        <div class="body" id="alerts"></div>
+        <h2>
+          <span>Active Alerts</span>
+          <span class="small" id="count">0</span>
+        </h2>
+        <div class="body" id="alerts">
+          <!-- table injected -->
+        </div>
       </div>
 
     </div>
@@ -172,6 +286,7 @@
 
       <div class="panel radar">
         <h2>Radar</h2>
+        <!-- swap this URL if you have a preferred PA-centric product -->
         <iframe
           src="https://radar.weather.gov/region/CONUS/standard"
           loading="lazy"
@@ -184,42 +299,168 @@
 </div>
 
 <script>
+/* ---------- Theme ---------- */
+function getPreferredTheme(){
+  const saved = localStorage.getItem("sa_theme");
+  if(saved === "light" || saved === "dark") return saved;
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function applyTheme(t){
+  document.documentElement.setAttribute("data-theme", t);
+  localStorage.setItem("sa_theme", t);
+}
+applyTheme(getPreferredTheme());
+
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme") || "light";
+  applyTheme(cur === "dark" ? "light" : "dark");
+});
+
+/* ---------- Helpers ---------- */
+function fmtTime(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  if(Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString([], { month:"2-digit", day:"2-digit", year:"2-digit", hour:"2-digit", minute:"2-digit" });
+}
+function classifyEvent(evt){
+  const e = (evt || "").toLowerCase();
+  if(e.includes("warning")) return "warn";
+  if(e.includes("watch")) return "watch";
+  return "adv";
+}
+function safeText(s){
+  return (s || "").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+}
+
+/* ---------- Main load ---------- */
 async function loadAlerts(){
-  const res = await fetch("https://api.weather.gov/alerts/active?area=PA");
-  const data = await res.json();
-
-  document.getElementById("updated").textContent =
-    "Updated " + new Date().toLocaleTimeString();
-
-  const alertsEl = document.getElementById("alerts");
+  const updatedEl = document.getElementById("updated");
   const summaryEl = document.getElementById("summary");
+  const summaryMetaEl = document.getElementById("summaryMeta");
+  const alertsEl = document.getElementById("alerts");
+  const countEl = document.getElementById("count");
 
-  alertsEl.innerHTML = "";
-  summaryEl.innerHTML = "";
+  updatedEl.textContent = "Updating…";
 
-  if(!data.features.length){
-    summaryEl.textContent = "No active watches, warnings, or advisories.";
+  let data;
+  try{
+    const res = await fetch("https://api.weather.gov/alerts/active?area=PA", {
+      headers: { "Accept": "application/geo+json" },
+      cache: "no-store"
+    });
+    data = await res.json();
+  }catch(err){
+    updatedEl.textContent = "Update failed";
+    summaryEl.textContent = "Unable to load NWS alert data.";
+    alertsEl.textContent = "";
     return;
   }
 
-  summaryEl.innerHTML =
-    `<strong>${data.features.length}</strong> active alert(s) statewide`;
+  const feats = Array.isArray(data.features) ? data.features : [];
+  updatedEl.textContent = "Updated " + new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+  summaryMetaEl.textContent = "Auto refresh: 5 min";
 
-  data.features.forEach(a=>{
-    const e = a.properties.event.toLowerCase();
-    let cls="advisory";
-    if(e.includes("warning")) cls="warning";
-    else if(e.includes("watch")) cls="watch";
-
-    const div=document.createElement("div");
-    div.className="alert "+cls;
-    div.innerHTML = `
-      <strong>${a.properties.event}</strong>
-      ${a.properties.headline || ""}
+  if(feats.length === 0){
+    summaryEl.innerHTML = `
+      <div class="stats">
+        <div class="stat"><div class="k">Total</div><div class="v">0</div></div>
+        <div class="stat"><div class="k">Warnings</div><div class="v">0</div></div>
+        <div class="stat"><div class="k">Watches</div><div class="v">0</div></div>
+        <div class="stat"><div class="k">Advisories</div><div class="v">0</div></div>
+      </div>
+      <div style="margin-top:10px;" class="countline">No active watches, warnings, or advisories.</div>
     `;
-    alertsEl.appendChild(div);
+    alertsEl.innerHTML = `<div class="small">No active alerts.</div>`;
+    countEl.textContent = "0";
+    return;
+  }
+
+  // Sort by severity-ish: warning > watch > advisory, then by effective time
+  const order = { warn: 0, watch: 1, adv: 2 };
+  feats.sort((a,b)=>{
+    const ca = classifyEvent(a?.properties?.event);
+    const cb = classifyEvent(b?.properties?.event);
+    if(order[ca] !== order[cb]) return order[ca] - order[cb];
+    const ta = new Date(a?.properties?.effective || a?.properties?.onset || 0).getTime() || 0;
+    const tb = new Date(b?.properties?.effective || b?.properties?.onset || 0).getTime() || 0;
+    return tb - ta;
   });
+
+  // Counts
+  let warn=0, watch=0, adv=0;
+  feats.forEach(f=>{
+    const c = classifyEvent(f?.properties?.event);
+    if(c==="warn") warn++;
+    else if(c==="watch") watch++;
+    else adv++;
+  });
+
+  summaryEl.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="k">Total</div><div class="v">${feats.length}</div></div>
+      <div class="stat"><div class="k">Warnings</div><div class="v">${warn}</div></div>
+      <div class="stat"><div class="k">Watches</div><div class="v">${watch}</div></div>
+      <div class="stat"><div class="k">Advisories</div><div class="v">${adv}</div></div>
+    </div>
+    <div style="margin-top:10px;" class="small">
+      <span class="pill warn">Warnings</span>
+      <span class="pill watch" style="margin-left:6px;">Watches</span>
+      <span class="pill adv" style="margin-left:6px;">Advisories</span>
+    </div>
+  `;
+
+  // Count line like your pages
+  countEl.textContent = `1 of ${feats.length}`;
+
+  // Table render
+  let rows = "";
+  feats.forEach((f, i) => {
+    const p = f.properties || {};
+    const cls = classifyEvent(p.event);
+    const sev = safeText(p.severity || "—");
+    const evt = safeText(p.event || "—");
+    const area = safeText(p.areaDesc || "—");
+    const onset = fmtTime(p.effective || p.onset);
+    const ends = fmtTime(p.ends || p.expires);
+
+    rows += `
+      <tr>
+        <td class="col-num">${i+1}</td>
+        <td class="col-type">
+          <div class="typeBar ${cls}">
+            <strong>${evt}</strong>
+            <div class="small">${safeText(p.headline || "")}</div>
+          </div>
+        </td>
+        <td class="col-sev">${sev}</td>
+        <td>${area}</td>
+        <td class="col-time">${onset}</td>
+        <td class="col-time">${ends}</td>
+      </tr>
+    `;
+  });
+
+  alertsEl.innerHTML = `
+    <table aria-label="Active alerts table">
+      <thead>
+        <tr>
+          <th class="col-num">#</th>
+          <th class="col-type">Alert</th>
+          <th class="col-sev">Severity</th>
+          <th>Areas</th>
+          <th class="col-time">Effective</th>
+          <th class="col-time">Ends/Expires</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
 }
+
+document.getElementById("refreshBtn").addEventListener("click", loadAlerts);
 
 loadAlerts();
 setInterval(loadAlerts, 300000); // 5 minutes
