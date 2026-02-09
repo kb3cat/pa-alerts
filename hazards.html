@@ -94,25 +94,36 @@ html,body{
 .wrap{
   height:100vh;
   display:grid;
-  /* We removed the dedicated “Row 2” so the main content gets more height */
-  grid-template-rows:auto 1fr;
+  grid-template-rows:auto auto 1fr; /* header row, controls row, content */
   gap:10px;
   padding:10px;
   box-sizing:border-box;
 }
 
-/* Top row now contains: H1 + controls + changes + theme (single line when possible) */
-.topbar{
+/* Row 1: H1 + centered changes box + theme */
+.headRow{
   display:flex;
   align-items:flex-start;
   gap:12px;
   flex-wrap:wrap;
 }
 
-.topbar h1{
+.headRow h1{
   margin:0;
   font-size:1.35rem;
   white-space:nowrap;
+}
+
+.headRow .spacer{
+  flex:1 1 0;
+}
+
+/* Row 2: refresh data below H1 */
+.controlsRow{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
 }
 
 button{
@@ -140,9 +151,11 @@ button:disabled{opacity:.6;cursor:not-allowed;}
    Recent changes (ticker + modal)
    ========================= */
 .changesBox{
+  /* Center between H1 and theme: uses auto margins, but still flexes nicely */
   flex: 1 1 520px;
   min-width: 320px;
   max-width: 820px;
+  margin: 0 auto;            /* key: center in the remaining space */
   border:1px solid var(--changesBorder);
   background: var(--changesBg);
   border-radius:10px;
@@ -380,8 +393,8 @@ td{word-break:break-word;}
 }
 
 @media (max-width: 1100px){
-  .changesBox{ max-width: 100%; }
-  .topbar h1{ width:100%; }
+  .changesBox{ max-width: 100%; margin: 0; }
+  .headRow h1{ width:100%; white-space:normal; }
 }
 </style>
 </head>
@@ -405,15 +418,9 @@ td{word-break:break-word;}
 </script>
 
 <div class="wrap">
-  <!-- Single top bar: H1 + controls + changes + theme -->
-  <div class="topbar">
+  <!-- Row 1: H1 (left), Recent Changes (center), Theme (right) -->
+  <div class="headRow">
     <h1>Pennsylvania Weather Hazard Overview</h1>
-
-    <div class="controls">
-      <span>Auto-refresh: 5 min</span>
-      <button id="refreshBtn" type="button">Refresh</button>
-      <span id="status">Loading…</span>
-    </div>
 
     <div class="changesBox" aria-label="Recent changes">
       <div class="changesHeader">
@@ -428,6 +435,15 @@ td{word-break:break-word;}
     </div>
 
     <button id="themeToggle" type="button">🌙 Dark</button>
+  </div>
+
+  <!-- Row 2: refresh data below H1 -->
+  <div class="controlsRow">
+    <div class="controls">
+      <span>Auto-refresh: 5 min</span>
+      <button id="refreshBtn" type="button">Refresh</button>
+      <span id="status">Loading…</span>
+    </div>
   </div>
 
   <div class="grid">
@@ -712,6 +728,12 @@ const RecentChanges = (() => {
   let history = [];
   let lastHadChanges = false;
 
+  function clsFor(k){
+    return (k === "OK") ? "ok" :
+      (k === "NEW" || k === "TIME" || k === "+") ? "warn" :
+      (k === "CLR" || k === "-") ? "bad" : "";
+  }
+
   function renderTicker(lines){
     track.classList.remove("scrolling");
     track.style.removeProperty("--tickerEnd");
@@ -726,11 +748,6 @@ const RecentChanges = (() => {
       track.appendChild(div);
       return;
     }
-
-    const clsFor = (k) =>
-      (k === "OK") ? "ok" :
-      (k === "NEW" || k === "TIME" || k === "+") ? "warn" :
-      (k === "CLR" || k === "-") ? "bad" : "";
 
     for (const ln of use){
       const div = document.createElement("div");
@@ -799,31 +816,25 @@ const RecentChanges = (() => {
 
     const curEventLoc = new Map();
     const prevEventLoc = new Map();
-
-    for (const [id, v] of Object.entries(cur)){
-      curEventLoc.set(`${v.event}||${v.locSig}`, id);
-    }
-    for (const [id, v] of Object.entries(prev)){
-      prevEventLoc.set(`${v.event}||${v.locSig}`, id);
-    }
+    for (const [id, v] of Object.entries(cur)) curEventLoc.set(`${v.event}||${v.locSig}`, id);
+    for (const [id, v] of Object.entries(prev)) prevEventLoc.set(`${v.event}||${v.locSig}`, id);
 
     const matchedPrev = new Set();
     const matchedCur = new Set();
 
-    // TIME changes: same event+same locations; expires changed
+    // TIME: same event+same locations; expires changed
     for (const [key, cid] of curEventLoc.entries()){
       const pid = prevEventLoc.get(key);
       if (!pid) continue;
       matchedPrev.add(pid);
       matchedCur.add(cid);
-
       const pv = prev[pid], cv = cur[cid];
       if ((pv.expiresStr || "") !== (cv.expiresStr || "")){
         changes.push({ kind:"TIME", text:`${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}` });
       }
     }
 
-    // +/- changes: same exact group id (event||expires)
+    // +/-: same exact group (event||expires)
     for (const [cid, cv] of Object.entries(cur)){
       if (matchedCur.has(cid)) continue;
       const pv = prev[cid];
@@ -831,12 +842,10 @@ const RecentChanges = (() => {
 
       const added = [];
       const removed = [];
-
       for (const x of cv.locSet) if (!pv.locSet.has(x)) added.push(x);
       for (const x of pv.locSet) if (!cv.locSet.has(x)) removed.push(x);
 
       const show = (arr) => arr.slice(0,4).join("; ") + (arr.length>4 ? ` (+${arr.length-4} more)` : "");
-
       if (added.length) changes.push({ kind:"+", text:`${cv.event} – added ${added.length}: ${show(added)}` });
       if (removed.length) changes.push({ kind:"-", text:`${cv.event} – removed ${removed.length}: ${show(removed)}` });
 
@@ -1021,7 +1030,6 @@ function refreshAll(){
 
 document.getElementById("refreshBtn").addEventListener("click", refreshAll);
 
-// initial + periodic
 refreshAll();
 setInterval(refreshAll, 5 * 60 * 1000);
 
