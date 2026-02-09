@@ -1,688 +1,824 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Pennsylvania Weather Hazard Overview</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PA Alerts Dashboard</title>
 
-<style>
-:root{
-  color-scheme: light;
-  --bg:#ffffff;
-  --text:#111111;
-  --muted:#555555;
-  --border:#333333;
-  --borderSoft:#cccccc;
-  --tableHeadBg:#f0f0f0;
-  --btnBg:#ffffff;
-  --btnBgHover:#f3f3f3;
+  <!-- Leaflet -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
 
-  --watchBg: rgba(255,165,0,0.5);
-  --warningBg: rgba(220,38,38,0.5);
-  --advBg: rgba(255,235,59,0.55);
+  <style>
+    :root{
+      color-scheme: light;
 
-  --mapFallbackBg:#f6f6f6;
-  --mapFallbackBorder:#999999;
+      --bg:#ffffff;
+      --text:#111111;
+      --muted:#555555;
 
-  /* Recent changes */
-  --changesBg:#f7fbff;
-  --changesBorder:#b7d5ff;
-  --changesTitle:#0b3d91;
-  --pillBg:#f6f6f6;
+      --border:#333333;
+      --borderSoft:#cccccc;
 
-  --okBg:#f1fff3;
-  --okBorder:#8ad39a;
+      --panel:#f6f6f6;
+      --panel2:#f0f0f0;
 
-  --warnBg:#fff7e6;
-  --warnBorder:#f2c45f;
+      --btnBg:#ffffff;
+      --btnBgHover:#f3f3f3;
+      --btnBorder:#333333;
 
-  --badBg:#fff1f1;
-  --badBorder:#e08a8a;
+      --pillBg:#ffffff;
 
-  --modalBackdrop:rgba(0,0,0,0.55);
-  --modalBg:#ffffff;
-  --modalText:#111111;
-  --shadow: 0 10px 26px rgba(0,0,0,0.18);
-}
+      --good:#1f7a1f;
+      --warn:#a40000;
+      --watch:#b06a00;
+      --adv:#1c4aa5;
 
-:root[data-theme="dark"]{
-  color-scheme: dark;
-  --bg:#0f1216;
-  --text:#e9eef5;
-  --muted:#a8b2bf;
-  --border:#2b3646;
-  --borderSoft:#2b3646;
-  --tableHeadBg:#1b2330;
-  --btnBg:#171c22;
-  --btnBgHover:#232b36;
+      --shadow: 0 1px 0 rgba(0,0,0,0.04);
+    }
 
-  --watchBg: rgba(255,165,0,0.35);
-  --warningBg: rgba(220,38,38,0.35);
-  --advBg: rgba(255,235,59,0.25);
+    body.dark{
+      color-scheme: dark;
 
-  --mapFallbackBg:#0f141b;
-  --mapFallbackBorder:#2b3646;
+      --bg:#0f1115;
+      --text:#e9e9e9;
+      --muted:#b7b7b7;
 
-  --changesBg:#101a2c;
-  --changesBorder:#2f5fb8;
-  --changesTitle:#9ec1ff;
-  --pillBg:#111722;
+      --border:#d0d0d0;
+      --borderSoft:#2a2f3a;
 
-  --okBg:#102016;
-  --okBorder:#2f8a4c;
+      --panel:#141823;
+      --panel2:#0f141d;
 
-  --warnBg:#2a200f;
-  --warnBorder:#b98a2d;
+      --btnBg:#141823;
+      --btnBgHover:#1a2130;
+      --btnBorder:#d0d0d0;
 
-  --badBg:#2a1414;
-  --badBorder:#b35a5a;
+      --pillBg:#141823;
 
-  --modalBackdrop:rgba(0,0,0,0.7);
-  --modalBg:#141821;
-  --modalText:#e9eef5;
-  --shadow: 0 12px 30px rgba(0,0,0,0.35);
-}
+      --shadow: 0 1px 0 rgba(255,255,255,0.04);
+    }
 
-html,body{
-  margin:0;
-  height:100%;
-  background:var(--bg);
-  color:var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-}
+    *{ box-sizing: border-box; }
+    body{
+      margin: 16px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
 
-.wrap{
-  height:100vh;
-  display:grid;
-  grid-template-rows:auto 1fr;
-  gap:8px;
-  padding:10px;
-  box-sizing:border-box;
-}
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      max-width: 1400px;
+      margin: 0 auto 10px auto;
+    }
 
-/* ===== HEADER (grid — removes the “gap” problem) ===== */
-.headerGrid{
-  display:grid;
-  grid-template-columns: auto 1fr auto; /* left: title/controls, center: changes, right: theme */
-  grid-template-rows: auto auto;        /* row1: h1, row2: controls */
-  column-gap:12px;
-  row-gap:2px;                          /* tight */
-  align-items:start;
-}
+    .titleBlock{
+      min-width: 260px;
+      flex: 1 1 320px;
+    }
 
-.headerGrid h1{
-  grid-column:1;
-  grid-row:1;
-  margin:0;
-  font-size:1.35rem;
-  line-height:1.15;
-  white-space:nowrap;
-}
+    h1{
+      margin: 0 0 2px 0;
+      font-size: 1.55rem;
+      letter-spacing: 0.2px;
+      line-height: 1.2;
+    }
 
-.controls{
-  grid-column:1;
-  grid-row:2;
-  display:flex;
-  align-items:center;
-  gap:12px;
-  font-size:.95em;
-  color:var(--muted);
-  flex-wrap:wrap;
-  white-space:nowrap;
-  margin:0;
-  padding:0;
-}
+    .refreshRow{
+      margin: 0;
+      padding: 0;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
 
-button{
-  padding:6px 12px;
-  border-radius:6px;
-  border:1px solid var(--border);
-  background:var(--btnBg);
-  color:var(--text);
-  cursor:pointer;
-}
-button:hover{background:var(--btnBgHover);}
-button:disabled{opacity:.6;cursor:not-allowed;}
+    .refreshRow .k{
+      color: var(--muted);
+    }
 
-#themeToggle{
-  grid-column:3;
-  grid-row:1;
-  justify-self:end;
-}
+    .refreshRow .v{
+      color: var(--text);
+      font-weight: 600;
+    }
 
-/* Recent changes (center column) */
-.changesBox{
-  grid-column:2;
-  grid-row:1 / span 2;    /* spans both rows so it stays centered vertically vs title+controls */
-  align-self:start;
-  justify-self:center;
+    .btn{
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      box-shadow: var(--shadow);
+      user-select: none;
+    }
+    .btn:hover{ background: var(--btnBgHover); }
 
-  width: min(820px, 100%);
-  max-width: 820px;
-  min-width: 320px;
+    /* Recent changes box centered between title and theme (your layout request) */
+    .changesBox{
+      flex: 0 1 420px;
+      min-width: 280px;
+      border: 1px solid var(--borderSoft);
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 10px 10px 8px 10px;
+      box-shadow: var(--shadow);
+      align-self: stretch;
+    }
+    .changesHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .changesHeader .title{
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .changesHeader .meta{
+      color: var(--muted);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    .changesList{
+      max-height: 150px;
+      overflow:auto;
+      padding-right: 6px;
+    }
+    .changeItem{
+      padding: 6px 8px;
+      border: 1px solid var(--borderSoft);
+      background: var(--pillBg);
+      border-radius: 10px;
+      margin-bottom: 6px;
+      font-size: 0.92rem;
+      line-height: 1.25;
+    }
+    .changeItem:last-child{ margin-bottom: 0; }
 
-  border:1px solid var(--changesBorder);
-  background: var(--changesBg);
-  border-radius:10px;
-  padding:8px 10px;
-}
+    .chgLine{
+      display:flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .chgText{ flex: 1 1 auto; }
+    .chgTime{
+      color: var(--muted);
+      font-size: 0.85rem;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
 
-.changesHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  margin-bottom:6px;
-}
+    .tag{
+      display:inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--borderSoft);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      margin-right: 6px;
+      vertical-align: baseline;
+    }
+    .tag.add{ border-color: rgba(31,122,31,0.6); }
+    .tag.drop{ border-color: rgba(164,0,0,0.55); }
+    .tag.change{ border-color: rgba(176,106,0,0.6); }
 
-.changesTitle{
-  font-weight:700;
-  color: var(--changesTitle);
-  font-size: 0.95rem;
-  letter-spacing: 0.2px;
-}
+    .rightControls{
+      flex: 0 0 auto;
+      display:flex;
+      gap: 10px;
+      align-items:flex-start;
+      justify-content:flex-end;
+      min-width: 160px;
+    }
 
-.changesExpandBtn{
-  padding:4px 10px;
-  font-size: 0.9rem;
-  border-radius: 999px;
-}
+    .wrap{
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 12px;
+    }
 
-.changesTicker{
-  position:relative;
-  height: 40px;
-  overflow:hidden;
-  border:1px solid var(--borderSoft);
-  border-radius:8px;
-  background: var(--pillBg);
-  padding:6px 10px;
-}
+    @media (max-width: 980px){
+      .wrap{
+        grid-template-columns: 1fr;
+      }
+      .changesBox{
+        order: 2;
+      }
+    }
 
-.changesTrack{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  will-change: transform;
-}
+    /* Map auto-size: responsive to viewport (fix for iPad tightness) */
+    #alertMap{
+      width: 100%;
+      height: clamp(300px, 55vh, 700px);
+      border-radius: 12px;
+      border: 1px solid var(--borderSoft);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+    }
 
-.changesItem{
-  display:flex;
-  gap:8px;
-  align-items:flex-start;
-  font-size:0.92rem;
-  line-height:1.1rem;
-  color: var(--text);
-  white-space: nowrap;
-  overflow:hidden;
-  text-overflow: ellipsis;
-}
+    .panel{
+      border: 1px solid var(--borderSoft);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panelHeader{
+      padding: 10px 12px;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--borderSoft);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .panelHeader .title{
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+    .panelHeader .meta{
+      color: var(--muted);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
 
-.tag{
-  flex: 0 0 auto;
-  font-size: 0.78rem;
-  padding: 1px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--borderSoft);
-  background: transparent;
-  color: var(--muted);
-  line-height: 1.1rem;
-}
-.tag.ok{ background: rgba(0,0,0,0.05); border-color: var(--borderSoft); color: var(--text); }
-:root[data-theme="dark"] .tag.ok{ background: rgba(255,255,255,0.06); }
+    .tableWrap{
+      max-height: 55vh;
+      overflow:auto; /* auto-scroll alert summary if it runs out of room */
+    }
 
-.tag.warn{ background: var(--warnBg); border-color: var(--warnBorder); color: var(--text); }
-.tag.bad{ background: var(--badBg); border-color: var(--badBorder); color: var(--text); }
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    thead th{
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--panel2);
+      border-bottom: 1px solid var(--borderSoft);
+      text-align:left;
+      padding: 10px 10px;
+      font-weight: 800;
+    }
+    tbody td{
+      border-bottom: 1px solid var(--borderSoft);
+      padding: 10px 10px;
+      vertical-align: top;
+    }
+    tbody tr:hover td{
+      background: rgba(127,127,127,0.08);
+    }
 
-.scrolling{ animation: tickerUp linear infinite; }
-.changesTicker:hover .scrolling{ animation-play-state: paused; }
+    .pill{
+      display:inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--borderSoft);
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      font-size: 0.84rem;
+      background: var(--pillBg);
+      white-space: nowrap;
+    }
+    .pill.warning{ border-color: rgba(164,0,0,0.55); }
+    .pill.watch{ border-color: rgba(176,106,0,0.6); }
+    .pill.advisory{ border-color: rgba(28,74,165,0.6); }
+    .pill.other{ border-color: rgba(120,120,120,0.6); }
 
-@keyframes tickerUp{
-  from { transform: translateY(0); }
-  to   { transform: translateY(var(--tickerEnd)); }
-}
+    .smallMuted{ color: var(--muted); font-size: 0.9rem; }
 
-/* Modal */
-.modalBackdrop{
-  position:fixed;
-  inset:0;
-  background: var(--modalBackdrop);
-  z-index: 1000;
-}
-.modal{
-  position:fixed;
-  inset:0;
-  z-index: 1001;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 18px;
-}
-.modalCard{
-  width: min(900px, 96vw);
-  max-height: min(78vh, 700px);
-  background: var(--modalBg);
-  color: var(--modalText);
-  border-radius: 14px;
-  border: 1px solid var(--borderSoft);
-  box-shadow: var(--shadow);
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-}
-.modalHeader{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  padding: 12px 14px;
-  border-bottom:1px solid var(--borderSoft);
-  background: var(--tableHeadBg);
-}
-.modalTitle{ font-weight: 800; font-size: 1.05rem; }
-.modalSub{ color: var(--muted); font-size: 0.95rem; margin-top:2px; }
-.modalCloseBtn{ border-radius: 10px; padding: 6px 10px; }
-.modalBody{ padding: 12px 14px; overflow:auto; }
-.changesList{
-  margin:0;
-  padding-left: 18px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.footNote{
-  color: var(--muted);
-  font-size: 0.9rem;
-  margin-top: 10px;
-}
-#changesModal[hidden],
-#changesModalBackdrop[hidden]{
-  display:none !important;
-}
+    .foot{
+      max-width: 1400px;
+      margin: 10px auto 0 auto;
+      color: var(--muted);
+      font-size: 0.9rem;
+      display:flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
 
-/* ===== MAIN GRID ===== */
-.grid{
-  display:grid;
-  grid-template-rows:auto 1fr;
-  gap:10px;
-  min-height:0;
-}
-
-.panel{
-  border:1px solid var(--border);
-  border-radius:10px;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  min-height:0;
-}
-
-.hdr{
-  padding:8px 10px;
-  background:var(--tableHeadBg);
-  border-bottom:1px solid var(--border);
-  font-weight:700;
-}
-
-.body{
-  padding:8px 10px;
-  min-height:0;
-}
-
-/* MAP + RADAR */
-.visuals{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  align-items:start;
-}
-
-#wwaMap{
-  width:100%;
-  height:auto;
-  border:1px solid var(--borderSoft);
-  visibility:hidden;
-  display:block;
-}
-
-.map-fallback{
-  display:none;
-  width:100%;
-  min-height:240px;
-  border:2px dashed var(--mapFallbackBorder);
-  background:var(--mapFallbackBg);
-  border-radius:10px;
-  padding:18px;
-  box-sizing:border-box;
-  text-align:center;
-  align-items:center;
-  justify-content:center;
-}
-.map-fallback .title{font-weight:700;margin-bottom:6px;}
-.map-fallback .text{color:var(--muted);line-height:1.35;max-width:70ch;margin:0 auto;}
-
-.radarFrame{
-  width:100%;
-  border:1px solid var(--borderSoft);
-  overflow:hidden;
-  background:transparent;
-}
-.radarFrame iframe{
-  width:100%;
-  height:100%;
-  border:0;
-  display:block;
-  pointer-events:none;
-}
-
-/* TABLE */
-table{border-collapse:collapse;width:100%;}
-th,td{padding:6px;border:1px solid var(--border);vertical-align:top;}
-th{background:var(--tableHeadBg);text-align:left;}
-td{word-break:break-word;}
-
-.type-cell{font-weight:600;}
-.type-warning{background:var(--warningBg);}
-.type-watch{background:var(--watchBg);}
-.type-adv{background:var(--advBg);}
-
-/* AUTO SCROLL */
-.auto-scroll{overflow:hidden;position:relative;}
-.auto-scroll-inner{will-change:transform;}
-.auto-scroll:hover .auto-scroll-inner{animation-play-state:paused;}
-
-@keyframes summaryScroll{
-  0%{transform:translateY(0);}
-  80%{transform:translateY(calc(-1 * var(--scroll-distance)));}
-  100%{transform:translateY(0);}
-}
-
-/* Responsive: stack header pieces cleanly */
-@media (max-width: 1100px){
-  .headerGrid{
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto auto;
-  }
-  .headerGrid h1{ grid-column:1 / -1; grid-row:1; white-space:normal; }
-  .controls{ grid-column:1 / -1; grid-row:2; }
-  .changesBox{ grid-column:1 / -1; grid-row:3; width:100%; min-width: 0; justify-self:stretch; }
-  #themeToggle{ grid-column:2; grid-row:1; align-self:start; }
-}
-</style>
+    /* Leaflet attribution looks better in dark mode if we soften it */
+    body.dark .leaflet-control-attribution{
+      background: rgba(20,24,35,0.8);
+      color: var(--muted);
+      border-color: var(--borderSoft);
+    }
+  </style>
 </head>
 
 <body>
-<!-- Force refresh on open (cache-bust once per tab session) -->
-<script>
-(() => {
-  const KEY = "paalerts_refreshed_once";
-  const pageKey = `${KEY}:${location.pathname}`;
-  const nav = performance.getEntriesByType?.("navigation")?.[0];
-  const wasBFCache = nav?.type === "back_forward";
-
-  if (!sessionStorage.getItem(pageKey) || wasBFCache) {
-    sessionStorage.setItem(pageKey, "1");
-    const url = new URL(location.href);
-    url.searchParams.set("_ts", Date.now().toString());
-    location.replace(url.toString());
-  }
-})();
-</script>
-
-<div class="wrap">
-
-  <!-- HEADER -->
-  <div class="headerGrid">
-    <h1>Pennsylvania Weather Hazard Overview</h1>
-
-    <div class="controls">
-      <span>Auto-refresh: 5 min</span>
-      <button id="refreshBtn" type="button">Refresh</button>
-      <span id="status">Loading…</span>
+  <div class="topbar">
+    <div class="titleBlock">
+      <h1>PA Watches, Warnings & Advisories</h1>
+      <div class="refreshRow" aria-label="Refresh status">
+        <span class="k">Auto refresh:</span> <span class="v" id="autoRefreshLabel">60s</span>
+        <span class="k">Last updated:</span> <span class="v" id="lastUpdated">—</span>
+        <span class="k">Alert Groups:</span> <span class="v" id="groupCount">—</span>
+        <button class="btn" id="refreshBtn" title="Refresh now">Refresh</button>
+      </div>
     </div>
 
     <div class="changesBox" aria-label="Recent changes">
       <div class="changesHeader">
-        <span class="changesTitle">Recent changes</span>
-        <button id="changesExpandBtn" class="changesExpandBtn" type="button" aria-haspopup="dialog" aria-controls="changesModal">
-          Expand
-        </button>
+        <div class="title">Recent Changes</div>
+        <div class="meta" id="changesMeta">Since open</div>
       </div>
-      <div class="changesTicker" role="status" aria-live="polite" aria-atomic="true">
-        <div class="changesTrack" id="changesTrack"></div>
+      <div class="changesList" id="changesList">
+        <div class="smallMuted" id="changesEmpty">No changes yet.</div>
       </div>
     </div>
 
-    <button id="themeToggle" type="button">🌙 Dark</button>
+    <div class="rightControls">
+      <button class="btn" id="themeBtn" title="Toggle light/dark">Light/Dark</button>
+    </div>
   </div>
 
-  <!-- MAIN -->
-  <div class="grid">
+  <div class="wrap">
     <div class="panel">
-      <div class="hdr">PA Alert Map & Radar</div>
-      <div class="body">
-        <div class="visuals">
-          <div>
-            <img id="wwaMap"
-              src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-              alt="NWS Watches, Warnings, and Advisories map for Pennsylvania"
-              onload="mapLoaded()"
-              onerror="mapError()"
-            />
-            <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
-              <div>
-                <div class="title">NWS Alert Map Unavailable</div>
-                <div class="text">The NWS Watches, Warnings, and Advisories map is currently unavailable.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="radarFrame" id="radarFrame" aria-label="Locked radar">
-            <iframe
-              id="radarIframe"
-              title="Radar (locked)"
-              src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&zoom=7&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1&play=1"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              allowfullscreen>
-            </iframe>
-          </div>
-        </div>
+      <div class="panelHeader">
+        <div class="title">Alert Map</div>
+        <div class="meta smallMuted">Auto-fit PA • responsive sizing</div>
       </div>
+      <div id="alertMap" role="img" aria-label="Pennsylvania alert map"></div>
     </div>
 
     <div class="panel">
-      <div class="hdr">Alert Summary</div>
-      <div class="body auto-scroll">
-        <div id="tableContainer" class="auto-scroll-inner"></div>
+      <div class="panelHeader">
+        <div class="title">Alert Summary</div>
+        <div class="meta" id="alertMeta">0 alerts</div>
       </div>
-    </div>
-  </div>
-</div>
 
-<!-- Modal -->
-<div class="modalBackdrop" id="changesModalBackdrop" hidden></div>
-<div class="modal" id="changesModal" role="dialog" aria-modal="true" aria-labelledby="changesModalTitle" hidden>
-  <div class="modalCard">
-    <div class="modalHeader">
-      <div>
-        <div id="changesModalTitle" class="modalTitle">Recent changes</div>
-        <div class="modalSub" id="changesModalSub">Since last refresh</div>
+      <div class="tableWrap">
+        <table aria-label="Alert summary table">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Type</th>
+              <th>Event / Area</th>
+              <th style="width: 170px;">Expires</th>
+            </tr>
+          </thead>
+          <tbody id="alertBody">
+            <tr><td colspan="3" class="smallMuted">Loading…</td></tr>
+          </tbody>
+        </table>
       </div>
-      <button class="modalCloseBtn" id="changesCloseBtn" type="button" aria-label="Close">✕</button>
-    </div>
-    <div class="modalBody">
-      <ul class="changesList" id="changesModalList"></ul>
-      <div class="footNote" id="changesFootNote"></div>
     </div>
   </div>
-</div>
+
+  <div class="foot">
+    <div>Data source: NWS API</div>
+    <div id="totalLine">0 of 0</div>
+  </div>
 
 <script>
-/* ==============================
-   THEME
-   ============================== */
-(() => {
-  const root = document.documentElement;
-  const btn = document.getElementById("themeToggle");
-  const key = "pa_alerts_theme";
-  const saved = localStorage.getItem(key) || "system";
+/* =========================
+   Settings
+========================= */
+const AUTO_REFRESH_MS = 60000; // 60s
+document.getElementById("autoRefreshLabel").textContent = (AUTO_REFRESH_MS/1000) + "s";
 
-  function apply(t){
-    if(t === "system"){
-      root.dataset.theme = matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light";
-    } else {
-      root.dataset.theme = t;
-    }
-    btn.textContent = root.dataset.theme === "dark" ? "☀️ Light" : "🌙 Dark";
-  }
+const PA_BOUNDS = [
+  [39.7, -80.6], // SW
+  [42.5, -74.7]  // NE
+];
 
-  apply(saved);
+const TYPE_ORDER = { "Warning": 0, "Watch": 1, "Advisory": 2, "Statement": 3, "Other": 9 };
 
-  if (saved === "system" && window.matchMedia) {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = () => apply("system");
-    if (mq.addEventListener) mq.addEventListener("change", handler);
-    else if (mq.addListener) mq.addListener(handler);
-  }
-
-  btn.addEventListener("click", () => {
-    const next = root.dataset.theme === "dark" ? "light" : "dark";
-    localStorage.setItem(key, next);
-    apply(next);
-  });
+/* =========================
+   Theme
+========================= */
+const themeBtn = document.getElementById("themeBtn");
+(function initTheme(){
+  const saved = localStorage.getItem("paAlertsTheme");
+  if(saved === "dark") document.body.classList.add("dark");
 })();
-
-/* ==============================
-   MAP/RADAR SYNC
-   ============================== */
-function syncRadarToMap(){
-  const map = document.getElementById("wwaMap");
-  const radar = document.getElementById("radarFrame");
-  if(!map || !radar) return;
-  const h = Math.round(map.getBoundingClientRect().height);
-  if(h > 100) radar.style.height = h + "px";
-}
-
-function mapLoaded(){
-  const map = document.getElementById("wwaMap");
-  const fb = document.getElementById("wwaMapFallback");
-  if(fb) fb.style.display = "none";
-  map.style.display = "block";
-  map.style.visibility = "visible";
-  requestAnimationFrame(syncRadarToMap);
-}
-
-function mapError(){
-  const map = document.getElementById("wwaMap");
-  const fb = document.getElementById("wwaMapFallback");
-  const radar = document.getElementById("radarFrame");
-  if(map){
-    map.style.display = "none";
-    map.style.visibility = "hidden";
-  }
-  if(fb) fb.style.display = "flex";
-  if(radar) radar.style.height = "520px";
-}
-
-window.addEventListener("resize", () => {
-  clearTimeout(window.__syncTimer);
-  window.__syncTimer = setTimeout(syncRadarToMap, 150);
+themeBtn.addEventListener("click", () => {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("paAlertsTheme", document.body.classList.contains("dark") ? "dark" : "light");
 });
 
-/* ==============================
-   AUTO-SCROLL (only when overflow)
-   ============================== */
-function setupAutoScroll(){
-  const outer = document.querySelector(".auto-scroll");
-  const inner = document.querySelector(".auto-scroll-inner");
-  if(!outer || !inner) return;
+/* =========================
+   Recent Changes (since open)
+   Baseline first successful fetch
+========================= */
+let previousAlertIndex = null;
+let hasBaselined = false;
 
-  inner.style.animation = "none";
-  const overflow = inner.scrollHeight - outer.clientHeight;
-  if(overflow <= 0) return;
+let recentChanges = []; // newest first
+const changesListEl = document.getElementById("changesList");
+const changesEmptyEl = document.getElementById("changesEmpty");
+const changesMetaEl = document.getElementById("changesMeta");
 
-  inner.style.setProperty("--scroll-distance", overflow + "px");
-  const duration = Math.max(20, overflow / 18);
-  inner.style.animation = `summaryScroll ${duration}s linear infinite`;
-}
+const sessionStart = new Date();
+changesMetaEl.textContent = "Since open (" + fmtClock(sessionStart) + ")";
 
-/* ==============================
-   ALERT FETCH
-   ============================== */
-const API_URL = "https://api.weather.gov/alerts/active?area=PA";
-const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-const zoneCache = new Map();
+// ensure empty on open
+renderRecentChanges();
 
-function typePriority(evt){
-  const s = (evt || "").toLowerCase();
-  if (s.includes("warning") || s.includes("emergency")) return 0;
-  if (s.includes("watch")) return 1;
-  return 2;
-}
-function typeClass(evt){
-  const s = (evt || "").toLowerCase();
-  if (s.includes("warning") || s.includes("emergency")) return "type-warning";
-  if (s.includes("watch")) return "type-watch";
-  return "type-adv";
-}
+/* =========================
+   Leaflet Map
+========================= */
+let map, geoLayer;
 
-function fmtTime(v){
-  if(!v) return "N/A";
-  const d = new Date(v);
-  return isNaN(d) ? String(v) : d.toLocaleString([],{
-    month:"2-digit", day:"2-digit", year:"2-digit",
-    hour:"2-digit", minute:"2-digit"
+function initMap(){
+  map = L.map("alertMap", {
+    zoomControl: true,
+    preferCanvas: true
   });
-}
-function toTimeMs(v){
-  const t = new Date(v || 0).getTime();
-  return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
-}
 
-function normalizeSummaryCounty(name){
-  let s = String(name || "").trim();
-  s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-  s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
-  s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-  return s.trim();
-}
+  // Tiles
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
 
-function locationSortKey(name){
-  return String(name || "")
-    .trim()
-    .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
-    .trim()
-    .toLowerCase();
-}
-function sortLocations(arr){
-  return [...arr].sort((a,b)=>{
-    const ka = locationSortKey(a);
-    const kb = locationSortKey(b);
-    return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
+  // Layer placeholder
+  geoLayer = L.geoJSON([], {
+    style: featureStyle,
+    onEachFeature: (feature, layer) => {
+      layer.on("click", () => {
+        const p = feature.properties || {};
+        const html =
+          `<div style="font-weight:800;margin-bottom:4px;">${escapeHtml(p.event || "Alert")}</div>
+           <div style="font-size:0.9rem;color:varColorMuted()">
+             <div><b>Type:</b> ${escapeHtml(p.severity || "—")}</div>
+             <div><b>Expires:</b> ${escapeHtml(fmtTime(p.expires))}</div>
+             <div style="margin-top:6px;"><b>Area:</b> ${escapeHtml(p.areaDesc || "—")}</div>
+           </div>`;
+        layer.bindPopup(html).openPopup();
+      });
+    }
+  }).addTo(map);
+
+  // Fit PA (responsive zoom)
+  map.fitBounds(PA_BOUNDS, { padding: [20, 20] });
+
+  // Refit on resize/orientation changes
+  window.addEventListener("resize", () => {
+    if(!map) return;
+    map.invalidateSize();
+    map.fitBounds(PA_BOUNDS, { padding: [20, 20] });
   });
 }
 
-function fetchWithTimeout(url, options={}, timeoutMs=12000){
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, {...options, signal: controller.signal}).finally(() => clearTimeout(t));
+function featureStyle(feature){
+  const p = feature.properties || {};
+  const sev = (p.severity || "").toLowerCase();
+  // let leaflet pick default colors; only adjust opacity/border
+  // (no explicit colors requested)
+  return {
+    weight: 2,
+    opacity: 0.9,
+    fillOpacity: sev.includes("severe") ? 0.35 : 0.25
+  };
 }
 
-function isWantedAlert(p){
-  const e = (p.event || "").toLowerCase();
-  return (
-    (e.includes("watch") || e.includes("warning") || e.includes("advisory") || e.includes("emergency")) &&
-    !e.includes("statement") &&
-    !e.includes("outlook") &&
-    !e.includes("test")
-  );
-}
-function isMarineZone(url){
-  return typeof url === "string" && url.includes("/zones/marine/");
+/* =========================
+   Fetch + Render
+========================= */
+const alertBody = document.getElementById("alertBody");
+const alertMeta = document.getElementById("alertMeta");
+const lastUpdated = document.getElementById("lastUpdated");
+const groupCount = document.getElementById("groupCount");
+const totalLine = document.getElementById("totalLine");
+const refreshBtn = document.getElementById("refreshBtn");
+
+refreshBtn.addEventListener("click", () => refreshAlerts(true));
+
+async function fetchAlertsPA(){
+  // Cache-bust behind the scenes (doesn't touch the address bar)
+  const url = "https://api.weather.gov/alerts/active?area=PA&_ts=" + Date.now();
+
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      "Accept": "application/geo+json"
+    }
+  });
+
+  if(!res.ok){
+    throw new Error("NWS API error: " + res.status);
+  }
+  const data = await res.json();
+  const features = Array.isArray(data.features) ? data.features : [];
+  return features;
 }
 
-function escapeHtml(s){
-  return String(s)
+function classifyType(eventName){
+  const e = (eventName || "").toLowerCase();
+  if(e.includes("warning")) return "Warning";
+  if(e.includes("watch")) return "Watch";
+  if(e.includes("advisory")) return "Advisory";
+  if(e.includes("statement")) return "Statement";
+  return "Other";
+}
+
+function pillClass(type){
+  if(type === "Warning") return "warning";
+  if(type === "Watch") return "watch";
+  if(type === "Advisory") return "advisory";
+  return "other";
+}
+
+function indexAlerts(alerts){
+  const m = new Map();
+  for(const a of alerts){
+    const p = a.properties || {};
+    // Prefer stable NWS id if present
+    const id =
+      a.id ||
+      p.id ||
+      (p.event + "|" + (p.sent||"") + "|" + (p.effective||"") + "|" + (p.expires||"") + "|" + (p.areaDesc||""));
+
+    m.set(id, {
+      id,
+      event: p.event || "—",
+      areaDesc: p.areaDesc || "—",
+      expires: p.expires || null,
+      sent: p.sent || null
+    });
+  }
+  return m;
+}
+
+function diffAlerts(prev, curr){
+  const out = [];
+  const now = new Date();
+
+  // Adds
+  for(const [id, a] of curr){
+    if(!prev.has(id)){
+      out.push({
+        type: "ADD",
+        at: now,
+        text: `${a.event} added`,
+        detail: a.areaDesc
+      });
+    }
+  }
+
+  // Drops
+  for(const [id, a] of prev){
+    if(!curr.has(id)){
+      out.push({
+        type: "DROP",
+        at: now,
+        text: `${a.event} removed`,
+        detail: a.areaDesc
+      });
+    }
+  }
+
+  // Changes (expiration time changes)
+  for(const [id, aPrev] of prev){
+    const aCurr = curr.get(id);
+    if(!aCurr) continue;
+
+    if((aPrev.expires || "") !== (aCurr.expires || "")){
+      out.push({
+        type: "CHANGE",
+        at: now,
+        text: `${aCurr.event} expiration changed`,
+        detail: `${fmtTime(aPrev.expires)} → ${fmtTime(aCurr.expires)}`
+      });
+    }
+  }
+
+  // newest first
+  out.sort((a,b) => b.at - a.at);
+  return out;
+}
+
+function computeGroupCount(alerts){
+  // Simple grouping: event name only (stable and useful).
+  // Your page can have more advanced “combined zones” grouping elsewhere;
+  // this count reflects grouped event types present.
+  const s = new Set();
+  for(const a of alerts){
+    const p = a.properties || {};
+    s.add(p.event || "—");
+  }
+  return s.size;
+}
+
+function renderTable(alerts){
+  const rows = [];
+
+  // Build view model
+  const vm = alerts.map(a => {
+    const p = a.properties || {};
+    const type = classifyType(p.event);
+    return {
+      type,
+      typeOrder: TYPE_ORDER[type] ?? 9,
+      event: p.event || "—",
+      area: p.areaDesc || "—",
+      expires: p.expires || null,
+      expiresMs: p.expires ? Date.parse(p.expires) : Number.POSITIVE_INFINITY
+    };
+  });
+
+  // Sort: 1) Type order 2) expiration (soonest first)
+  vm.sort((x,y) => (x.typeOrder - y.typeOrder) || (x.expiresMs - y.expiresMs));
+
+  if(vm.length === 0){
+    alertBody.innerHTML = `<tr><td colspan="3" class="smallMuted">No active alerts.</td></tr>`;
+    return;
+  }
+
+  for(const a of vm){
+    rows.push(`
+      <tr>
+        <td><span class="pill ${pillClass(a.type)}">${escapeHtml(a.type)}</span></td>
+        <td>
+          <div style="font-weight:800;">${escapeHtml(a.event)}</div>
+          <div class="smallMuted">${escapeHtml(a.area)}</div>
+        </td>
+        <td>${escapeHtml(fmtTime(a.expires))}</td>
+      </tr>
+    `);
+  }
+
+  alertBody.innerHTML = rows.join("");
+}
+
+function renderMap(alerts){
+  if(!geoLayer) return;
+
+  // Build GeoJSON of alert polygons (some alerts may have null geometry)
+  const geojson = {
+    type: "FeatureCollection",
+    features: alerts
+      .filter(f => !!f.geometry)
+      .map(f => {
+        const p = f.properties || {};
+        // clone only needed props for popup/style
+        return {
+          type: "Feature",
+          geometry: f.geometry,
+          properties: {
+            event: p.event,
+            severity: p.severity,
+            expires: p.expires,
+            areaDesc: p.areaDesc
+          }
+        };
+      })
+  };
+
+  geoLayer.clearLayers();
+  geoLayer.addData(geojson);
+
+  // Keep map fitted to PA (not to alerts) so it always frames the state nicely
+  map.fitBounds(PA_BOUNDS, { padding: [20, 20] });
+}
+
+function renderRecentChanges(){
+  if(recentChanges.length === 0){
+    changesListEl.innerHTML = `<div class="smallMuted" id="changesEmpty">No changes yet.</div>`;
+    return;
+  }
+
+  const html = recentChanges.map(ch => {
+    const tagClass = ch.type === "ADD" ? "add" : (ch.type === "DROP" ? "drop" : "change");
+    const tagLabel = ch.type === "ADD" ? "ADD" : (ch.type === "DROP" ? "DROP" : "CHANGE");
+    const detail = ch.detail ? `<div class="smallMuted" style="margin-top:2px;">${escapeHtml(ch.detail)}</div>` : "";
+    return `
+      <div class="changeItem">
+        <div class="chgLine">
+          <div class="chgText">
+            <span class="tag ${tagClass}">${tagLabel}</span>
+            ${escapeHtml(ch.text)}
+            ${detail}
+          </div>
+          <div class="chgTime">${fmtClock(ch.at)}</div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  changesListEl.innerHTML = html;
+}
+
+function setMeta(alerts){
+  const total = alerts.length;
+  alertMeta.textContent = total + (total === 1 ? " alert" : " alerts");
+  totalLine.textContent = total + " of " + total;
+  groupCount.textContent = computeGroupCount(alerts);
+  lastUpdated.textContent = fmtClock(new Date());
+}
+
+/* =========================
+   Main refresh
+========================= */
+let refreshTimer = null;
+
+async function refreshAlerts(isManual=false){
+  if(isManual){
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = "Refreshing…";
+  }
+
+  try{
+    const alerts = await fetchAlertsPA();
+
+    // Baseline first successful load: show alerts, but do NOT populate recent changes
+    const currentIndex = indexAlerts(alerts);
+    if(!hasBaselined){
+      previousAlertIndex = currentIndex;
+      hasBaselined = true;
+
+      renderTable(alerts);
+      renderMap(alerts);
+      setMeta(alerts);
+      renderRecentChanges(); // stays empty
+      return;
+    }
+
+    // After baseline: diff and log
+    const changes = diffAlerts(previousAlertIndex, currentIndex);
+    if(changes.length){
+      // newest first
+      recentChanges.unshift(...changes);
+      // cap list
+      recentChanges = recentChanges.slice(0, 60);
+      renderRecentChanges();
+    }
+
+    previousAlertIndex = currentIndex;
+
+    renderTable(alerts);
+    renderMap(alerts);
+    setMeta(alerts);
+
+  }catch(err){
+    console.error(err);
+    alertBody.innerHTML = `<tr><td colspan="3" class="smallMuted">Error loading alerts. Try refresh.</td></tr>`;
+  }finally{
+    if(isManual){
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = "Refresh";
+    }
+  }
+}
+
+function startAutoRefresh(){
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => refreshAlerts(false), AUTO_REFRESH_MS);
+}
+
+/* =========================
+   Utilities
+========================= */
+function fmtTime(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function fmtClock(d){
+  try{
+    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }catch{
+    return "—";
+  }
+}
+
+function escapeHtml(str){
+  return String(str ?? "")
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
     .replaceAll(">","&gt;")
@@ -690,360 +826,18 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
-async function zoneName(url){
-  if(zoneCache.has(url)) return zoneCache.get(url);
-  try{
-    const r = await fetchWithTimeout(url, {headers:{Accept:"application/geo+json"}}, 10000);
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const j = await r.json();
-    const name = (j.properties?.state === "PA") ? (j.properties?.name || null) : null;
-    zoneCache.set(url, name);
-    return name;
-  }catch{
-    zoneCache.set(url, null);
-    return null;
-  }
+// used in popup styling (keeps it readable in both themes)
+function varColorMuted(){
+  // not perfect, but good enough for popup; keeps popup readable on both themes
+  return document.body.classList.contains("dark") ? "#b7b7b7" : "#555555";
 }
 
-function refreshMap(){
-  const img = document.getElementById("wwaMap");
-  const fb = document.getElementById("wwaMapFallback");
-  if (fb) fb.style.display = "none";
-  if (img){
-    img.style.display = "block";
-    img.style.visibility = "hidden";
-    img.src = MAP_URL + "?t=" + Date.now();
-  }
-}
-
-/* ==============================
-   Recent Changes (specific adds/drops/time)
-   ============================== */
-const RecentChanges = (() => {
-  const MAX_TICKER_ITEMS = 6;
-  const MAX_HISTORY_LINES = 80;
-
-  const track = document.getElementById("changesTrack");
-  const expandBtn = document.getElementById("changesExpandBtn");
-  const modalBackdrop = document.getElementById("changesModalBackdrop");
-  const modal = document.getElementById("changesModal");
-  const modalList = document.getElementById("changesModalList");
-  const modalSub = document.getElementById("changesModalSub");
-  const modalClose = document.getElementById("changesCloseBtn");
-  const foot = document.getElementById("changesFootNote");
-
-  let last = {};
-  let history = [];
-  let lastHadChanges = false;
-
-  function clsFor(k){
-    return (k === "OK") ? "ok" :
-      (k === "NEW" || k === "TIME" || k === "+") ? "warn" :
-      (k === "CLR" || k === "-") ? "bad" : "";
-  }
-
-  function renderTicker(lines){
-    track.classList.remove("scrolling");
-    track.style.removeProperty("--tickerEnd");
-    track.innerHTML = "";
-
-    const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
-
-    if (!use.length){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.innerHTML = `<span class="tag ok">OK</span><span>No changes since last refresh</span>`;
-      track.appendChild(div);
-      return;
-    }
-
-    for (const ln of use){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.title = ln.text;
-      div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
-      track.appendChild(div);
-    }
-
-    if (use.length > 1){
-      for (const ln of use){
-        const div = document.createElement("div");
-        div.className = "changesItem";
-        div.title = ln.text;
-        div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
-        track.appendChild(div);
-      }
-
-      requestAnimationFrame(() => {
-        const half = Math.floor(track.scrollHeight / 2);
-        track.style.setProperty("--tickerEnd", `-${half}px`);
-        const seconds = Math.max(10, use.length * 2.5);
-        track.style.animationDuration = `${seconds}s`;
-        track.classList.add("scrolling");
-      });
-    }
-  }
-
-  function renderModal(){
-    modalList.innerHTML = "";
-    if (!history.length){
-      const li = document.createElement("li");
-      li.textContent = "No changes logged yet.";
-      modalList.appendChild(li);
-    } else {
-      for (const line of history){
-        const li = document.createElement("li");
-        li.textContent = line;
-        modalList.appendChild(li);
-      }
-    }
-    foot.textContent = lastHadChanges
-      ? "Tip: Hover the ticker to pause the scroll."
-      : "No changes detected on the most recent refresh.";
-  }
-
-  function openModal(){
-    modalBackdrop.hidden = false;
-    modal.hidden = false;
-    modalClose.focus();
-    document.addEventListener("keydown", onKey, { passive:true });
-  }
-  function closeModal(){
-    modalBackdrop.hidden = true;
-    modal.hidden = true;
-    document.removeEventListener("keydown", onKey);
-  }
-  function onKey(e){ if(e.key === "Escape") closeModal(); }
-
-  expandBtn.addEventListener("click", () => { renderModal(); openModal(); });
-  modalClose.addEventListener("click", closeModal);
-  modalBackdrop.addEventListener("click", closeModal);
-
-  function diff(prev, cur){
-    const changes = [];
-
-    const curEventLoc = new Map();
-    const prevEventLoc = new Map();
-    for (const [id, v] of Object.entries(cur)) curEventLoc.set(`${v.event}||${v.locSig}`, id);
-    for (const [id, v] of Object.entries(prev)) prevEventLoc.set(`${v.event}||${v.locSig}`, id);
-
-    const matchedPrev = new Set();
-    const matchedCur = new Set();
-
-    // TIME: same event+same locations; expires changed
-    for (const [key, cid] of curEventLoc.entries()){
-      const pid = prevEventLoc.get(key);
-      if (!pid) continue;
-      matchedPrev.add(pid);
-      matchedCur.add(cid);
-      const pv = prev[pid], cv = cur[cid];
-      if ((pv.expiresStr || "") !== (cv.expiresStr || "")){
-        changes.push({ kind:"TIME", text:`${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}` });
-      }
-    }
-
-    // +/-: same exact group (event||expires)
-    for (const [cid, cv] of Object.entries(cur)){
-      if (matchedCur.has(cid)) continue;
-      const pv = prev[cid];
-      if (!pv) continue;
-
-      const added = [];
-      const removed = [];
-      for (const x of cv.locSet) if (!pv.locSet.has(x)) added.push(x);
-      for (const x of pv.locSet) if (!cv.locSet.has(x)) removed.push(x);
-
-      const show = (arr) => arr.slice(0,4).join("; ") + (arr.length>4 ? ` (+${arr.length-4} more)` : "");
-      if (added.length) changes.push({ kind:"+", text:`${cv.event} – added ${added.length}: ${show(added)}` });
-      if (removed.length) changes.push({ kind:"-", text:`${cv.event} – removed ${removed.length}: ${show(removed)}` });
-
-      matchedPrev.add(cid);
-      matchedCur.add(cid);
-    }
-
-    // NEW
-    for (const [cid, cv] of Object.entries(cur)){
-      if (prev[cid] || matchedCur.has(cid)) continue;
-      changes.push({ kind:"NEW", text:`${cv.event} – ${cv.locSig || "Locations updated"}` });
-    }
-
-    // CLR
-    for (const [pid, pv] of Object.entries(prev)){
-      if (cur[pid] || matchedPrev.has(pid)) continue;
-      changes.push({ kind:"CLR", text:`${pv.event} – cleared` });
-    }
-
-    return changes;
-  }
-
-  function update(groups, nowStr){
-    const cur = {};
-    for (const g of (groups || [])){
-      const id = `${g.event}||${g.expires || ""}`;
-      const locArr = g.locationsArr || [];
-      cur[id] = {
-        event: g.event,
-        expires: g.expires || "",
-        expiresStr: g.expiresStr || "N/A",
-        locSet: new Set(locArr),
-        locSig: locArr.join(";")
-      };
-    }
-
-    const changes = diff(last, cur);
-    lastHadChanges = changes.length > 0;
-    last = cur;
-
-    if (changes.length){
-      const lines = changes.map(c => `[${nowStr}] ${c.kind}: ${c.text}`);
-      history = [...lines, ...history].slice(0, MAX_HISTORY_LINES);
-    }
-
-    renderTicker(changes);
-    renderModal();
-    modalSub.textContent = "Since last refresh";
-  }
-
-  renderTicker([]);
-  return { update };
-})();
-
-/* ==============================
-   fetchAlerts
-   ============================== */
-async function fetchAlerts(){
-  const status = document.getElementById("status");
-  const btn = document.getElementById("refreshBtn");
-  const container = document.getElementById("tableContainer");
-
-  btn.disabled = true;
-  status.textContent = "Loading…";
-
-  try{
-    const r = await fetchWithTimeout(
-      API_URL,
-      {headers:{Accept:"application/geo+json"}, cache:"no-store"},
-      12000
-    );
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const d = await r.json();
-
-    const grouped = new Map();
-
-    for(const f of (d.features || [])){
-      const p = f?.properties;
-      if(!p || !isWantedAlert(p)) continue;
-
-      const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
-      if(!zones.length) continue;
-
-      const zoneInfos = await Promise.all(zones.map(z => zoneName(z)));
-      const namesRaw = zoneInfos.filter(Boolean);
-      if(!namesRaw.length) continue;
-
-      const names = namesRaw.map(normalizeSummaryCounty);
-      const expires = p.ends || p.expires || "";
-
-      const key = `${p.event}||${expires}`;
-      if(!grouped.has(key)){
-        grouped.set(key, {event: p.event, expires: expires, names: new Set()});
-      }
-      names.forEach(n => grouped.get(key).names.add(n));
-    }
-
-    let arr = [...grouped.values()];
-
-    const nowStr = new Date().toLocaleString([],{
-      month:"2-digit", day:"2-digit", year:"2-digit",
-      hour:"2-digit", minute:"2-digit", second:"2-digit"
-    });
-
-    if(!arr.length){
-      container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
-      status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
-      RecentChanges.update([], nowStr);
-      setupAutoScroll();
-      return;
-    }
-
-    arr.sort((a,b)=>{
-      const tp = typePriority(a.event) - typePriority(b.event);
-      if(tp !== 0) return tp;
-      const te = toTimeMs(a.expires) - toTimeMs(b.expires);
-      if(te !== 0) return te;
-      return String(a.event).localeCompare(String(b.event));
-    });
-
-    status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
-
-    const changeGroups = arr.map(g => {
-      const namesSorted = sortLocations([...g.names]);
-      return {
-        event: g.event,
-        expires: g.expires || "",
-        expiresStr: g.expires ? fmtTime(g.expires) : "N/A",
-        locationsArr: namesSorted
-      };
-    });
-    RecentChanges.update(changeGroups, nowStr);
-
-    container.innerHTML = `
-      <table>
-        <colgroup>
-          <col style="width:22%;">
-          <col style="width:63%;">
-          <col style="width:15%;">
-        </colgroup>
-        <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-        ${arr.map(g=>{
-          const namesSorted = sortLocations([...g.names]);
-          return `
-            <tr>
-              <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-              <td>${namesSorted.map(escapeHtml).join("; ")}</td>
-              <td>${escapeHtml(fmtTime(g.expires))}</td>
-            </tr>
-          `;
-        }).join("")}
-      </table>
-    `;
-
-    requestAnimationFrame(() => {
-      setupAutoScroll();
-      syncRadarToMap();
-    });
-
-  }catch(err){
-    console.error(err);
-    container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
-    status.textContent = "Error: " + (err?.message || String(err));
-
-    const track = document.getElementById("changesTrack");
-    if (track) {
-      track.classList.remove("scrolling");
-      track.style.removeProperty("--tickerEnd");
-      track.innerHTML = `<div class="changesItem"><span class="tag bad">ERR</span><span>Unable to load alerts (see status)</span></div>`;
-    }
-
-    setupAutoScroll();
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-function refreshAll(){
-  refreshMap();
-  fetchAlerts();
-}
-
-document.getElementById("refreshBtn").addEventListener("click", refreshAll);
-
-refreshAll();
-setInterval(refreshAll, 5 * 60 * 1000);
-
-if (location.search.includes("_ts=")) {
-  history.replaceState(null, "", location.pathname);
-}
+/* =========================
+   Boot
+========================= */
+initMap();
+refreshAlerts(false);
+startAutoRefresh();
 </script>
 </body>
 </html>
