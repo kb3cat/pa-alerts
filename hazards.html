@@ -23,6 +23,26 @@
 
   --mapFallbackBg:#f6f6f6;
   --mapFallbackBorder:#999999;
+
+  /* Recent changes box */
+  --changesBg:#f7fbff;
+  --changesBorder:#b7d5ff;
+  --changesTitle:#0b3d91;
+  --pillBg:#f6f6f6;
+
+  --okBg:#f1fff3;
+  --okBorder:#8ad39a;
+
+  --warnBg:#fff7e6;
+  --warnBorder:#f2c45f;
+
+  --badBg:#fff1f1;
+  --badBorder:#e08a8a;
+
+  --modalBackdrop:rgba(0,0,0,0.55);
+  --modalBg:#ffffff;
+  --modalText:#111111;
+  --shadow: 0 10px 26px rgba(0,0,0,0.18);
 }
 
 :root[data-theme="dark"]{
@@ -42,6 +62,25 @@
 
   --mapFallbackBg:#0f141b;
   --mapFallbackBorder:#2b3646;
+
+  --changesBg:#101a2c;
+  --changesBorder:#2f5fb8;
+  --changesTitle:#9ec1ff;
+  --pillBg:#111722;
+
+  --okBg:#102016;
+  --okBorder:#2f8a4c;
+
+  --warnBg:#2a200f;
+  --warnBorder:#b98a2d;
+
+  --badBg:#2a1414;
+  --badBorder:#b35a5a;
+
+  --modalBackdrop:rgba(0,0,0,0.7);
+  --modalBg:#141821;
+  --modalText:#e9eef5;
+  --shadow: 0 12px 30px rgba(0,0,0,0.35);
 }
 
 html,body{
@@ -55,7 +94,7 @@ html,body{
 .wrap{
   height:100vh;
   display:grid;
-  grid-template-rows:auto auto 1fr;
+  grid-template-rows:auto 1fr;
   gap:10px;
   padding:10px;
   box-sizing:border-box;
@@ -67,8 +106,8 @@ html,body{
   gap:12px;
   flex-wrap:wrap;
 }
-.title-row h1{margin:0;font-size:1.35rem;}
-.spacer{flex:1}
+
+.title-row h1{margin:0;font-size:1.35rem; white-space:nowrap;}
 
 button{
   padding:6px 12px;
@@ -88,7 +127,162 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   font-size:.95em;
   color:var(--muted);
   flex-wrap:wrap;
+  white-space:nowrap;
 }
+
+.spacer{flex:1}
+
+/* =========================
+   Recent changes (ticker + modal)
+   ========================= */
+.changesBox{
+  flex: 1 1 520px;             /* lets it grow into the blank space */
+  min-width: 320px;
+  max-width: 820px;
+  border:1px solid var(--changesBorder);
+  background: var(--changesBg);
+  border-radius:10px;
+  padding:8px 10px;
+}
+
+.changesHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+
+.changesTitle{
+  font-weight:700;
+  color: var(--changesTitle);
+  font-size: 0.95rem;
+  letter-spacing: 0.2px;
+}
+
+.changesExpandBtn{
+  padding:4px 10px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+}
+
+.changesTicker{
+  position:relative;
+  height: 40px;
+  overflow:hidden;
+  border:1px solid var(--borderSoft);
+  border-radius:8px;
+  background: var(--pillBg);
+  padding:6px 10px;
+}
+
+.changesTrack{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  will-change: transform;
+}
+
+.changesItem{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  font-size:0.92rem;
+  line-height:1.1rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+
+.tag{
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--borderSoft);
+  background: transparent;
+  color: var(--muted);
+  line-height: 1.1rem;
+}
+
+.tag.ok{ background: var(--okBg); border-color: var(--okBorder); color: var(--text); }
+.tag.warn{ background: var(--warnBg); border-color: var(--warnBorder); color: var(--text); }
+.tag.bad{ background: var(--badBg); border-color: var(--badBorder); color: var(--text); }
+
+.scrolling{
+  animation: tickerUp linear infinite;
+}
+.changesTicker:hover .scrolling{
+  animation-play-state: paused;
+}
+
+@keyframes tickerUp{
+  from { transform: translateY(0); }
+  to   { transform: translateY(var(--tickerEnd)); }
+}
+
+/* Modal */
+.modalBackdrop{
+  position:fixed;
+  inset:0;
+  background: var(--modalBackdrop);
+  z-index: 1000;
+}
+.modal{
+  position:fixed;
+  inset:0;
+  z-index: 1001;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+}
+.modalCard{
+  width: min(900px, 96vw);
+  max-height: min(78vh, 700px);
+  background: var(--modalBg);
+  color: var(--modalText);
+  border-radius: 14px;
+  border: 1px solid var(--borderSoft);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.modalHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 14px;
+  border-bottom:1px solid var(--borderSoft);
+  background: var(--tableHeadBg);
+}
+.modalTitle{ font-weight: 800; font-size: 1.05rem; }
+.modalSub{ color: var(--muted); font-size: 0.95rem; margin-top:2px; }
+.modalCloseBtn{ border-radius: 10px; padding: 6px 10px; }
+.modalBody{ padding: 12px 14px; overflow:auto; }
+.changesList{
+  margin:0;
+  padding-left: 18px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.footNote{
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+/* IMPORTANT: ensure [hidden] wins (prevents “modal front and center”) */
+#changesModal[hidden],
+#changesModalBackdrop[hidden]{
+  display:none !important;
+}
+
+/* ========================= */
 
 .grid{
   display:grid;
@@ -186,6 +380,13 @@ td{word-break:break-word;}
   80%{transform:translateY(calc(-1 * var(--scroll-distance)));}
   100%{transform:translateY(0);}
 }
+
+/* Responsive: allow top line to wrap nicely */
+@media (max-width: 1100px){
+  .title-row h1{ width:100%; }
+  .changesBox{ max-width: 100%; }
+  .spacer{ display:none; }
+}
 </style>
 </head>
 
@@ -208,16 +409,32 @@ td{word-break:break-word;}
 </script>
 
 <div class="wrap">
+  <!-- TOP ROW: headline + controls + changes box + theme -->
   <div class="title-row">
     <h1>Pennsylvania Weather Hazard Overview</h1>
-    <div class="spacer"></div>
-    <button id="themeToggle" type="button">🌙 Dark</button>
-  </div>
 
-  <div class="controls">
-    <span>Auto-refresh: 5 min</span>
-    <button id="refreshBtn" type="button">Refresh</button>
-    <span id="status">Loading…</span>
+    <div class="controls">
+      <span>Auto-refresh: 5 min</span>
+      <button id="refreshBtn" type="button">Refresh</button>
+      <span id="status">Loading…</span>
+    </div>
+
+    <!-- Recent changes box sits to the right of status, before theme button -->
+    <div class="changesBox" aria-label="Recent changes">
+      <div class="changesHeader">
+        <span class="changesTitle">Recent changes</span>
+        <button id="changesExpandBtn" class="changesExpandBtn" type="button" aria-haspopup="dialog" aria-controls="changesModal">
+          Expand
+        </button>
+      </div>
+      <div class="changesTicker" role="status" aria-live="polite" aria-atomic="true">
+        <div class="changesTrack" id="changesTrack"></div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <button id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
   <div class="grid">
@@ -246,7 +463,6 @@ td{word-break:break-word;}
               id="radarIframe"
               title="Radar (locked)"
               src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&zoom=7&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1&play=1"
-
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
               allowfullscreen>
@@ -262,6 +478,24 @@ td{word-break:break-word;}
       <div class="body auto-scroll">
         <div id="tableContainer" class="auto-scroll-inner"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modalBackdrop" id="changesModalBackdrop" hidden></div>
+<div class="modal" id="changesModal" role="dialog" aria-modal="true" aria-labelledby="changesModalTitle" hidden>
+  <div class="modalCard">
+    <div class="modalHeader">
+      <div>
+        <div id="changesModalTitle" class="modalTitle">Recent changes</div>
+        <div class="modalSub" id="changesModalSub">Since last refresh</div>
+      </div>
+      <button class="modalCloseBtn" id="changesCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modalBody">
+      <ul class="changesList" id="changesModalList"></ul>
+      <div class="footNote" id="changesFootNote"></div>
     </div>
   </div>
 </div>
@@ -357,6 +591,177 @@ function setupAutoScroll(){
   const duration = Math.max(20, overflow / 18);
   inner.style.animation = `summaryScroll ${duration}s linear infinite`;
 }
+
+/* ==============================
+   Recent Changes (scrolling box + modal)
+   Driven by REAL grouped alerts (arr)
+   ============================== */
+const RecentChanges = (() => {
+  const MAX_TICKER_ITEMS = 6;
+  const MAX_HISTORY_LINES = 50;
+
+  const track = document.getElementById("changesTrack");
+  const expandBtn = document.getElementById("changesExpandBtn");
+
+  const modalBackdrop = document.getElementById("changesModalBackdrop");
+  const modal = document.getElementById("changesModal");
+  const modalList = document.getElementById("changesModalList");
+  const modalSub = document.getElementById("changesModalSub");
+  const modalClose = document.getElementById("changesCloseBtn");
+  const foot = document.getElementById("changesFootNote");
+
+  let lastSnapshot = {};  // key -> { event, expires, locations }
+  let history = [];       // strings (newest first)
+  let lastHadChanges = false;
+
+  function escapeHtml(s){
+    return String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function tagClass(kind){
+    if (kind === "OK") return "ok";
+    if (kind === "NEW" || kind === "CHG") return "warn";
+    if (kind === "CLR") return "bad";
+    return "";
+  }
+
+  function renderTicker(lines){
+    track.classList.remove("scrolling");
+    track.style.removeProperty("--tickerEnd");
+    track.innerHTML = "";
+
+    const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
+
+    if (!use.length){
+      const div = document.createElement("div");
+      div.className = "changesItem";
+      div.innerHTML = `<span class="tag ok">OK</span><span>No changes since last refresh</span>`;
+      track.appendChild(div);
+      return;
+    }
+
+    for (const ln of use){
+      const div = document.createElement("div");
+      div.className = "changesItem";
+      div.title = ln.text;
+      const cls = tagClass(ln.kind);
+      div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+      track.appendChild(div);
+    }
+
+    if (use.length > 1){
+      // duplicate for seamless loop
+      for (const ln of use){
+        const div = document.createElement("div");
+        div.className = "changesItem";
+        div.title = ln.text;
+        const cls = tagClass(ln.kind);
+        div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+        track.appendChild(div);
+      }
+
+      requestAnimationFrame(() => {
+        const half = Math.floor(track.scrollHeight / 2);
+        track.style.setProperty("--tickerEnd", `-${half}px`);
+        const seconds = Math.max(10, use.length * 2.5);
+        track.style.animationDuration = `${seconds}s`;
+        track.classList.add("scrolling");
+      });
+    }
+  }
+
+  function renderModal(){
+    modalList.innerHTML = "";
+    if (!history.length){
+      const li = document.createElement("li");
+      li.textContent = "No changes logged yet.";
+      modalList.appendChild(li);
+    } else {
+      for (const line of history){
+        const li = document.createElement("li");
+        li.textContent = line;
+        modalList.appendChild(li);
+      }
+    }
+    foot.textContent = lastHadChanges
+      ? "Tip: Hover the ticker to pause the scroll."
+      : "No changes detected on the most recent refresh.";
+  }
+
+  function openModal(){
+    modalBackdrop.hidden = false;
+    modal.hidden = false;
+    modalClose.focus();
+    document.addEventListener("keydown", onKey, { passive:true });
+  }
+  function closeModal(){
+    modalBackdrop.hidden = true;
+    modal.hidden = true;
+    document.removeEventListener("keydown", onKey);
+  }
+  function onKey(e){ if(e.key === "Escape") closeModal(); }
+
+  // Compare snapshots: NEW, CLR, CHG (locations changed under same event+expires)
+  function diff(prev, cur){
+    const out = [];
+
+    for (const k of Object.keys(cur)){
+      if (!prev[k]){
+        out.push({ kind:"NEW", text:`${cur[k].event} – ${cur[k].locations}` });
+      } else {
+        if (prev[k].locations !== cur[k].locations){
+          out.push({ kind:"CHG", text:`${cur[k].event} – locations updated` });
+        }
+      }
+    }
+    for (const k of Object.keys(prev)){
+      if (!cur[k]){
+        out.push({ kind:"CLR", text:`${prev[k].event} – cleared` });
+      }
+    }
+    return out;
+  }
+
+  // Called by fetchAlerts with REAL grouped alert array
+  function updateFromGroups(groups, nowStr){
+    const cur = {};
+    for (const g of (groups || [])){
+      // stable group id already used by your render logic
+      const key = `${g.event}||${g.expires || ""}`;
+      const loc = (g.locations || "").trim() || "Locations updated";
+      cur[key] = { event: g.event, expires: g.expires || "", locations: loc };
+    }
+
+    const changes = diff(lastSnapshot, cur);
+    lastHadChanges = changes.length > 0;
+
+    if (changes.length){
+      const lines = changes.map(c => `[${nowStr}] ${c.kind}: ${c.text}`);
+      history = [...lines, ...history].slice(0, MAX_HISTORY_LINES);
+    }
+
+    lastSnapshot = structuredClone(cur);
+
+    renderTicker(changes);
+    renderModal();
+    modalSub.textContent = "Since last refresh";
+  }
+
+  // Wire UI
+  expandBtn.addEventListener("click", () => { renderModal(); openModal(); });
+  modalClose.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", closeModal);
+
+  // initial state
+  renderTicker([]);
+
+  return { updateFromGroups };
+})();
 
 /* ==============================
    ALERT FETCH (advisories-page style)
@@ -523,6 +928,10 @@ async function fetchAlerts(){
     if(!arr.length){
       container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
       status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
+
+      // Update recent changes using REAL groups (empty)
+      RecentChanges.updateFromGroups([], nowStr);
+
       setupAutoScroll();
       return;
     }
@@ -537,6 +946,19 @@ async function fetchAlerts(){
     });
 
     status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
+
+    // Build a lightweight list for RecentChanges (uses same grouping you render)
+    const changeGroups = arr.map(g => {
+      const namesSorted = sortLocations([...g.names]);
+      return {
+        event: g.event,
+        expires: g.expires,
+        locations: namesSorted.join("; ")
+      };
+    });
+
+    // Update recent changes BEFORE rendering table is fine (it uses same sorted output)
+    RecentChanges.updateFromGroups(changeGroups, nowStr);
 
     container.innerHTML = `
       <table>
@@ -569,6 +991,16 @@ async function fetchAlerts(){
     console.error(err);
     container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
     status.textContent = "Error: " + (err?.message || String(err));
+
+    // Don’t change snapshot on error; just show “Error” line in ticker
+    // (keeps it from falsely clearing/adding groups)
+    const track = document.getElementById("changesTrack");
+    if (track) {
+      track.classList.remove("scrolling");
+      track.style.removeProperty("--tickerEnd");
+      track.innerHTML = `<div class="changesItem"><span class="tag bad">ERR</span><span>Unable to load alerts (see status)</span></div>`;
+    }
+
     setupAutoScroll();
   }finally{
     btn.disabled = false;
