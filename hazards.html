@@ -755,6 +755,7 @@ const RecentChanges = (() => {
   let last = {};
   let history = [];
   let lastHadChanges = false;
+  let hasRefreshedOnce = false;
 
   // NEW: baseline flag
   let hasBaselined = false;
@@ -772,12 +773,19 @@ const RecentChanges = (() => {
 
     const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
 
-    if (!use.length){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.innerHTML = `<span class="tag ok">OK</span><span>No changes since open</span>`;
-      track.appendChild(div);
-      return;
+if (!use.length){
+  const div = document.createElement("div");
+  div.className = "changesItem";
+
+  const msg = hasRefreshedOnce
+    ? "No changes since refresh"
+    : "No changes since open";
+
+  div.innerHTML = `<span class="tag ok">OK</span><span>${msg}</span>`;
+  track.appendChild(div);
+  return;
+}
+
     }
 
     for (const ln of use){
@@ -922,6 +930,7 @@ const RecentChanges = (() => {
       renderTicker([]);          // "No changes since open"
       renderModal();
       modalSub.textContent = `Since open (${sessionStartStr})`;
+      hasRefreshedOnce = true;
       return;
     }
 
