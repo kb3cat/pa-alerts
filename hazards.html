@@ -94,28 +94,25 @@ html,body{
 .wrap{
   height:100vh;
   display:grid;
-  grid-template-rows:auto auto 1fr; /* title, controls+changes, content */
+  /* We removed the dedicated “Row 2” so the main content gets more height */
+  grid-template-rows:auto 1fr;
   gap:10px;
   padding:10px;
   box-sizing:border-box;
 }
 
-/* Row 1 */
-.title-row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-}
-.title-row h1{margin:0;font-size:1.35rem;}
-.spacer{flex:1}
-
-/* Row 2 */
-.controls-row{
+/* Top row now contains: H1 + controls + changes + theme (single line when possible) */
+.topbar{
   display:flex;
   align-items:flex-start;
   gap:12px;
   flex-wrap:wrap;
+}
+
+.topbar h1{
+  margin:0;
+  font-size:1.35rem;
+  white-space:nowrap;
 }
 
 button{
@@ -143,7 +140,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
    Recent changes (ticker + modal)
    ========================= */
 .changesBox{
-  flex: 1 1 520px;             /* grows into blank space */
+  flex: 1 1 520px;
   min-width: 320px;
   max-width: 820px;
   border:1px solid var(--changesBorder);
@@ -212,7 +209,6 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   color: var(--muted);
   line-height: 1.1rem;
 }
-
 .tag.ok{ background: var(--okBg); border-color: var(--okBorder); color: var(--text); }
 .tag.warn{ background: var(--warnBg); border-color: var(--warnBorder); color: var(--text); }
 .tag.bad{ background: var(--badBg); border-color: var(--badBorder); color: var(--text); }
@@ -279,7 +275,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   margin-top: 10px;
 }
 
-/* IMPORTANT: ensure [hidden] wins */
+/* ensure [hidden] wins */
 #changesModal[hidden],
 #changesModalBackdrop[hidden]{
   display:none !important;
@@ -385,6 +381,7 @@ td{word-break:break-word;}
 
 @media (max-width: 1100px){
   .changesBox{ max-width: 100%; }
+  .topbar h1{ width:100%; }
 }
 </style>
 </head>
@@ -408,15 +405,10 @@ td{word-break:break-word;}
 </script>
 
 <div class="wrap">
-  <!-- Row 1: H1 -->
-  <div class="title-row">
+  <!-- Single top bar: H1 + controls + changes + theme -->
+  <div class="topbar">
     <h1>Pennsylvania Weather Hazard Overview</h1>
-    <div class="spacer"></div>
-    <button id="themeToggle" type="button">🌙 Dark</button>
-  </div>
 
-  <!-- Row 2: controls + recent changes + (space) -->
-  <div class="controls-row">
     <div class="controls">
       <span>Auto-refresh: 5 min</span>
       <button id="refreshBtn" type="button">Refresh</button>
@@ -434,6 +426,8 @@ td{word-break:break-word;}
         <div class="changesTrack" id="changesTrack"></div>
       </div>
     </div>
+
+    <button id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
   <div class="grid">
@@ -584,12 +578,12 @@ function setupAutoScroll(){
   if(overflow <= 0) return;
 
   inner.style.setProperty("--scroll-distance", overflow + "px");
-  const duration = Math.max(20, overflow / 18); // ~18px/sec, min 20s
+  const duration = Math.max(20, overflow / 18);
   inner.style.animation = `summaryScroll ${duration}s linear infinite`;
 }
 
 /* ==============================
-   ALERT FETCH (your existing logic)
+   ALERT FETCH (existing logic)
    ============================== */
 const API_URL = "https://api.weather.gov/alerts/active?area=PA";
 const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
@@ -714,7 +708,6 @@ const RecentChanges = (() => {
   const modalClose = document.getElementById("changesCloseBtn");
   const foot = document.getElementById("changesFootNote");
 
-  // snapshot: id -> { event, expiresStr, expiresMs, locSet }
   let last = {};
   let history = [];
   let lastHadChanges = false;
@@ -734,16 +727,16 @@ const RecentChanges = (() => {
       return;
     }
 
+    const clsFor = (k) =>
+      (k === "OK") ? "ok" :
+      (k === "NEW" || k === "TIME" || k === "+") ? "warn" :
+      (k === "CLR" || k === "-") ? "bad" : "";
+
     for (const ln of use){
       const div = document.createElement("div");
       div.className = "changesItem";
       div.title = ln.text;
-      const cls =
-        ln.kind === "OK" ? "ok" :
-        (ln.kind === "NEW" || ln.kind === "TIME" || ln.kind === "+") ? "warn" :
-        (ln.kind === "CLR" || ln.kind === "-") ? "bad" : "";
-
-      div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+      div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
       track.appendChild(div);
     }
 
@@ -752,11 +745,7 @@ const RecentChanges = (() => {
         const div = document.createElement("div");
         div.className = "changesItem";
         div.title = ln.text;
-        const cls =
-          ln.kind === "OK" ? "ok" :
-          (ln.kind === "NEW" || ln.kind === "TIME" || ln.kind === "+") ? "warn" :
-          (ln.kind === "CLR" || ln.kind === "-") ? "bad" : "";
-        div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+        div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
         track.appendChild(div);
       }
 
@@ -805,104 +794,86 @@ const RecentChanges = (() => {
   modalClose.addEventListener("click", closeModal);
   modalBackdrop.addEventListener("click", closeModal);
 
-  function setFromArray(groups){
-    // Build deterministic ids from (event + expires) as your UI grouping already does.
-    // BUT: for TIME changes we match on event + locations first, and if expires differs,
-    // we report TIME instead of CLR+NEW.
-    const cur = {};
-    const curByEventLoc = new Map();  // event||locSig -> id
-    const curById = new Map();
-
-    for (const g of (groups || [])){
-      const id = `${g.event}||${g.expires || ""}`;
-      const locArr = (g.locationsArr || []);
-      const locSet = new Set(locArr);
-      const locSig = locArr.join(";");
-      const expiresStr = g.expiresStr || "N/A";
-      const expiresMs = g.expiresMs || Number.MAX_SAFE_INTEGER;
-
-      cur[id] = { event:g.event, expiresStr, expiresMs, locSet, locSig };
-      curByEventLoc.set(`${g.event}||${locSig}`, id);
-      curById.set(id, true);
-    }
-
-    // Build prev index for TIME matching
-    const prevByEventLoc = new Map(); // event||locSig -> prevId
-    for (const [pid, pv] of Object.entries(last)){
-      prevByEventLoc.set(`${pv.event}||${pv.locSig}`, pid);
-    }
-
+  function diff(prev, cur){
     const changes = [];
 
-    // 1) TIME changes (same event+same locations, expires changed)
+    const curEventLoc = new Map();
+    const prevEventLoc = new Map();
+
+    for (const [id, v] of Object.entries(cur)){
+      curEventLoc.set(`${v.event}||${v.locSig}`, id);
+    }
+    for (const [id, v] of Object.entries(prev)){
+      prevEventLoc.set(`${v.event}||${v.locSig}`, id);
+    }
+
     const matchedPrev = new Set();
     const matchedCur = new Set();
 
-    for (const [key, cid] of curByEventLoc.entries()){
-      const pid = prevByEventLoc.get(key);
+    // TIME changes: same event+same locations; expires changed
+    for (const [key, cid] of curEventLoc.entries()){
+      const pid = prevEventLoc.get(key);
       if (!pid) continue;
-
-      const pv = last[pid];
-      const cv = cur[cid];
       matchedPrev.add(pid);
       matchedCur.add(cid);
 
+      const pv = prev[pid], cv = cur[cid];
       if ((pv.expiresStr || "") !== (cv.expiresStr || "")){
-        changes.push({
-          kind: "TIME",
-          text: `${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}`
-        });
+        changes.push({ kind:"TIME", text:`${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}` });
       }
-
-      // 2) Locations adds/drops only when same event+same expires (handled below)
-      // Here we matched on same locations, so no +/- here.
     }
 
-    // 3) For remaining ids that exist in both by exact id, check +/- location changes
-    for (const cid of Object.keys(cur)){
+    // +/- changes: same exact group id (event||expires)
+    for (const [cid, cv] of Object.entries(cur)){
       if (matchedCur.has(cid)) continue;
-      const cv = cur[cid];
-      const pv = last[cid];
-      if (!pv) continue; // handled later as NEW
+      const pv = prev[cid];
+      if (!pv) continue;
 
-      // We’re comparing same event+same expires, so this is true +/- territory.
       const added = [];
       const removed = [];
+
       for (const x of cv.locSet) if (!pv.locSet.has(x)) added.push(x);
       for (const x of pv.locSet) if (!cv.locSet.has(x)) removed.push(x);
 
-      const showList = (arr) => arr.slice(0, 4).join("; ") + (arr.length > 4 ? ` (+${arr.length - 4} more)` : "");
+      const show = (arr) => arr.slice(0,4).join("; ") + (arr.length>4 ? ` (+${arr.length-4} more)` : "");
 
-      if (added.length){
-        changes.push({ kind: "+", text: `${cv.event} – added ${added.length}: ${showList(added)}` });
-      }
-      if (removed.length){
-        changes.push({ kind: "-", text: `${cv.event} – removed ${removed.length}: ${showList(removed)}` });
-      }
+      if (added.length) changes.push({ kind:"+", text:`${cv.event} – added ${added.length}: ${show(added)}` });
+      if (removed.length) changes.push({ kind:"-", text:`${cv.event} – removed ${removed.length}: ${show(removed)}` });
 
       matchedPrev.add(cid);
       matchedCur.add(cid);
     }
 
-    // 4) NEW groups (cur not present in prev, and not TIME-matched)
-    for (const cid of Object.keys(cur)){
-      if (last[cid] || matchedCur.has(cid)) continue;
-      const cv = cur[cid];
-      changes.push({ kind: "NEW", text: `${cv.event} – ${cv.locSig || "Locations updated"}` });
+    // NEW
+    for (const [cid, cv] of Object.entries(cur)){
+      if (prev[cid] || matchedCur.has(cid)) continue;
+      changes.push({ kind:"NEW", text:`${cv.event} – ${cv.locSig || "Locations updated"}` });
     }
 
-    // 5) CLR groups (prev not present in cur, and not TIME-matched)
-    for (const pid of Object.keys(last)){
+    // CLR
+    for (const [pid, pv] of Object.entries(prev)){
       if (cur[pid] || matchedPrev.has(pid)) continue;
-      const pv = last[pid];
-      changes.push({ kind: "CLR", text: `${pv.event} – cleared` });
+      changes.push({ kind:"CLR", text:`${pv.event} – cleared` });
     }
 
-    return { cur, changes };
+    return changes;
   }
 
   function update(groups, nowStr){
-    const { cur, changes } = setFromArray(groups);
+    const cur = {};
+    for (const g of (groups || [])){
+      const id = `${g.event}||${g.expires || ""}`;
+      const locArr = g.locationsArr || [];
+      cur[id] = {
+        event: g.event,
+        expires: g.expires || "",
+        expiresStr: g.expiresStr || "N/A",
+        locSet: new Set(locArr),
+        locSig: locArr.join(";")
+      };
+    }
+
+    const changes = diff(last, cur);
     lastHadChanges = changes.length > 0;
 
     if (changes.length){
@@ -911,7 +882,6 @@ const RecentChanges = (() => {
     }
 
     last = cur;
-
     renderTicker(changes);
     renderModal();
     modalSub.textContent = "Since last refresh";
@@ -922,7 +892,7 @@ const RecentChanges = (() => {
 })();
 
 /* ==============================
-   fetchAlerts (unchanged output, plus RecentChanges.update call)
+   fetchAlerts
    ============================== */
 async function fetchAlerts(){
   const status = document.getElementById("status");
@@ -974,10 +944,7 @@ async function fetchAlerts(){
     if(!arr.length){
       container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
       status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
-
-      // Recent changes: empty update (allows CLR to show when alerts clear)
       RecentChanges.update([], nowStr);
-
       setupAutoScroll();
       return;
     }
@@ -992,20 +959,15 @@ async function fetchAlerts(){
 
     status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
 
-    // Build groups for RecentChanges with full location sets + expires formatting
     const changeGroups = arr.map(g => {
       const namesSorted = sortLocations([...g.names]);
-      const expiresMs = toTimeMs(g.expires);
-      const expiresStr = g.expires ? fmtTime(g.expires) : "N/A";
       return {
         event: g.event,
         expires: g.expires || "",
-        expiresMs,
-        expiresStr,
+        expiresStr: g.expires ? fmtTime(g.expires) : "N/A",
         locationsArr: namesSorted
       };
     });
-
     RecentChanges.update(changeGroups, nowStr);
 
     container.innerHTML = `
@@ -1039,8 +1001,6 @@ async function fetchAlerts(){
     container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
     status.textContent = "Error: " + (err?.message || String(err));
 
-    // Leave snapshot unchanged to avoid false NEW/CLR,
-    // but show a visible ticker line
     const track = document.getElementById("changesTrack");
     if (track) {
       track.classList.remove("scrolling");
@@ -1061,9 +1021,11 @@ function refreshAll(){
 
 document.getElementById("refreshBtn").addEventListener("click", refreshAll);
 
+// initial + periodic
 refreshAll();
 setInterval(refreshAll, 5 * 60 * 1000);
 
+// Clean address bar after cache-bust
 if (location.search.includes("_ts=")) {
   history.replaceState(null, "", location.pathname);
 }
