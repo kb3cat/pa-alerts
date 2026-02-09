@@ -23,23 +23,14 @@
       --btnBorder: #333333;
       --btnBorderSoft: #555555;
 
-      --modalBackdrop: rgba(0,0,0,0.55);
-      --modalBg: #ffffff;
-      --modalText: #111111;
-      --modalMeta: #333333;
-
       --preBg: #f6f6f6;
       --preBorder: #dddddd;
-
-      --newInfoBg: rgba(59, 130, 246, 0.28);
-      --newInfoBorder: rgba(59, 130, 246, 0.35);
 
       --watchBg: rgba(255, 165, 0, 0.5);
       --warningBg: rgba(220, 38, 38, 0.5);
       --advBg: rgba(255, 235, 59, 0.55);
 
-      --shadow: 0 20px 60px rgba(0,0,0,0.4);
-
+      /* Map fallback palette */
       --mapFallbackBg: #f6f6f6;
       --mapFallbackBorder: #999999;
     }
@@ -61,30 +52,21 @@
       --btnBorder: #2b3646;
       --btnBorderSoft: #2b3646;
 
-      --modalBackdrop: rgba(0,0,0,0.70);
-      --modalBg: #121820;
-      --modalText: #e9eef5;
-      --modalMeta: #a8b2bf;
-
       --preBg: #0f141b;
       --preBorder: #2b3646;
-
-      --newInfoBg: rgba(59, 130, 246, 0.30);
-      --newInfoBorder: rgba(59, 130, 246, 0.40);
 
       --watchBg: rgba(255, 165, 0, 0.35);
       --warningBg: rgba(220, 38, 38, 0.35);
       --advBg: rgba(255, 235, 59, 0.25);
 
-      --shadow: 0 20px 60px rgba(0,0,0,0.65);
-
+      /* Map fallback palette */
       --mapFallbackBg: #0f141b;
       --mapFallbackBorder: #2b3646;
     }
 
     html, body { background: var(--bg); color: var(--text); margin:0; }
 
-    /* One-screen layout */
+    /* -------- Option A Layout -------- */
     .wrap{
       height:100vh;
       display:grid;
@@ -127,7 +109,7 @@
     .grid{
       height:100%;
       display:grid;
-      grid-template-columns: 45% 55%;
+      grid-template-rows: 56% 44%; /* top visuals, bottom summary */
       gap:10px;
       min-height:0;
     }
@@ -153,35 +135,25 @@
       overflow:auto;
     }
 
-    table { border-collapse: collapse; width: 100%; }
-    th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
-    th { background: var(--tableHeadBg); text-align:left; }
-
-    .type-cell { font-weight: 600; color: var(--text); }
-    .type-watch   { background-color: var(--watchBg); }
-    .type-warning { background-color: var(--warningBg); }
-    .type-adv     { background-color: var(--advBg); }
-
-    .muted { color: var(--muted); font-size: 0.95em; }
-
-    /* Map+Radar combined, top aligned */
-    .mapRadar{
+    /* Top visuals split */
+    .visuals{
       height:100%;
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap:10px;
       min-height:0;
-      align-items:start; /* top align */
+      align-items:start;
     }
 
-    /* MAP: prevent blip by starting hidden until onload */
-    #wwaMap {
+    /* Map */
+    #wwaMap{
       width:100%;
       height:auto;
-      border: 1px solid var(--borderSoft);
-      visibility: hidden;
+      border:1px solid var(--borderSoft);
+      visibility:hidden; /* prevent broken-image flash */
       display:block;
-      align-self:start;
+      max-height:100%;
+      object-fit:contain;
     }
 
     .map-fallback{
@@ -209,39 +181,42 @@
       margin:0 auto;
     }
 
-    /* Radar embed: non-movable */
+    /* Radar: non-movable */
     .radarFrame{
       width:100%;
       height:100%;
       border:1px solid var(--borderSoft);
-      border-radius:0;
       overflow:hidden;
       background: transparent;
+      min-height:0;
     }
     .radarFrame iframe{
       width:100%;
       height:100%;
       border:0;
       display:block;
-      pointer-events:none; /* lock it (no pan/zoom) */
+      pointer-events:none; /* lock it */
     }
 
-    /* Give the right panel a sensible fixed height usage */
-    .rightBody{
-      height:100%;
-      overflow:hidden;
-    }
-    .rightBody .mapRadar{
-      height:100%;
-    }
+    /* Summary table */
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
+    th { background: var(--tableHeadBg); text-align:left; }
 
-    /* Make sure the radar gets enough vertical space */
-    .radarFrame{ min-height: 420px; }
+    .type-cell { font-weight: 600; color: var(--text); }
+    .type-watch   { background-color: var(--watchBg); }
+    .type-warning { background-color: var(--warningBg); }
+    .type-adv     { background-color: var(--advBg); }
+
+    .muted { color: var(--muted); font-size: 0.95em; }
+
+    /* Make summary rows readable when locations are long */
+    td{ word-break: break-word; }
   </style>
 </head>
 
 <body>
-  <!-- Force refresh on open (same trick) -->
+  <!-- Force refresh on open (same trick you liked) -->
   <script>
   (() => {
     const KEY = "paalerts_refreshed_once";
@@ -272,19 +247,14 @@
     </div>
 
     <div class="grid">
-      <!-- LEFT: SUMMARY -->
-      <div class="panel">
-        <div class="hdr">Summary</div>
-        <div class="body" id="tableContainer"></div>
-      </div>
 
-      <!-- RIGHT: MAP + RADAR in same section -->
+      <!-- TOP: MAP + RADAR -->
       <div class="panel">
         <div class="hdr">PA Alert Map & Radar</div>
-        <div class="body rightBody">
-          <div class="mapRadar">
+        <div class="body" style="padding:6px;">
+          <div class="visuals">
 
-            <!-- MAP -->
+            <!-- Map -->
             <div>
               <img
                 id="wwaMap"
@@ -299,13 +269,13 @@
                   <div class="title">NWS Alert Map Unavailable</div>
                   <div class="text">
                     The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
-                    Alert data remains valid and is displayed on the left.
+                    Alert data remains valid and is displayed below.
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- RADAR (PA-centered) -->
+            <!-- Radar (PA centered) -->
             <div class="radarFrame" aria-label="Locked radar">
               <iframe
                 title="Windy Radar (locked)"
@@ -319,16 +289,17 @@
           </div>
         </div>
       </div>
+
+      <!-- BOTTOM: SUMMARY (full width) -->
+      <div class="panel">
+        <div class="hdr">Summary</div>
+        <div class="body" id="tableContainer"></div>
+      </div>
+
     </div>
   </div>
 
   <script>
-    // If something blows up, don't leave "Loading..." forever
-    window.addEventListener("error", (e) => {
-      const s = document.getElementById("status");
-      if (s) s.textContent = "Script error: " + (e?.message || "Unknown error");
-    });
-
     /* ==============================
        THEME TOGGLE (same as your pages)
        ============================== */
@@ -374,11 +345,17 @@
       }
     })();
 
+    // If something blows up, don't leave "Loading..." forever
+    window.addEventListener("error", (e) => {
+      const s = document.getElementById("status");
+      if (s) s.textContent = "Script error: " + (e?.message || "Unknown error");
+    });
+
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
     /* ==============================
-       MAP FALLBACK (no-blip) — same behavior
+       MAP FALLBACK (no-blip)
        ============================== */
     function showWwaMapFallback() {
       const img = document.getElementById("wwaMap");
@@ -422,17 +399,17 @@
 
     /* ==============================
        Advisory-page matching logic
-       - Uses affectedZones -> fetch zone name/state
+       - affectedZones -> fetch zone names
        - PA only
-       - FINAL end time uses: ends || expires
-       - Group by event + expires, combine locations
+       - FINAL end time: ends || expires
+       - Group by event + expires; combine locations
        ============================== */
     const zoneCache = new Map();
 
     function formatTime(v) {
       if (!v) return "N/A";
       const d = new Date(v);
-      // mm/dd/yy (your preference) + time
+      // mm/dd/yy + time
       return isNaN(d) ? String(v) : d.toLocaleString([], {
         month:"2-digit", day:"2-digit", year:"2-digit",
         hour:"2-digit", minute:"2-digit"
@@ -554,7 +531,7 @@
           }
           if (!names.length) continue;
 
-          // ✅ Match your advisories source for end time:
+          // ✅ final end time (matches advisories page)
           const expires = p.ends || p.expires;
 
           rows.push({
@@ -564,11 +541,10 @@
           });
         }
 
-        status.textContent = `Last updated: ${new Date().toLocaleString()} | Groups: ${rows.length ? "calculating…" : 0}`;
-
+        const nowStr = new Date().toLocaleString([], { month:"numeric", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit", second:"2-digit" });
         if (!rows.length) {
           container.innerHTML = `<div class="muted">No active watches, warnings, or advisories.</div>`;
-          status.textContent = `Last updated: ${new Date().toLocaleString()} | Groups: 0`;
+          status.textContent = `Last updated: ${nowStr} | Groups: 0`;
           return;
         }
 
@@ -580,14 +556,14 @@
           row.names.forEach(n => grouped.get(k).names.add(n));
         }
 
-        // Sort like your pages: earliest expiry first, then event
+        // Sort: earliest expiry first, then event
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
 
-        status.textContent = `Last updated: ${new Date().toLocaleString()} | Groups: ${groupedArr.length}`;
+        status.textContent = `Last updated: ${nowStr} | Groups: ${groupedArr.length}`;
 
         container.innerHTML = `
           <table>
@@ -619,22 +595,19 @@
       }
     }
 
-    document.getElementById("refreshBtn").onclick = () => {
+    function refreshAll(){
       refreshMap();
       fetchAlerts();
-    };
+    }
 
-    // initial
+    document.getElementById("refreshBtn").onclick = refreshAll;
+
+    // initial + periodic
     fetchAlerts();
     refreshMap();
+    setInterval(refreshAll, 5 * 60 * 1000);
 
-    // periodic
-    setInterval(() => {
-      fetchAlerts();
-      refreshMap();
-    }, 5 * 60 * 1000);
-
-    // Clean address bar after cache-bust (same as your pages)
+    // Clean address bar after cache-bust
     if (location.search.includes("_ts=")) {
       history.replaceState(null, "", location.pathname);
     }
