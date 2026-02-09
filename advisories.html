@@ -1290,6 +1290,9 @@
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
     setInterval(checkRWSIndicator, 5 * 60 * 1000);
+    if (location.search.includes("_ts=")) {
+  history.replaceState(null, "", location.pathname);
+}
   </script>
 </body>
 </html>
