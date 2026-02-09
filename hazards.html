@@ -343,7 +343,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   visibility:hidden;
   display:block;
 
-  /* NEW: responsive “bigger on iPad” behavior without changing layout */
+  /* responsive sizing for tablets/phones (no layout changes) */
   max-height: clamp(320px, 55vh, 720px);
   object-fit: contain;
 }
@@ -568,8 +568,6 @@ function syncRadarToMap(){
   const map = document.getElementById("wwaMap");
   const radar = document.getElementById("radarFrame");
   if(!map || !radar) return;
-
-  // Use rendered height (respects max-height clamp)
   const h = Math.round(map.getBoundingClientRect().height);
   if(h > 100) radar.style.height = h + "px";
 }
@@ -580,9 +578,7 @@ function mapLoaded(){
   if(fb) fb.style.display = "none";
   map.style.display = "block";
   map.style.visibility = "visible";
-  requestAnimationFrame(() => {
-    syncRadarToMap();
-  });
+  requestAnimationFrame(syncRadarToMap);
 }
 
 function mapError(){
@@ -730,8 +726,9 @@ function refreshMap(){
 }
 
 /* ==============================
-   Recent Changes (specific adds/drops/time)
-   NOW: baseline on first successful fetch so it only shows changes since opening
+   Recent Changes (adds/drops/time)
+   Baseline on first successful fetch (so it starts empty per open)
+   "No changes since open" then "No changes since refresh"
    ============================== */
 const RecentChanges = (() => {
   const MAX_TICKER_ITEMS = 6;
@@ -755,10 +752,9 @@ const RecentChanges = (() => {
   let last = {};
   let history = [];
   let lastHadChanges = false;
-  let hasRefreshedOnce = false;
 
-  // NEW: baseline flag
   let hasBaselined = false;
+  let hasRefreshedOnce = false;
 
   function clsFor(k){
     return (k === "OK") ? "ok" :
@@ -773,19 +769,17 @@ const RecentChanges = (() => {
 
     const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
 
-if (!use.length){
-  const div = document.createElement("div");
-  div.className = "changesItem";
+    if (!use.length){
+      const div = document.createElement("div");
+      div.className = "changesItem";
 
-  const msg = hasRefreshedOnce
-    ? "No changes since refresh"
-    : "No changes since open";
+      const msg = hasRefreshedOnce
+        ? "No changes since refresh"
+        : "No changes since open";
 
-  div.innerHTML = `<span class="tag ok">OK</span><span>${msg}</span>`;
-  track.appendChild(div);
-  return;
-}
-
+      div.innerHTML = `<span class="tag ok">OK</span><span>${msg}</span>`;
+      track.appendChild(div);
+      return;
     }
 
     for (const ln of use){
@@ -921,16 +915,19 @@ if (!use.length){
       };
     }
 
-    // NEW: baseline on first successful update call (this session)
+    // baseline first successful update (starts empty per open)
     if (!hasBaselined){
       hasBaselined = true;
       last = cur;
       history = [];
       lastHadChanges = false;
-      renderTicker([]);          // "No changes since open"
+
+      // mark that we've completed at least one refresh cycle
+      hasRefreshedOnce = true;
+
+      renderTicker([]); // shows "since open" first, then will say "since refresh" afterward
       renderModal();
       modalSub.textContent = `Since open (${sessionStartStr})`;
-      hasRefreshedOnce = true;
       return;
     }
 
@@ -1006,10 +1003,7 @@ async function fetchAlerts(){
     if(!arr.length){
       container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
       status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
-
-      // Baseline logic now lives inside RecentChanges.update()
       RecentChanges.update([], nowStr);
-
       setupAutoScroll();
       requestAnimationFrame(syncRadarToMap);
       return;
@@ -1035,7 +1029,6 @@ async function fetchAlerts(){
       };
     });
 
-    // Baseline logic now lives inside RecentChanges.update()
     RecentChanges.update(changeGroups, nowStr);
 
     container.innerHTML = `
@@ -1089,32 +1082,26 @@ function refreshAll(){
 
 document.getElementById("refreshBtn").addEventListener("click", refreshAll);
 
- function setRadarZoom(){
+/* Phone radar: zoom out to show all of PA */
+function setRadarZoom(){
   const iframe = document.getElementById("radarIframe");
   if(!iframe) return;
 
   const isPhone = window.matchMedia("(max-width: 600px)").matches;
-
-  // Phone: whole PA | Desktop/iPad: current framing
   const zoom = isPhone ? 5 : 7;
 
   const url = new URL(iframe.src);
   url.searchParams.set("zoom", String(zoom));
 
-  if (iframe.src !== url.toString()) {
-    iframe.src = url.toString();
-  }
+  if (iframe.src !== url.toString()) iframe.src = url.toString();
 }
 
-// run once on load
 setRadarZoom();
-
-// re-run on rotation / resize
 window.addEventListener("resize", () => {
   clearTimeout(window.__radarZoomTimer);
   window.__radarZoomTimer = setTimeout(setRadarZoom, 200);
 });
- 
+
 refreshAll();
 setInterval(refreshAll, 5 * 60 * 1000);
 
