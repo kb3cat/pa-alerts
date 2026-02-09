@@ -432,6 +432,28 @@
     </div>
   </div>
 
+<script>
+(() => {
+  const KEY = "paalerts_refreshed_once";
+  const pageKey = `${KEY}:${location.pathname}`;
+
+  const nav = performance.getEntriesByType?.("navigation")?.[0];
+  const wasBFCache = nav?.type === "back_forward";
+
+  if (!sessionStorage.getItem(pageKey) || wasBFCache) {
+    sessionStorage.setItem(pageKey, "1");
+    const url = new URL(location.href);
+    url.searchParams.set("_ts", Date.now().toString());
+    location.replace(url.toString());
+  }
+})();
+</script>
+
+<script>
+  /* your existing code (theme toggle etc.) */
+</script>
+
+  
   <script>
     // If something blows up, don't leave "Loading..." forever
     window.addEventListener("error", (e) => {
