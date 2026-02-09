@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PA Watches, Warnings & Advisories — SA Display</title>
+
+<style>
+  :root{
+    --bg:#ffffff;
+    --text:#111;
+    --muted:#555;
+    --border:#333;
+    --soft:#ddd;
+    --head:#f0f0f0;
+  }
+
+  body{
+    margin:0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+
+  /* Entire screen */
+  .wrap{
+    height:100vh;
+    display:grid;
+    grid-template-rows:auto 1fr;
+    gap:8px;
+    padding:8px;
+    box-sizing:border-box;
+  }
+
+  /* Header */
+  .topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    padding:8px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fafafa;
+  }
+
+  .title{
+    font-weight:700;
+    letter-spacing:.2px;
+  }
+
+  .updated{
+    font-size:.9em;
+    color:var(--muted);
+  }
+
+  /* Main grid */
+  .grid{
+    display:grid;
+    grid-template-columns:40% 60%;
+    gap:8px;
+    height:100%;
+    min-height:0;
+  }
+
+  .left{
+    display:grid;
+    grid-template-rows:auto 1fr;
+    gap:8px;
+    min-height:0;
+  }
+
+  .panel{
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+    min-height:0;
+  }
+
+  .panel h2{
+    margin:0;
+    padding:8px 10px;
+    background:var(--head);
+    border-bottom:1px solid var(--border);
+    font-size:1em;
+  }
+
+  .panel .body{
+    padding:8px 10px;
+    overflow:auto;
+    font-size:.95em;
+  }
+
+  /* Alerts */
+  .alert{
+    padding:6px 8px;
+    border-left:5px solid #999;
+    margin-bottom:6px;
+    background:#f9f9f9;
+  }
+  .alert.warning{ border-color:#b00000; }
+  .alert.watch{ border-color:#d97706; }
+  .alert.advisory{ border-color:#2563eb; }
+
+  .alert strong{ display:block; }
+
+  /* Right side visuals */
+  .right{
+    display:grid;
+    grid-template-rows:40% 60%;
+    gap:8px;
+    min-height:0;
+  }
+
+  .map img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    background:#eee;
+  }
+
+  /* Radar iframe locked */
+  .radar iframe{
+    width:100%;
+    height:100%;
+    border:0;
+    pointer-events:none; /* 👈 prevents interaction */
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="title">Pennsylvania Watches, Warnings & Advisories</div>
+    <div class="updated" id="updated">Loading…</div>
+  </div>
+
+  <div class="grid">
+
+    <!-- LEFT -->
+    <div class="left">
+
+      <div class="panel">
+        <h2>Active Alerts Summary</h2>
+        <div class="body" id="summary">
+          Loading alert data…
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Active Alerts</h2>
+        <div class="body" id="alerts"></div>
+      </div>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+
+      <div class="panel map">
+        <h2>PA Alert Map</h2>
+        <img
+          src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+          alt="Pennsylvania Watches, Warnings and Advisories Map"
+        />
+      </div>
+
+      <div class="panel radar">
+        <h2>Radar</h2>
+        <iframe
+          src="https://radar.weather.gov/region/CONUS/standard"
+          loading="lazy"
+        ></iframe>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+async function loadAlerts(){
+  const res = await fetch("https://api.weather.gov/alerts/active?area=PA");
+  const data = await res.json();
+
+  document.getElementById("updated").textContent =
+    "Updated " + new Date().toLocaleTimeString();
+
+  const alertsEl = document.getElementById("alerts");
+  const summaryEl = document.getElementById("summary");
+
+  alertsEl.innerHTML = "";
+  summaryEl.innerHTML = "";
+
+  if(!data.features.length){
+    summaryEl.textContent = "No active watches, warnings, or advisories.";
+    return;
+  }
+
+  summaryEl.innerHTML =
+    `<strong>${data.features.length}</strong> active alert(s) statewide`;
+
+  data.features.forEach(a=>{
+    const e = a.properties.event.toLowerCase();
+    let cls="advisory";
+    if(e.includes("warning")) cls="warning";
+    else if(e.includes("watch")) cls="watch";
+
+    const div=document.createElement("div");
+    div.className="alert "+cls;
+    div.innerHTML = `
+      <strong>${a.properties.event}</strong>
+      ${a.properties.headline || ""}
+    `;
+    alertsEl.appendChild(div);
+  });
+}
+
+loadAlerts();
+setInterval(loadAlerts, 300000); // 5 minutes
+</script>
+
+</body>
+</html>
