@@ -196,8 +196,7 @@
 
   .col-num{ width:56px; white-space:nowrap; }
   .col-type{ width:130px; }
-  .col-sev{ width:95px; white-space:nowrap; }
-  .col-time{ width:170px; }
+   .col-time{ width:170px; }
 
   .typeBar{
     border-left:6px solid #999;
@@ -424,21 +423,20 @@ async function loadAlerts(){
     const onset = fmtTime(p.effective || p.onset);
     const ends = fmtTime(p.ends || p.expires);
 
-    rows += `
-      <tr>
-        <td class="col-num">${i+1}</td>
-        <td class="col-type">
-          <div class="typeBar ${cls}">
-            <strong>${evt}</strong>
-            <div class="small">${safeText(p.headline || "")}</div>
-          </div>
-        </td>
-        <td class="col-sev">${sev}</td>
-        <td>${area}</td>
-        <td class="col-time">${onset}</td>
-        <td class="col-time">${ends}</td>
-      </tr>
-    `;
+rows += `
+  <tr>
+    <td class="col-num">${i+1}</td>
+    <td class="col-type">
+      <div class="typeBar ${cls}">
+        <strong>${evt}</strong>
+        <div class="small">${safeText(p.headline || "")}</div>
+      </div>
+    </td>
+    <td>${area}</td>
+    <td class="col-time">${onset}</td>
+    <td class="col-time">${ends}</td>
+  </tr>
+`;
   });
 
   alertsEl.innerHTML = `
