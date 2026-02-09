@@ -1,319 +1,643 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>PA Watches, Warnings & Advisories — SA Display</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PA Watches, Warnings & Advisories — Display</title>
 
-<style>
-  :root{
-    color-scheme: light;
+  <style>
+    :root{
+      color-scheme: light;
 
-    --bg:#ffffff;
-    --text:#111111;
-    --muted:#555555;
+      --bg: #ffffff;
+      --text: #111111;
+      --muted: #555555;
 
-    --border:#333333;
-    --soft:#dddddd;
-    --head:#f0f0f0;
-    --panelBg:#ffffff;
+      --border: #333333;
+      --borderSoft: #cccccc;
 
-    --warn:#8b1a1a;
-    --watch:#b45309;
-    --adv:#1d4ed8;
-  }
+      --tableHeadBg: #f0f0f0;
 
-  html[data-theme="dark"]{
-    color-scheme: dark;
+      --btnBg: #ffffff;
+      --btnBgHover: #f3f3f3;
+      --btnBorder: #333333;
+      --btnBorderSoft: #555555;
 
-    --bg:#0b0f17;
-    --text:#e8eefc;
-    --muted:#a8b3c7;
+      --modalBackdrop: rgba(0,0,0,0.55);
+      --modalBg: #ffffff;
+      --modalText: #111111;
+      --modalMeta: #333333;
 
-    --border:#445069;
-    --soft:#2b3344;
-    --head:#151c2b;
-    --panelBg:#0f1626;
-  }
+      --preBg: #f6f6f6;
+      --preBorder: #dddddd;
 
-  body{
-    margin:0;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    background:var(--bg);
-    color:var(--text);
-  }
+      --newInfoBg: rgba(59, 130, 246, 0.28);
+      --newInfoBorder: rgba(59, 130, 246, 0.35);
 
-  .wrap{
-    height:100vh;
-    display:grid;
-    grid-template-rows:auto 1fr;
-    gap:8px;
-    padding:8px;
-    box-sizing:border-box;
-  }
+      --watchBg: rgba(255, 165, 0, 0.5);
+      --warningBg: rgba(220, 38, 38, 0.5);
+      --advBg: rgba(255, 235, 59, 0.55);
 
-  .topbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:12px;
-    padding:8px 12px;
-    border:1px solid var(--border);
-    border-radius:10px;
-    background:var(--panelBg);
-  }
+      --shadow: 0 20px 60px rgba(0,0,0,0.4);
 
-  .title{ font-weight:700; }
+      --mapFallbackBg: #f6f6f6;
+      --mapFallbackBorder: #999999;
+    }
 
-  .meta{
-    display:flex;
-    gap:10px;
-    align-items:center;
-    color:var(--muted);
-    font-size:.95em;
-  }
+    :root[data-theme="dark"]{
+      color-scheme: dark;
 
-  .btn{
-    border:1px solid var(--border);
-    background:transparent;
-    color:var(--text);
-    padding:6px 10px;
-    border-radius:8px;
-    cursor:pointer;
-    font:inherit;
-  }
+      --bg: #0f1216;
+      --text: #e9eef5;
+      --muted: #a8b2bf;
 
-  .grid{
-    display:grid;
-    grid-template-columns:45% 55%;
-    gap:8px;
-    height:100%;
-    min-height:0;
-  }
+      --border: #2b3646;
+      --borderSoft: #2b3646;
 
-  .panel{
-    border:1px solid var(--border);
-    border-radius:10px;
-    overflow:hidden;
-    background:var(--panelBg);
-    display:flex;
-    flex-direction:column;
-    min-height:0;
-  }
+      --tableHeadBg: #1b2330;
 
-  .panel h2{
-    margin:0;
-    padding:8px 10px;
-    background:var(--head);
-    border-bottom:1px solid var(--border);
-    font-size:1em;
-  }
+      --btnBg: #171c22;
+      --btnBgHover: #232b36;
+      --btnBorder: #2b3646;
+      --btnBorderSoft: #2b3646;
 
-  .panel .body{
-    padding:8px 10px;
-    overflow:auto;
-    min-height:0;
-  }
+      --modalBackdrop: rgba(0,0,0,0.70);
+      --modalBg: #121820;
+      --modalText: #e9eef5;
+      --modalMeta: #a8b2bf;
 
-  /* SUMMARY TABLE */
-  table{
-    border-collapse:collapse;
-    width:100%;
-    font-size:.95em;
-  }
+      --preBg: #0f141b;
+      --preBorder: #2b3646;
 
-  th, td{
-    border:1px solid var(--border);
-    padding:6px 8px;
-    vertical-align:top;
-  }
+      --newInfoBg: rgba(59, 130, 246, 0.30);
+      --newInfoBorder: rgba(59, 130, 246, 0.40);
 
-  th{
-    background:var(--head);
-    text-align:left;
-  }
+      --watchBg: rgba(255, 165, 0, 0.35);
+      --warningBg: rgba(220, 38, 38, 0.35);
+      --advBg: rgba(255, 235, 59, 0.25);
 
-  .typeBar{
-    border-left:6px solid #999;
-    padding-left:8px;
-  }
-  .typeBar.warn{ border-left-color: var(--warn); }
-  .typeBar.watch{ border-left-color: var(--watch); }
-  .typeBar.adv{ border-left-color: var(--adv); }
+      --shadow: 0 20px 60px rgba(0,0,0,0.65);
 
-  /* MAP + RADAR COMBINED */
-  .mapRadar{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
-    height:100%;
-  }
+      --mapFallbackBg: #0f141b;
+      --mapFallbackBorder: #2b3646;
+    }
 
-  .mapWrap img{
-    width:100%;
-    height:100%;
-    object-fit:contain;
-  }
+    html, body { background: var(--bg); color: var(--text); margin:0; }
 
-  .radar iframe{
-    width:100%;
-    height:100%;
-    border:0;
-    pointer-events:none;
-  }
-</style>
+    /* One-screen layout */
+    .wrap{
+      height:100vh;
+      display:grid;
+      grid-template-rows:auto auto 1fr;
+      gap:10px;
+      padding:10px;
+      box-sizing:border-box;
+    }
+
+    .title-row{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+    .title-row h1{ margin:0; font-size:1.35rem; }
+    .title-row .spacer{ flex: 1 1 auto; }
+
+    #themeToggle, #refreshBtn{
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
+      cursor: pointer;
+      font: inherit;
+      color: var(--text);
+    }
+    #themeToggle:hover, #refreshBtn:hover{ background: var(--btnBgHover); }
+    #refreshBtn:disabled{ opacity:0.6; cursor:not-allowed; }
+
+    .controls{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-size:0.95em;
+    }
+
+    .grid{
+      height:100%;
+      display:grid;
+      grid-template-columns: 45% 55%;
+      gap:10px;
+      min-height:0;
+    }
+
+    .panel{
+      border:1px solid var(--border);
+      border-radius:10px;
+      overflow:hidden;
+      background: transparent;
+      min-height:0;
+      display:flex;
+      flex-direction:column;
+    }
+    .panel .hdr{
+      padding:8px 10px;
+      background: var(--tableHeadBg);
+      border-bottom:1px solid var(--border);
+      font-weight:700;
+    }
+    .panel .body{
+      padding:8px 10px;
+      min-height:0;
+      overflow:auto;
+    }
+
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
+    th { background: var(--tableHeadBg); text-align:left; }
+
+    .type-cell { font-weight: 600; color: var(--text); }
+    .type-watch   { background-color: var(--watchBg); }
+    .type-warning { background-color: var(--warningBg); }
+    .type-adv     { background-color: var(--advBg); }
+
+    .muted { color: var(--muted); font-size: 0.95em; }
+
+    /* Map+Radar combined, top aligned */
+    .mapRadar{
+      height:100%;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+      min-height:0;
+      align-items:start; /* top align */
+    }
+
+    /* MAP: prevent blip by starting hidden until onload */
+    #wwaMap {
+      width:100%;
+      height:auto;
+      border: 1px solid var(--borderSoft);
+      visibility: hidden;
+      display:block;
+      align-self:start;
+    }
+
+    .map-fallback{
+      display: none;
+      width: 100%;
+      min-height: 240px;
+      border: 2px dashed var(--mapFallbackBorder);
+      background: var(--mapFallbackBg);
+      border-radius: 10px;
+      padding: 18px;
+      box-sizing: border-box;
+      align-items: flex-start;
+      justify-content: center;
+      text-align: center;
+    }
+    .map-fallback .title{
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin-bottom: 6px;
+    }
+    .map-fallback .text{
+      color: var(--muted);
+      line-height: 1.35;
+      max-width: 70ch;
+      margin:0 auto;
+    }
+
+    /* Radar embed: non-movable */
+    .radarFrame{
+      width:100%;
+      height:100%;
+      border:1px solid var(--borderSoft);
+      border-radius:0;
+      overflow:hidden;
+      background: transparent;
+    }
+    .radarFrame iframe{
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+      pointer-events:none; /* lock it (no pan/zoom) */
+    }
+
+    /* Give the right panel a sensible fixed height usage */
+    .rightBody{
+      height:100%;
+      overflow:hidden;
+    }
+    .rightBody .mapRadar{
+      height:100%;
+    }
+
+    /* Make sure the radar gets enough vertical space */
+    .radarFrame{ min-height: 420px; }
+  </style>
 </head>
 
 <body>
-<div class="wrap">
+  <!-- Force refresh on open (same trick) -->
+  <script>
+  (() => {
+    const KEY = "paalerts_refreshed_once";
+    const pageKey = `${KEY}:${location.pathname}`;
+    const nav = performance.getEntriesByType?.("navigation")?.[0];
+    const wasBFCache = nav?.type === "back_forward";
 
-  <div class="topbar">
-    <div class="title">Pennsylvania Watches, Warnings & Advisories</div>
-    <div class="meta">
-      <span id="updated">Loading…</span>
-      <button class="btn" id="themeBtn">🌓</button>
-      <button class="btn" id="refreshBtn">Refresh</button>
+    if (!sessionStorage.getItem(pageKey) || wasBFCache) {
+      sessionStorage.setItem(pageKey, "1");
+      const url = new URL(location.href);
+      url.searchParams.set("_ts", Date.now().toString());
+      location.replace(url.toString());
+    }
+  })();
+  </script>
+
+  <div class="wrap">
+    <div class="title-row">
+      <h1>PA Watches, Warnings & Advisories</h1>
+      <div class="spacer"></div>
+      <button id="themeToggle" type="button">🌙 Dark</button>
     </div>
-  </div>
 
-  <div class="grid">
-
-    <!-- SUMMARY -->
-    <div class="panel">
-      <h2>Summary</h2>
-      <div class="body" id="summary">Loading…</div>
+    <div class="controls">
+      <span class="muted">Auto-refresh: every 5 minutes</span>
+      <button id="refreshBtn" type="button">Refresh Now</button>
+      <span id="status" class="muted">Loading alerts…</span>
     </div>
 
-    <!-- MAP + RADAR -->
-    <div class="panel">
-      <h2>PA Alert Map & Radar</h2>
-      <div class="body mapRadar">
-        <div class="mapWrap">
-          <img
-            id="paMap"
-            src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-            alt="PA Watches, Warnings, and Advisories Map"
-          />
-        </div>
-        <div class="radar">
-          <iframe
-            src="https://radar.weather.gov/region/CONUS/standard"
-            loading="lazy"
-            title="NWS Radar"
-          ></iframe>
+    <div class="grid">
+      <!-- LEFT: SUMMARY -->
+      <div class="panel">
+        <div class="hdr">Summary</div>
+        <div class="body" id="tableContainer"></div>
+      </div>
+
+      <!-- RIGHT: MAP + RADAR in same section -->
+      <div class="panel">
+        <div class="hdr">PA Alert Map & Radar</div>
+        <div class="body rightBody">
+          <div class="mapRadar">
+
+            <!-- MAP -->
+            <div>
+              <img
+                id="wwaMap"
+                src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+                alt="NWS Current Watches, Warnings, and Advisories (PA)"
+                onload="handleWwaMapLoad()"
+                onerror="showWwaMapFallback()"
+              />
+
+              <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+                <div>
+                  <div class="title">NWS Alert Map Unavailable</div>
+                  <div class="text">
+                    The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
+                    Alert data remains valid and is displayed on the left.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RADAR (PA-centered) -->
+            <div class="radarFrame" aria-label="Locked radar">
+              <iframe
+                title="Windy Radar (locked)"
+                src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&width=600&height=520&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                allowfullscreen>
+              </iframe>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
-
   </div>
-</div>
 
-<script>
-/* THEME */
-function applyTheme(t){
-  document.documentElement.setAttribute("data-theme", t);
-  localStorage.setItem("sa_theme", t);
-}
-applyTheme(localStorage.getItem("sa_theme") || "light");
+  <script>
+    // If something blows up, don't leave "Loading..." forever
+    window.addEventListener("error", (e) => {
+      const s = document.getElementById("status");
+      if (s) s.textContent = "Script error: " + (e?.message || "Unknown error");
+    });
 
-document.getElementById("themeBtn").onclick = () => {
-  const cur = document.documentElement.getAttribute("data-theme");
-  applyTheme(cur === "dark" ? "light" : "dark");
-};
+    /* ==============================
+       THEME TOGGLE (same as your pages)
+       ============================== */
+    (function () {
+      const STORAGE_KEY_THEME = "pa_alerts_theme";
+      const root = document.documentElement;
+      const btn = document.getElementById("themeToggle");
 
-/* HELPERS */
-function classify(evt){
-  evt = (evt || "").toLowerCase();
-  if(evt.includes("warning")) return "warn";
-  if(evt.includes("watch")) return "watch";
-  return "adv";
-}
+      function systemPrefersDark() {
+        return window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
 
-function fmtTime(iso){
-  if(!iso) return "—";
-  const d = new Date(iso);
-  return d.toLocaleString([], {
-    month:"2-digit", day:"2-digit", year:"2-digit",
-    hour:"2-digit", minute:"2-digit"
-  });
-}
+      function setTheme(theme) {
+        if (theme === "system") {
+          root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
+        } else {
+          root.setAttribute("data-theme", theme);
+        }
+        if (btn) {
+          const isDark = root.getAttribute("data-theme") === "dark";
+          btn.textContent = isDark ? "☀️ Light" : "🌙 Dark";
+        }
+      }
 
-/* LOAD DATA */
-async function loadAlerts(){
-  const summary = document.getElementById("summary");
-  const updated = document.getElementById("updated");
+      const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
 
-  updated.textContent = "Updating…";
+      if (saved === "system" && window.matchMedia) {
+        const mq = window.matchMedia("(prefers-color-scheme: dark)");
+        if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
+        else if (mq.addListener) mq.addListener(() => setTheme("system"));
+      }
 
-  let data;
-  try{
-    const r = await fetch("https://api.weather.gov/alerts/active?area=PA", { cache:"no-store" });
-    data = await r.json();
-  }catch{
-    summary.textContent = "Unable to load alert data.";
-    updated.textContent = "Error";
-    return;
-  }
+      setTheme(saved);
 
-  const feats = data.features || [];
+      if (btn) {
+        btn.addEventListener("click", () => {
+          const current = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
+          const next = current === "dark" ? "light" : "dark";
+          localStorage.setItem(STORAGE_KEY_THEME, next);
+          setTheme(next);
+        });
+      }
+    })();
 
-  updated.textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+    const API_URL = "https://api.weather.gov/alerts/active?area=PA";
+    const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-  if(!feats.length){
-    summary.textContent = "No active watches, warnings, or advisories.";
-    return;
-  }
+    /* ==============================
+       MAP FALLBACK (no-blip) — same behavior
+       ============================== */
+    function showWwaMapFallback() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      if (img) {
+        img.style.display = "none";
+        img.style.visibility = "hidden";
+      }
+      if (fallback) fallback.style.display = "flex";
+    }
 
-  let rows = "";
-  feats.forEach(f=>{
-    const p = f.properties || {};
-    const cls = classify(p.event);
+    function handleWwaMapLoad() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      if (fallback) fallback.style.display = "none";
+      if (img) {
+        img.style.display = "block";
+        img.style.visibility = "visible";
+      }
+    }
 
-    rows += `
-      <tr>
-        <td>
-          <div class="typeBar ${cls}">
-            <strong>${p.event || "—"}</strong>
-          </div>
-        </td>
-        <td>${p.areaDesc || "—"}</td>
-        <td>${fmtTime(p.expires || p.ends)}</td>
-      </tr>
-    `;
-  });
+    function refreshMap() {
+      const img = document.getElementById("wwaMap");
+      const fallback = document.getElementById("wwaMapFallback");
+      if (fallback) fallback.style.display = "none";
+      if (img) {
+        img.style.display = "block";
+        img.style.visibility = "hidden";
+        img.src = MAP_URL + "?t=" + Date.now();
+      }
+    }
 
-  summary.innerHTML = `
-    <table aria-label="Summary table">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Locations</th>
-          <th>Expires</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  `;
-}
+    window.addEventListener("load", () => {
+      const img = document.getElementById("wwaMap");
+      if (!img) return;
+      if (img.complete) {
+        if (img.naturalWidth > 0) handleWwaMapLoad();
+        else showWwaMapFallback();
+      }
+    });
 
-/* MAP REFRESH */
-function refreshMap(){
-  const img = document.getElementById("paMap");
-  img.src = "https://www.weather.gov/images/crh/noc/wwa_pa.png?_ts=" + Date.now();
-}
+    /* ==============================
+       Advisory-page matching logic
+       - Uses affectedZones -> fetch zone name/state
+       - PA only
+       - FINAL end time uses: ends || expires
+       - Group by event + expires, combine locations
+       ============================== */
+    const zoneCache = new Map();
 
-document.getElementById("refreshBtn").onclick = () => {
-  refreshMap();
-  loadAlerts();
-};
+    function formatTime(v) {
+      if (!v) return "N/A";
+      const d = new Date(v);
+      // mm/dd/yy (your preference) + time
+      return isNaN(d) ? String(v) : d.toLocaleString([], {
+        month:"2-digit", day:"2-digit", year:"2-digit",
+        hour:"2-digit", minute:"2-digit"
+      });
+    }
 
-refreshMap();
-loadAlerts();
-setInterval(() => {
-  refreshMap();
-  loadAlerts();
-}, 300000);
-</script>
+    function toTimeMs(v) {
+      const t = new Date(v || 0).getTime();
+      return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+    }
 
+    function isWantedAlert(p) {
+      const e = (p.event || "").toLowerCase();
+      return (
+        (e.includes("watch") || e.includes("warning") || e.includes("advisory") || e.includes("emergency")) &&
+        !e.includes("statement") &&
+        !e.includes("outlook") &&
+        !e.includes("test")
+      );
+    }
+
+    function isMarineZone(url) {
+      return typeof url === "string" && url.includes("/zones/marine/");
+    }
+
+    function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(t));
+    }
+
+    async function fetchZone(url) {
+      if (zoneCache.has(url)) return zoneCache.get(url);
+      try {
+        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 10000);
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const d = await r.json();
+        const info = { name: d.properties?.name, state: d.properties?.state };
+        zoneCache.set(url, info);
+        return info;
+      } catch {
+        return null;
+      }
+    }
+
+    function locationSortKey(name) {
+      return String(name || "")
+        .trim()
+        .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
+        .trim()
+        .toLowerCase();
+    }
+
+    function sortLocations(arr) {
+      return [...arr].sort((a, b) => {
+        const ka = locationSortKey(a);
+        const kb = locationSortKey(b);
+        return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
+      });
+    }
+
+    function normalizeSummaryCounty(name) {
+      let s = String(name || "").trim();
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+      s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
+      s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
+      return s.trim();
+    }
+
+    function typeClass(e) {
+      e = (e || "").toLowerCase();
+      if (e.includes("watch")) return "type-watch";
+      if (e.includes("warning") || e.includes("emergency")) return "type-warning";
+      return "type-adv";
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function fetchAlerts() {
+      const status = document.getElementById("status");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const container = document.getElementById("tableContainer");
+
+      refreshBtn.disabled = true;
+      status.textContent = "Loading alerts…";
+
+      try {
+        const r = await fetchWithTimeout(
+          API_URL,
+          { headers: { "Accept": "application/geo+json" }, cache: "no-store" },
+          12000
+        );
+        if (!r.ok) throw new Error("HTTP " + r.status);
+
+        const d = await r.json();
+        const features = Array.isArray(d.features) ? d.features : [];
+
+        const rows = [];
+        for (const f of features) {
+          const p = f?.properties;
+          if (!p || !isWantedAlert(p)) continue;
+
+          const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
+          if (!zones.length) continue;
+
+          const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
+
+          const names = [];
+          for (const info of zoneInfos) {
+            if (info && info.state === "PA" && info.name) names.push(info.name);
+          }
+          if (!names.length) continue;
+
+          // ✅ Match your advisories source for end time:
+          const expires = p.ends || p.expires;
+
+          rows.push({
+            event: p.event,
+            expires,
+            names: [...new Set(names)].map(normalizeSummaryCounty)
+          });
+        }
+
+        status.textContent = `Last updated: ${new Date().toLocaleString()} | Groups: ${rows.length ? "calculating…" : 0}`;
+
+        if (!rows.length) {
+          container.innerHTML = `<div class="muted">No active watches, warnings, or advisories.</div>`;
+          status.textContent = `Last updated: ${new Date().toLocaleString()} | Groups: 0`;
+          return;
+        }
+
+        // Group by event + expires; combine names
+        const grouped = new Map();
+        for (const row of rows) {
+          const k = `${row.event}||${row.expires || ""}`;
+          if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
+          row.names.forEach(n => grouped.get(k).names.add(n));
+        }
+
+        // Sort like your pages: earliest expiry first, then event
+        const groupedArr = [...grouped.values()].sort((a, b) => {
+          const ae = toTimeMs(a.expires);
+          const be = toTimeMs(b.expires);
+          return ae - be || String(a.event).localeCompare(String(b.event));
+        });
+
+        status.textContent = `Last updated: ${new Date().toLocaleString()} | Groups: ${groupedArr.length}`;
+
+        container.innerHTML = `
+          <table>
+            <colgroup>
+              <col style="width: 22%;">
+              <col style="width: 63%;">
+              <col style="width: 15%;">
+            </colgroup>
+            <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
+            ${groupedArr.map(g => {
+              const namesSorted = sortLocations([...g.names]);
+              return `
+                <tr>
+                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+                  <td>${namesSorted.map(escapeHtml).join("; ")}</td>
+                  <td>${escapeHtml(formatTime(g.expires))}</td>
+                </tr>
+              `;
+            }).join("")}
+          </table>
+        `;
+
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Error loading alerts: " + (err?.message || String(err));
+        container.innerHTML = `<div class="muted">Unable to load alerts.</div>`;
+      } finally {
+        refreshBtn.disabled = false;
+      }
+    }
+
+    document.getElementById("refreshBtn").onclick = () => {
+      refreshMap();
+      fetchAlerts();
+    };
+
+    // initial
+    fetchAlerts();
+    refreshMap();
+
+    // periodic
+    setInterval(() => {
+      fetchAlerts();
+      refreshMap();
+    }, 5 * 60 * 1000);
+
+    // Clean address bar after cache-bust (same as your pages)
+    if (location.search.includes("_ts=")) {
+      history.replaceState(null, "", location.pathname);
+    }
+  </script>
 </body>
 </html>
