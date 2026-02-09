@@ -8,6 +8,7 @@
 <style>
   :root{
     color-scheme: light;
+
     --bg:#ffffff;
     --text:#111111;
     --muted:#555555;
@@ -18,17 +19,18 @@
 
     --panelBg:#ffffff;
 
-    /* accent pills/borders */
+    /* type accents */
     --warn:#b00000;
     --watch:#d97706;
     --adv:#2563eb;
 
     --rowHi: rgba(59, 130, 246, 0.10);
+    --chipBg: rgba(0,0,0,0.04);
   }
 
-  /* Dark mode (toggled via [data-theme="dark"]) */
   html[data-theme="dark"]{
     color-scheme: dark;
+
     --bg:#0b0f17;
     --text:#e8eefc;
     --muted:#a8b3c7;
@@ -40,6 +42,7 @@
     --panelBg:#0f1626;
 
     --rowHi: rgba(59, 130, 246, 0.18);
+    --chipBg: rgba(255,255,255,0.08);
   }
 
   body{
@@ -49,6 +52,7 @@
     color:var(--text);
   }
 
+  /* Entire screen */
   .wrap{
     height:100vh;
     display:grid;
@@ -58,6 +62,7 @@
     box-sizing:border-box;
   }
 
+  /* Header */
   .topbar{
     display:flex;
     justify-content:space-between;
@@ -94,6 +99,7 @@
   }
   .btn:hover{ background: rgba(255,255,255,0.06); }
 
+  /* Main grid */
   .grid{
     display:grid;
     grid-template-columns:40% 60%;
@@ -109,9 +115,10 @@
     min-height:0;
   }
 
+  /* Right side: map + radar side-by-side */
   .right{
     display:grid;
-    grid-template-rows:40% 60%;
+    grid-template-columns:1fr 1fr;
     gap:8px;
     min-height:0;
   }
@@ -145,7 +152,7 @@
     min-height:0;
   }
 
-  /* Summary boxes */
+  /* Summary blocks */
   .stats{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
@@ -161,19 +168,59 @@
   .stat .k{ font-size:.85em; color:var(--muted); }
   .stat .v{ font-size:1.2em; font-weight:800; margin-top:2px; }
 
-  .pill{
+  .small{
+    color:var(--muted);
+    font-size:.9em;
+  }
+
+  /* Filter buttons (pill-like) */
+  .filterRow{
+    margin-top:10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .filterbtn{
     display:inline-block;
-    padding:2px 8px;
+    padding:3px 10px;
     border-radius:999px;
     border:1px solid var(--border);
+    background:transparent;
+    color:var(--text);
+    font-size:.85em;
+    cursor:pointer;
+  }
+  .filterbtn.warn{ border-color: var(--warn); }
+  .filterbtn.watch{ border-color: var(--watch); }
+  .filterbtn.adv{ border-color: var(--adv); }
+
+  .filterbtn[aria-pressed="false"]{
+    opacity:0.35;
+    filter:saturate(0.3);
+  }
+  .filterbtn:focus{
+    outline:2px solid rgba(59,130,246,0.6);
+    outline-offset:2px;
+  }
+
+  /* County chips */
+  .chips{
+    margin-top:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .chip{
+    border:1px solid var(--soft);
+    background:var(--chipBg);
+    padding:2px 8px;
+    border-radius:999px;
     font-size:.85em;
     white-space:nowrap;
   }
-  .pill.warn{ border-color: var(--warn); }
-  .pill.watch{ border-color: var(--watch); }
-  .pill.adv{ border-color: var(--adv); }
 
-  /* Table like your index/advisories style */
+  /* Table like index/advisories */
   table{
     border-collapse:collapse;
     width:100%;
@@ -191,12 +238,11 @@
     background:var(--head);
     text-align:left;
   }
-  tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
   tbody tr:hover{ background: var(--rowHi); }
 
   .col-num{ width:56px; white-space:nowrap; }
-  .col-type{ width:130px; }
-   .col-time{ width:170px; }
+  .col-type{ width:240px; }
+  .col-time{ width:170px; }
 
   .typeBar{
     border-left:6px solid #999;
@@ -206,20 +252,18 @@
   .typeBar.watch{ border-left-color: var(--watch); }
   .typeBar.adv{ border-left-color: var(--adv); }
 
-  .small{
-    color:var(--muted);
-    font-size:.9em;
-  }
-
-  .countline{
-    font-weight:700;
-  }
-
-  .map img{
-    width:100%;
+  /* Map */
+  .mapWrap{
     height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:transparent;
+  }
+  .mapWrap img{
+    max-width:100%;
+    max-height:100%;
     object-fit:contain;
-    background:#0000;
   }
 
   /* lock radar interaction */
@@ -255,9 +299,7 @@
           <span>Summary</span>
           <span class="small" id="summaryMeta"></span>
         </h2>
-        <div class="body" id="summary">
-          Loading…
-        </div>
+        <div class="body" id="summary">Loading…</div>
       </div>
 
       <div class="panel">
@@ -265,9 +307,7 @@
           <span>Active Alerts</span>
           <span class="small" id="count">0</span>
         </h2>
-        <div class="body" id="alerts">
-          <!-- table injected -->
-        </div>
+        <div class="body" id="alerts"></div>
       </div>
 
     </div>
@@ -275,20 +315,23 @@
     <!-- RIGHT -->
     <div class="right">
 
-      <div class="panel map">
+      <div class="panel">
         <h2>PA Alert Map</h2>
-        <img
-          src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-          alt="Pennsylvania Watches, Warnings and Advisories Map"
-        />
+        <div class="body mapWrap" style="padding:6px;">
+          <img
+            id="paMap"
+            src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+            alt="Pennsylvania Watches, Warnings and Advisories Map"
+          />
+        </div>
       </div>
 
       <div class="panel radar">
         <h2>Radar</h2>
-        <!-- swap this URL if you have a preferred PA-centric product -->
         <iframe
           src="https://radar.weather.gov/region/CONUS/standard"
           loading="lazy"
+          title="NWS Radar"
         ></iframe>
       </div>
 
@@ -302,7 +345,7 @@
 function getPreferredTheme(){
   const saved = localStorage.getItem("sa_theme");
   if(saved === "light" || saved === "dark") return saved;
-  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
 }
 function applyTheme(t){
   document.documentElement.setAttribute("data-theme", t);
@@ -320,27 +363,227 @@ function fmtTime(iso){
   if(!iso) return "—";
   const d = new Date(iso);
   if(Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString([], { month:"2-digit", day:"2-digit", year:"2-digit", hour:"2-digit", minute:"2-digit" });
+  // mm/dd/yy, per your preference
+  return d.toLocaleString([], {
+    month:"2-digit", day:"2-digit", year:"2-digit",
+    hour:"2-digit", minute:"2-digit"
+  });
 }
+
 function classifyEvent(evt){
   const e = (evt || "").toLowerCase();
   if(e.includes("warning")) return "warn";
   if(e.includes("watch")) return "watch";
   return "adv";
 }
+
 function safeText(s){
   return (s || "").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+}
+
+/* ---------- Filters (warn/watch/adv) ---------- */
+const FILTER_KEY = "sa_filters_v1";
+
+function loadFilters(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(FILTER_KEY) || "{}");
+    return {
+      warn: saved.warn !== false,
+      watch: saved.watch !== false,
+      adv: saved.adv !== false
+    };
+  }catch{
+    return { warn:true, watch:true, adv:true };
+  }
+}
+
+function saveFilters(f){
+  localStorage.setItem(FILTER_KEY, JSON.stringify(f));
+}
+
+let filters = loadFilters();
+
+function updateFilterNote(){
+  const note = document.getElementById("filterNote");
+  if(!note) return;
+  const on = Object.entries(filters).filter(([,v]) => v).map(([k]) => k);
+  note.textContent = (on.length === 3) ? "Showing: all" : `Showing: ${on.join(", ")}`;
+}
+
+function wireFilterButtons(){
+  const btns = document.querySelectorAll(".filterbtn");
+  btns.forEach(btn => {
+    const key = btn.dataset.filter;
+    btn.setAttribute("aria-pressed", String(!!filters[key]));
+
+    btn.onclick = () => {
+      filters[key] = !filters[key];
+
+      // prevent all off
+      if(!filters.warn && !filters.watch && !filters.adv){
+        filters[key] = true;
+        return;
+      }
+
+      btn.setAttribute("aria-pressed", String(!!filters[key]));
+      saveFilters(filters);
+
+      if(window.__lastFeatures) renderAll(window.__lastFeatures);
+      else loadAlerts();
+    };
+  });
+
+  updateFilterNote();
+}
+
+/* ---------- County combining ---------- */
+/* Takes areaDesc like "Adams; Cumberland; Dauphin" and returns normalized county names */
+function extractCounties(areaDesc){
+  if(!areaDesc) return [];
+  // NWS typically uses "County; County; ..." but sometimes includes "PAZxxx" or "Northern Erie" etc.
+  // We keep it simple and treat semicolon-separated tokens as "areas".
+  return areaDesc
+    .split(";")
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => {
+      // normalize: remove trailing " County" if present; keep township/zone wording otherwise
+      return s.replace(/\s+County$/i, "");
+    });
+}
+
+/* ---------- Rendering ---------- */
+function renderSummary(filteredFeats, totals){
+  const summaryEl = document.getElementById("summary");
+
+  const { totalAll, warnAll, watchAll, advAll } = totals;
+
+  // Build combined counties (deduped)
+  const countySet = new Set();
+  filteredFeats.forEach(f => {
+    const p = f.properties || {};
+    extractCounties(p.areaDesc).forEach(c => countySet.add(c));
+  });
+
+  const counties = Array.from(countySet).sort((a,b)=> a.localeCompare(b));
+  const countyCount = counties.length;
+
+  summaryEl.innerHTML = `
+    <div class="stats">
+      <div class="stat"><div class="k">Total</div><div class="v">${totalAll}</div></div>
+      <div class="stat"><div class="k">Warnings</div><div class="v">${warnAll}</div></div>
+      <div class="stat"><div class="k">Watches</div><div class="v">${watchAll}</div></div>
+      <div class="stat"><div class="k">Advisories</div><div class="v">${advAll}</div></div>
+    </div>
+
+    <div class="filterRow small" aria-label="Alert filters">
+      <button class="filterbtn warn" data-filter="warn" type="button">Warnings</button>
+      <button class="filterbtn watch" data-filter="watch" type="button">Watches</button>
+      <button class="filterbtn adv" data-filter="adv" type="button">Advisories</button>
+      <span id="filterNote" style="margin-left:6px;"></span>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div class="small"><strong>Affected Counties (combined):</strong> ${countyCount}</div>
+      ${
+        countyCount
+          ? `<div class="chips" aria-label="Affected counties list">
+              ${counties.map(c => `<span class="chip">${safeText(c)}</span>`).join("")}
+            </div>`
+          : `<div class="small" style="margin-top:6px;">No counties match the selected filters.</div>`
+      }
+    </div>
+  `;
+
+  wireFilterButtons();
+}
+
+function renderTable(filteredFeats){
+  const alertsEl = document.getElementById("alerts");
+  const countEl = document.getElementById("count");
+
+  if(!filteredFeats.length){
+    countEl.textContent = "0";
+    alertsEl.innerHTML = `<div class="small">No alerts match the selected filters.</div>`;
+    return;
+  }
+
+  countEl.textContent = `1 of ${filteredFeats.length}`;
+
+  let rows = "";
+  filteredFeats.forEach((f, i) => {
+    const p = f.properties || {};
+    const cls = classifyEvent(p.event);
+    const evt = safeText(p.event || "—");
+    const area = safeText(p.areaDesc || "—");
+    const onset = fmtTime(p.effective || p.onset);
+    const ends = fmtTime(p.ends || p.expires);
+
+    rows += `
+      <tr>
+        <td class="col-num">${i+1}</td>
+        <td class="col-type">
+          <div class="typeBar ${cls}">
+            <strong>${evt}</strong>
+            <div class="small">${safeText(p.headline || "")}</div>
+          </div>
+        </td>
+        <td>${area}</td>
+        <td class="col-time">${onset}</td>
+        <td class="col-time">${ends}</td>
+      </tr>
+    `;
+  });
+
+  alertsEl.innerHTML = `
+    <table aria-label="Active alerts table">
+      <thead>
+        <tr>
+          <th class="col-num">#</th>
+          <th class="col-type">Alert</th>
+          <th>Areas</th>
+          <th class="col-time">Effective</th>
+          <th class="col-time">Ends/Expires</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function renderAll(allFeats){
+  // totals across ALL (not filtered) - matches your “summary counts” style
+  let warnAll=0, watchAll=0, advAll=0;
+  allFeats.forEach(f=>{
+    const cls = classifyEvent(f?.properties?.event);
+    if(cls==="warn") warnAll++;
+    else if(cls==="watch") watchAll++;
+    else advAll++;
+  });
+
+  // apply filters for table + county combine
+  const filteredFeats = allFeats.filter(f => {
+    const cls = classifyEvent(f?.properties?.event);
+    return !!filters[cls];
+  });
+
+  renderSummary(filteredFeats, {
+    totalAll: allFeats.length,
+    warnAll, watchAll, advAll
+  });
+
+  renderTable(filteredFeats);
 }
 
 /* ---------- Main load ---------- */
 async function loadAlerts(){
   const updatedEl = document.getElementById("updated");
-  const summaryEl = document.getElementById("summary");
   const summaryMetaEl = document.getElementById("summaryMeta");
   const alertsEl = document.getElementById("alerts");
-  const countEl = document.getElementById("count");
+  const summaryEl = document.getElementById("summary");
 
   updatedEl.textContent = "Updating…";
+  summaryMetaEl.textContent = "Auto refresh: 5 min";
 
   let data;
   try{
@@ -356,111 +599,55 @@ async function loadAlerts(){
     return;
   }
 
-  const feats = Array.isArray(data.features) ? data.features : [];
-  updatedEl.textContent = "Updated " + new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
-  summaryMetaEl.textContent = "Auto refresh: 5 min";
+  let feats = Array.isArray(data.features) ? data.features : [];
 
-  if(feats.length === 0){
-    summaryEl.innerHTML = `
-      <div class="stats">
-        <div class="stat"><div class="k">Total</div><div class="v">0</div></div>
-        <div class="stat"><div class="k">Warnings</div><div class="v">0</div></div>
-        <div class="stat"><div class="k">Watches</div><div class="v">0</div></div>
-        <div class="stat"><div class="k">Advisories</div><div class="v">0</div></div>
-      </div>
-      <div style="margin-top:10px;" class="countline">No active watches, warnings, or advisories.</div>
-    `;
-    alertsEl.innerHTML = `<div class="small">No active alerts.</div>`;
-    countEl.textContent = "0";
-    return;
-  }
-
-  // Sort by severity-ish: warning > watch > advisory, then by effective time
+  // Sort: warning > watch > advisory; then newest first
   const order = { warn: 0, watch: 1, adv: 2 };
   feats.sort((a,b)=>{
     const ca = classifyEvent(a?.properties?.event);
     const cb = classifyEvent(b?.properties?.event);
     if(order[ca] !== order[cb]) return order[ca] - order[cb];
+
     const ta = new Date(a?.properties?.effective || a?.properties?.onset || 0).getTime() || 0;
     const tb = new Date(b?.properties?.effective || b?.properties?.onset || 0).getTime() || 0;
     return tb - ta;
   });
 
-  // Counts
-  let warn=0, watch=0, adv=0;
-  feats.forEach(f=>{
-    const c = classifyEvent(f?.properties?.event);
-    if(c==="warn") warn++;
-    else if(c==="watch") watch++;
-    else adv++;
-  });
+  window.__lastFeatures = feats;
 
-  summaryEl.innerHTML = `
-    <div class="stats">
-      <div class="stat"><div class="k">Total</div><div class="v">${feats.length}</div></div>
-      <div class="stat"><div class="k">Warnings</div><div class="v">${warn}</div></div>
-      <div class="stat"><div class="k">Watches</div><div class="v">${watch}</div></div>
-      <div class="stat"><div class="k">Advisories</div><div class="v">${adv}</div></div>
-    </div>
-    <div style="margin-top:10px;" class="small">
-      <span class="pill warn">Warnings</span>
-      <span class="pill watch" style="margin-left:6px;">Watches</span>
-      <span class="pill adv" style="margin-left:6px;">Advisories</span>
-    </div>
-  `;
+  updatedEl.textContent = "Updated " + new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
 
-  // Count line like your pages
-  countEl.textContent = `1 of ${feats.length}`;
+  if(feats.length === 0){
+    // Still show filters (all on), and empty everything else
+    renderAll([]);
+    return;
+  }
 
-  // Table render
-  let rows = "";
-  feats.forEach((f, i) => {
-    const p = f.properties || {};
-    const cls = classifyEvent(p.event);
-    const sev = safeText(p.severity || "—");
-    const evt = safeText(p.event || "—");
-    const area = safeText(p.areaDesc || "—");
-    const onset = fmtTime(p.effective || p.onset);
-    const ends = fmtTime(p.ends || p.expires);
-
-rows += `
-  <tr>
-    <td class="col-num">${i+1}</td>
-    <td class="col-type">
-      <div class="typeBar ${cls}">
-        <strong>${evt}</strong>
-        <div class="small">${safeText(p.headline || "")}</div>
-      </div>
-    </td>
-    <td>${area}</td>
-    <td class="col-time">${onset}</td>
-    <td class="col-time">${ends}</td>
-  </tr>
-`;
-  });
-
-  alertsEl.innerHTML = `
-    <table aria-label="Active alerts table">
-<thead>
-  <tr>
-    <th class="col-num">#</th>
-    <th class="col-type">Alert</th>
-    <th>Areas</th>
-    <th class="col-time">Effective</th>
-    <th class="col-time">Ends/Expires</th>
-  </tr>
-</thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-  `;
+  renderAll(feats);
 }
 
-document.getElementById("refreshBtn").addEventListener("click", loadAlerts);
+/* ---------- Map refresh (optional) ---------- */
+/* NWS map image updates with a "Generated" time; cache-bust it lightly */
+function refreshPaMap(){
+  const img = document.getElementById("paMap");
+  if(!img) return;
+  const base = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
+  img.src = base + "?_ts=" + Date.now();
+}
 
+/* Buttons */
+document.getElementById("refreshBtn").addEventListener("click", () => {
+  refreshPaMap();
+  loadAlerts();
+});
+
+/* Initial + periodic refresh */
+refreshPaMap();
 loadAlerts();
-setInterval(loadAlerts, 300000); // 5 minutes
+setInterval(() => {
+  refreshPaMap();
+  loadAlerts();
+}, 300000); // 5 minutes
 </script>
 
 </body>
