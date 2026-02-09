@@ -16,16 +16,11 @@
     --border:#333333;
     --soft:#dddddd;
     --head:#f0f0f0;
-
     --panelBg:#ffffff;
 
-    /* type accents */
-    --warn:#b00000;
-    --watch:#d97706;
-    --adv:#2563eb;
-
-    --rowHi: rgba(59, 130, 246, 0.10);
-    --chipBg: rgba(0,0,0,0.04);
+    --warn:#8b1a1a;
+    --watch:#b45309;
+    --adv:#1d4ed8;
   }
 
   html[data-theme="dark"]{
@@ -38,11 +33,7 @@
     --border:#445069;
     --soft:#2b3344;
     --head:#151c2b;
-
     --panelBg:#0f1626;
-
-    --rowHi: rgba(59, 130, 246, 0.18);
-    --chipBg: rgba(255,255,255,0.08);
   }
 
   body{
@@ -52,7 +43,6 @@
     color:var(--text);
   }
 
-  /* Entire screen */
   .wrap{
     height:100vh;
     display:grid;
@@ -62,7 +52,6 @@
     box-sizing:border-box;
   }
 
-  /* Header */
   .topbar{
     display:flex;
     justify-content:space-between;
@@ -74,16 +63,12 @@
     background:var(--panelBg);
   }
 
-  .title{
-    font-weight:700;
-    letter-spacing:.2px;
-  }
+  .title{ font-weight:700; }
 
   .meta{
     display:flex;
-    align-items:center;
     gap:10px;
-    flex-wrap:wrap;
+    align-items:center;
     color:var(--muted);
     font-size:.95em;
   }
@@ -97,29 +82,12 @@
     cursor:pointer;
     font:inherit;
   }
-  .btn:hover{ background: rgba(255,255,255,0.06); }
 
-  /* Main grid */
   .grid{
     display:grid;
-    grid-template-columns:40% 60%;
+    grid-template-columns:45% 55%;
     gap:8px;
     height:100%;
-    min-height:0;
-  }
-
-  .left{
-    display:grid;
-    grid-template-rows:auto 1fr;
-    gap:8px;
-    min-height:0;
-  }
-
-  /* Right side: map + radar side-by-side */
-  .right{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:8px;
     min-height:0;
   }
 
@@ -127,9 +95,9 @@
     border:1px solid var(--border);
     border-radius:10px;
     overflow:hidden;
+    background:var(--panelBg);
     display:flex;
     flex-direction:column;
-    background:var(--panelBg);
     min-height:0;
   }
 
@@ -139,110 +107,31 @@
     background:var(--head);
     border-bottom:1px solid var(--border);
     font-size:1em;
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
   }
 
   .panel .body{
     padding:8px 10px;
     overflow:auto;
-    font-size:.95em;
     min-height:0;
   }
 
-  /* Summary blocks */
-  .stats{
-    display:grid;
-    grid-template-columns:repeat(4, 1fr);
-    gap:8px;
-  }
-  .stat{
-    border:1px solid var(--soft);
-    border-radius:10px;
-    padding:8px 10px;
-    background:transparent;
-    min-width:0;
-  }
-  .stat .k{ font-size:.85em; color:var(--muted); }
-  .stat .v{ font-size:1.2em; font-weight:800; margin-top:2px; }
-
-  .small{
-    color:var(--muted);
-    font-size:.9em;
-  }
-
-  /* Filter buttons (pill-like) */
-  .filterRow{
-    margin-top:10px;
-    display:flex;
-    align-items:center;
-    gap:6px;
-    flex-wrap:wrap;
-  }
-  .filterbtn{
-    display:inline-block;
-    padding:3px 10px;
-    border-radius:999px;
-    border:1px solid var(--border);
-    background:transparent;
-    color:var(--text);
-    font-size:.85em;
-    cursor:pointer;
-  }
-  .filterbtn.warn{ border-color: var(--warn); }
-  .filterbtn.watch{ border-color: var(--watch); }
-  .filterbtn.adv{ border-color: var(--adv); }
-
-  .filterbtn[aria-pressed="false"]{
-    opacity:0.35;
-    filter:saturate(0.3);
-  }
-  .filterbtn:focus{
-    outline:2px solid rgba(59,130,246,0.6);
-    outline-offset:2px;
-  }
-
-  /* County chips */
-  .chips{
-    margin-top:10px;
-    display:flex;
-    flex-wrap:wrap;
-    gap:6px;
-  }
-  .chip{
-    border:1px solid var(--soft);
-    background:var(--chipBg);
-    padding:2px 8px;
-    border-radius:999px;
-    font-size:.85em;
-    white-space:nowrap;
-  }
-
-  /* Table like index/advisories */
+  /* SUMMARY TABLE */
   table{
     border-collapse:collapse;
     width:100%;
-    font-size:.93em;
+    font-size:.95em;
   }
+
   th, td{
     border:1px solid var(--border);
-    padding:6px;
+    padding:6px 8px;
     vertical-align:top;
   }
+
   th{
-    position:sticky;
-    top:0;
-    z-index:1;
     background:var(--head);
     text-align:left;
   }
-  tbody tr:hover{ background: var(--rowHi); }
-
-  .col-num{ width:56px; white-space:nowrap; }
-  .col-type{ width:240px; }
-  .col-time{ width:170px; }
 
   .typeBar{
     border-left:6px solid #999;
@@ -252,21 +141,20 @@
   .typeBar.watch{ border-left-color: var(--watch); }
   .typeBar.adv{ border-left-color: var(--adv); }
 
-  /* Map */
-  .mapWrap{
+  /* MAP + RADAR COMBINED */
+  .mapRadar{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
     height:100%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:transparent;
   }
+
   .mapWrap img{
-    max-width:100%;
-    max-height:100%;
+    width:100%;
+    height:100%;
     object-fit:contain;
   }
 
-  /* lock radar interaction */
   .radar iframe{
     width:100%;
     height:100%;
@@ -281,269 +169,126 @@
 
   <div class="topbar">
     <div class="title">Pennsylvania Watches, Warnings & Advisories</div>
-
     <div class="meta">
       <span id="updated">Loading…</span>
-      <button class="btn" id="themeBtn" title="Toggle light/dark">🌓</button>
-      <button class="btn" id="refreshBtn" title="Refresh now">Refresh</button>
+      <button class="btn" id="themeBtn">🌓</button>
+      <button class="btn" id="refreshBtn">Refresh</button>
     </div>
   </div>
 
   <div class="grid">
 
-    <!-- LEFT -->
-    <div class="left">
-
-      <div class="panel">
-        <h2>
-          <span>Summary</span>
-          <span class="small" id="summaryMeta"></span>
-        </h2>
-        <div class="body" id="summary">Loading…</div>
-      </div>
-
-      <div class="panel">
-        <h2>
-          <span>Active Alerts</span>
-          <span class="small" id="count">0</span>
-        </h2>
-        <div class="body" id="alerts"></div>
-      </div>
-
+    <!-- SUMMARY -->
+    <div class="panel">
+      <h2>Summary</h2>
+      <div class="body" id="summary">Loading…</div>
     </div>
 
-    <!-- RIGHT -->
-    <div class="right">
-
-      <div class="panel">
-        <h2>PA Alert Map</h2>
-        <div class="body mapWrap" style="padding:6px;">
+    <!-- MAP + RADAR -->
+    <div class="panel">
+      <h2>PA Alert Map & Radar</h2>
+      <div class="body mapRadar">
+        <div class="mapWrap">
           <img
             id="paMap"
             src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-            alt="Pennsylvania Watches, Warnings and Advisories Map"
+            alt="PA Watches, Warnings, and Advisories Map"
           />
         </div>
+        <div class="radar">
+          <iframe
+            src="https://radar.weather.gov/region/CONUS/standard"
+            loading="lazy"
+            title="NWS Radar"
+          ></iframe>
+        </div>
       </div>
-
-      <div class="panel radar">
-        <h2>Radar</h2>
-        <iframe
-          src="https://radar.weather.gov/region/CONUS/standard"
-          loading="lazy"
-          title="NWS Radar"
-        ></iframe>
-      </div>
-
     </div>
 
   </div>
 </div>
 
 <script>
-/* ---------- Theme ---------- */
-function getPreferredTheme(){
-  const saved = localStorage.getItem("sa_theme");
-  if(saved === "light" || saved === "dark") return saved;
-  return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
-}
+/* THEME */
 function applyTheme(t){
   document.documentElement.setAttribute("data-theme", t);
   localStorage.setItem("sa_theme", t);
 }
-applyTheme(getPreferredTheme());
+applyTheme(localStorage.getItem("sa_theme") || "light");
 
-document.getElementById("themeBtn").addEventListener("click", () => {
-  const cur = document.documentElement.getAttribute("data-theme") || "light";
+document.getElementById("themeBtn").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme");
   applyTheme(cur === "dark" ? "light" : "dark");
-});
+};
 
-/* ---------- Helpers ---------- */
+/* HELPERS */
+function classify(evt){
+  evt = (evt || "").toLowerCase();
+  if(evt.includes("warning")) return "warn";
+  if(evt.includes("watch")) return "watch";
+  return "adv";
+}
+
 function fmtTime(iso){
   if(!iso) return "—";
   const d = new Date(iso);
-  if(Number.isNaN(d.getTime())) return "—";
-  // mm/dd/yy, per your preference
   return d.toLocaleString([], {
     month:"2-digit", day:"2-digit", year:"2-digit",
     hour:"2-digit", minute:"2-digit"
   });
 }
 
-function classifyEvent(evt){
-  const e = (evt || "").toLowerCase();
-  if(e.includes("warning")) return "warn";
-  if(e.includes("watch")) return "watch";
-  return "adv";
-}
+/* LOAD DATA */
+async function loadAlerts(){
+  const summary = document.getElementById("summary");
+  const updated = document.getElementById("updated");
 
-function safeText(s){
-  return (s || "").replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-}
+  updated.textContent = "Updating…";
 
-/* ---------- Filters (warn/watch/adv) ---------- */
-const FILTER_KEY = "sa_filters_v1";
-
-function loadFilters(){
+  let data;
   try{
-    const saved = JSON.parse(localStorage.getItem(FILTER_KEY) || "{}");
-    return {
-      warn: saved.warn !== false,
-      watch: saved.watch !== false,
-      adv: saved.adv !== false
-    };
+    const r = await fetch("https://api.weather.gov/alerts/active?area=PA", { cache:"no-store" });
+    data = await r.json();
   }catch{
-    return { warn:true, watch:true, adv:true };
-  }
-}
-
-function saveFilters(f){
-  localStorage.setItem(FILTER_KEY, JSON.stringify(f));
-}
-
-let filters = loadFilters();
-
-function updateFilterNote(){
-  const note = document.getElementById("filterNote");
-  if(!note) return;
-  const on = Object.entries(filters).filter(([,v]) => v).map(([k]) => k);
-  note.textContent = (on.length === 3) ? "Showing: all" : `Showing: ${on.join(", ")}`;
-}
-
-function wireFilterButtons(){
-  const btns = document.querySelectorAll(".filterbtn");
-  btns.forEach(btn => {
-    const key = btn.dataset.filter;
-    btn.setAttribute("aria-pressed", String(!!filters[key]));
-
-    btn.onclick = () => {
-      filters[key] = !filters[key];
-
-      // prevent all off
-      if(!filters.warn && !filters.watch && !filters.adv){
-        filters[key] = true;
-        return;
-      }
-
-      btn.setAttribute("aria-pressed", String(!!filters[key]));
-      saveFilters(filters);
-
-      if(window.__lastFeatures) renderAll(window.__lastFeatures);
-      else loadAlerts();
-    };
-  });
-
-  updateFilterNote();
-}
-
-/* ---------- County combining ---------- */
-/* Takes areaDesc like "Adams; Cumberland; Dauphin" and returns normalized county names */
-function extractCounties(areaDesc){
-  if(!areaDesc) return [];
-  // NWS typically uses "County; County; ..." but sometimes includes "PAZxxx" or "Northern Erie" etc.
-  // We keep it simple and treat semicolon-separated tokens as "areas".
-  return areaDesc
-    .split(";")
-    .map(s => s.trim())
-    .filter(Boolean)
-    .map(s => {
-      // normalize: remove trailing " County" if present; keep township/zone wording otherwise
-      return s.replace(/\s+County$/i, "");
-    });
-}
-
-/* ---------- Rendering ---------- */
-function renderSummary(filteredFeats, totals){
-  const summaryEl = document.getElementById("summary");
-
-  const { totalAll, warnAll, watchAll, advAll } = totals;
-
-  // Build combined counties (deduped)
-  const countySet = new Set();
-  filteredFeats.forEach(f => {
-    const p = f.properties || {};
-    extractCounties(p.areaDesc).forEach(c => countySet.add(c));
-  });
-
-  const counties = Array.from(countySet).sort((a,b)=> a.localeCompare(b));
-  const countyCount = counties.length;
-
-  summaryEl.innerHTML = `
-    <div class="stats">
-      <div class="stat"><div class="k">Total</div><div class="v">${totalAll}</div></div>
-      <div class="stat"><div class="k">Warnings</div><div class="v">${warnAll}</div></div>
-      <div class="stat"><div class="k">Watches</div><div class="v">${watchAll}</div></div>
-      <div class="stat"><div class="k">Advisories</div><div class="v">${advAll}</div></div>
-    </div>
-
-    <div class="filterRow small" aria-label="Alert filters">
-      <button class="filterbtn warn" data-filter="warn" type="button">Warnings</button>
-      <button class="filterbtn watch" data-filter="watch" type="button">Watches</button>
-      <button class="filterbtn adv" data-filter="adv" type="button">Advisories</button>
-      <span id="filterNote" style="margin-left:6px;"></span>
-    </div>
-
-    <div style="margin-top:10px;">
-      <div class="small"><strong>Affected Counties (combined):</strong> ${countyCount}</div>
-      ${
-        countyCount
-          ? `<div class="chips" aria-label="Affected counties list">
-              ${counties.map(c => `<span class="chip">${safeText(c)}</span>`).join("")}
-            </div>`
-          : `<div class="small" style="margin-top:6px;">No counties match the selected filters.</div>`
-      }
-    </div>
-  `;
-
-  wireFilterButtons();
-}
-
-function renderTable(filteredFeats){
-  const alertsEl = document.getElementById("alerts");
-  const countEl = document.getElementById("count");
-
-  if(!filteredFeats.length){
-    countEl.textContent = "0";
-    alertsEl.innerHTML = `<div class="small">No alerts match the selected filters.</div>`;
+    summary.textContent = "Unable to load alert data.";
+    updated.textContent = "Error";
     return;
   }
 
-  countEl.textContent = `1 of ${filteredFeats.length}`;
+  const feats = data.features || [];
+
+  updated.textContent = "Updated " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+
+  if(!feats.length){
+    summary.textContent = "No active watches, warnings, or advisories.";
+    return;
+  }
 
   let rows = "";
-  filteredFeats.forEach((f, i) => {
+  feats.forEach(f=>{
     const p = f.properties || {};
-    const cls = classifyEvent(p.event);
-    const evt = safeText(p.event || "—");
-    const area = safeText(p.areaDesc || "—");
-    const onset = fmtTime(p.effective || p.onset);
-    const ends = fmtTime(p.ends || p.expires);
+    const cls = classify(p.event);
 
     rows += `
       <tr>
-        <td class="col-num">${i+1}</td>
-        <td class="col-type">
+        <td>
           <div class="typeBar ${cls}">
-            <strong>${evt}</strong>
-            <div class="small">${safeText(p.headline || "")}</div>
+            <strong>${p.event || "—"}</strong>
           </div>
         </td>
-        <td>${area}</td>
-        <td class="col-time">${onset}</td>
-        <td class="col-time">${ends}</td>
+        <td>${p.areaDesc || "—"}</td>
+        <td>${fmtTime(p.expires || p.ends)}</td>
       </tr>
     `;
   });
 
-  alertsEl.innerHTML = `
-    <table aria-label="Active alerts table">
+  summary.innerHTML = `
+    <table aria-label="Summary table">
       <thead>
         <tr>
-          <th class="col-num">#</th>
-          <th class="col-type">Alert</th>
-          <th>Areas</th>
-          <th class="col-time">Effective</th>
-          <th class="col-time">Ends/Expires</th>
+          <th>Type</th>
+          <th>Locations</th>
+          <th>Expires</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -551,103 +296,23 @@ function renderTable(filteredFeats){
   `;
 }
 
-function renderAll(allFeats){
-  // totals across ALL (not filtered) - matches your “summary counts” style
-  let warnAll=0, watchAll=0, advAll=0;
-  allFeats.forEach(f=>{
-    const cls = classifyEvent(f?.properties?.event);
-    if(cls==="warn") warnAll++;
-    else if(cls==="watch") watchAll++;
-    else advAll++;
-  });
-
-  // apply filters for table + county combine
-  const filteredFeats = allFeats.filter(f => {
-    const cls = classifyEvent(f?.properties?.event);
-    return !!filters[cls];
-  });
-
-  renderSummary(filteredFeats, {
-    totalAll: allFeats.length,
-    warnAll, watchAll, advAll
-  });
-
-  renderTable(filteredFeats);
-}
-
-/* ---------- Main load ---------- */
-async function loadAlerts(){
-  const updatedEl = document.getElementById("updated");
-  const summaryMetaEl = document.getElementById("summaryMeta");
-  const alertsEl = document.getElementById("alerts");
-  const summaryEl = document.getElementById("summary");
-
-  updatedEl.textContent = "Updating…";
-  summaryMetaEl.textContent = "Auto refresh: 5 min";
-
-  let data;
-  try{
-    const res = await fetch("https://api.weather.gov/alerts/active?area=PA", {
-      headers: { "Accept": "application/geo+json" },
-      cache: "no-store"
-    });
-    data = await res.json();
-  }catch(err){
-    updatedEl.textContent = "Update failed";
-    summaryEl.textContent = "Unable to load NWS alert data.";
-    alertsEl.textContent = "";
-    return;
-  }
-
-  let feats = Array.isArray(data.features) ? data.features : [];
-
-  // Sort: warning > watch > advisory; then newest first
-  const order = { warn: 0, watch: 1, adv: 2 };
-  feats.sort((a,b)=>{
-    const ca = classifyEvent(a?.properties?.event);
-    const cb = classifyEvent(b?.properties?.event);
-    if(order[ca] !== order[cb]) return order[ca] - order[cb];
-
-    const ta = new Date(a?.properties?.effective || a?.properties?.onset || 0).getTime() || 0;
-    const tb = new Date(b?.properties?.effective || b?.properties?.onset || 0).getTime() || 0;
-    return tb - ta;
-  });
-
-  window.__lastFeatures = feats;
-
-  updatedEl.textContent = "Updated " + new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
-
-  if(feats.length === 0){
-    // Still show filters (all on), and empty everything else
-    renderAll([]);
-    return;
-  }
-
-  renderAll(feats);
-}
-
-/* ---------- Map refresh (optional) ---------- */
-/* NWS map image updates with a "Generated" time; cache-bust it lightly */
-function refreshPaMap(){
+/* MAP REFRESH */
+function refreshMap(){
   const img = document.getElementById("paMap");
-  if(!img) return;
-  const base = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-  img.src = base + "?_ts=" + Date.now();
+  img.src = "https://www.weather.gov/images/crh/noc/wwa_pa.png?_ts=" + Date.now();
 }
 
-/* Buttons */
-document.getElementById("refreshBtn").addEventListener("click", () => {
-  refreshPaMap();
+document.getElementById("refreshBtn").onclick = () => {
+  refreshMap();
   loadAlerts();
-});
+};
 
-/* Initial + periodic refresh */
-refreshPaMap();
+refreshMap();
 loadAlerts();
 setInterval(() => {
-  refreshPaMap();
+  refreshMap();
   loadAlerts();
-}, 300000); // 5 minutes
+}, 300000);
 </script>
 
 </body>
