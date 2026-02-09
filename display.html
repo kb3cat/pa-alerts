@@ -23,14 +23,10 @@
       --btnBorder: #333333;
       --btnBorderSoft: #555555;
 
-      --preBg: #f6f6f6;
-      --preBorder: #dddddd;
-
       --watchBg: rgba(255, 165, 0, 0.5);
       --warningBg: rgba(220, 38, 38, 0.5);
       --advBg: rgba(255, 235, 59, 0.55);
 
-      /* Map fallback palette */
       --mapFallbackBg: #f6f6f6;
       --mapFallbackBorder: #999999;
     }
@@ -52,21 +48,17 @@
       --btnBorder: #2b3646;
       --btnBorderSoft: #2b3646;
 
-      --preBg: #0f141b;
-      --preBorder: #2b3646;
-
       --watchBg: rgba(255, 165, 0, 0.35);
       --warningBg: rgba(220, 38, 38, 0.35);
       --advBg: rgba(255, 235, 59, 0.25);
 
-      /* Map fallback palette */
       --mapFallbackBg: #0f141b;
       --mapFallbackBorder: #2b3646;
     }
 
     html, body { background: var(--bg); color: var(--text); margin:0; }
 
-    /* -------- Option A Layout -------- */
+    /* Option A layout */
     .wrap{
       height:100vh;
       display:grid;
@@ -109,7 +101,7 @@
     .grid{
       height:100%;
       display:grid;
-      grid-template-rows: 56% 44%; /* top visuals, bottom summary */
+      grid-template-rows: auto 1fr; /* ✅ visuals height is auto (map-driven), table fills rest */
       gap:10px;
       min-height:0;
     }
@@ -135,25 +127,20 @@
       overflow:auto;
     }
 
-    /* Top visuals split */
+    /* Visuals split (map drives height) */
     .visuals{
-      height:100%;
       display:grid;
       grid-template-columns: 1fr 1fr;
       gap:10px;
-      min-height:0;
       align-items:start;
     }
 
-    /* Map */
     #wwaMap{
       width:100%;
       height:auto;
       border:1px solid var(--borderSoft);
-      visibility:hidden; /* prevent broken-image flash */
+      visibility:hidden; /* prevent flash */
       display:block;
-      max-height:100%;
-      object-fit:contain;
     }
 
     .map-fallback{
@@ -181,24 +168,23 @@
       margin:0 auto;
     }
 
-    /* Radar: non-movable */
+    /* Radar must follow map height; user cannot resize */
     .radarFrame{
       width:100%;
-      height:100%;
       border:1px solid var(--borderSoft);
       overflow:hidden;
       background: transparent;
-      min-height:0;
+      /* height set via JS to match map */
     }
     .radarFrame iframe{
       width:100%;
       height:100%;
       border:0;
       display:block;
-      pointer-events:none; /* lock it */
+      pointer-events:none; /* lock interaction */
     }
 
-    /* Summary table */
+    /* Table */
     table { border-collapse: collapse; width: 100%; }
     th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
     th { background: var(--tableHeadBg); text-align:left; }
@@ -208,15 +194,13 @@
     .type-warning { background-color: var(--warningBg); }
     .type-adv     { background-color: var(--advBg); }
 
-    .muted { color: var(--muted); font-size: 0.95em; }
-
-    /* Make summary rows readable when locations are long */
     td{ word-break: break-word; }
+    .muted { color: var(--muted); font-size: 0.95em; }
   </style>
 </head>
 
 <body>
-  <!-- Force refresh on open (same trick you liked) -->
+  <!-- Force refresh on open -->
   <script>
   (() => {
     const KEY = "paalerts_refreshed_once";
@@ -275,9 +259,10 @@
               </div>
             </div>
 
-            <!-- Radar (PA centered) -->
-            <div class="radarFrame" aria-label="Locked radar">
+            <!-- Radar -->
+            <div class="radarFrame" id="radarFrame" aria-label="Locked radar">
               <iframe
+                id="radarIframe"
                 title="Windy Radar (locked)"
                 src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&width=600&height=520&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
                 loading="lazy"
@@ -290,9 +275,9 @@
         </div>
       </div>
 
-      <!-- BOTTOM: SUMMARY (full width) -->
+      <!-- BOTTOM: TABLE -->
       <div class="panel">
-        <div class="hdr">Summary</div>
+        <div class="hdr">Alert Summary</div>
         <div class="body" id="tableContainer"></div>
       </div>
 
@@ -300,9 +285,7 @@
   </div>
 
   <script>
-    /* ==============================
-       THEME TOGGLE (same as your pages)
-       ============================== */
+    /* Theme toggle (same as your pages) */
     (function () {
       const STORAGE_KEY_THEME = "pa_alerts_theme";
       const root = document.documentElement;
@@ -345,7 +328,6 @@
       }
     })();
 
-    // If something blows up, don't leave "Loading..." forever
     window.addEventListener("error", (e) => {
       const s = document.getElementById("status");
       if (s) s.textContent = "Script error: " + (e?.message || "Unknown error");
@@ -354,17 +336,25 @@
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-    /* ==============================
-       MAP FALLBACK (no-blip)
-       ============================== */
+    /* Map fallback */
     function showWwaMapFallback() {
       const img = document.getElementById("wwaMap");
       const fallback = document.getElementById("wwaMapFallback");
+      const radarFrame = document.getElementById("radarFrame");
       if (img) {
         img.style.display = "none";
         img.style.visibility = "hidden";
       }
       if (fallback) fallback.style.display = "flex";
+      if (radarFrame) radarFrame.style.height = "520px";
+    }
+
+    function syncRadarToMap() {
+      const mapImg = document.getElementById("wwaMap");
+      const radarFrame = document.getElementById("radarFrame");
+      if (!mapImg || !radarFrame) return;
+      const h = Math.round(mapImg.getBoundingClientRect().height);
+      if (h > 100) radarFrame.style.height = h + "px";
     }
 
     function handleWwaMapLoad() {
@@ -375,6 +365,7 @@
         img.style.display = "block";
         img.style.visibility = "visible";
       }
+      requestAnimationFrame(syncRadarToMap);
     }
 
     function refreshMap() {
@@ -388,6 +379,11 @@
       }
     }
 
+    window.addEventListener("resize", () => {
+      clearTimeout(window.__syncTimer);
+      window.__syncTimer = setTimeout(syncRadarToMap, 150);
+    });
+
     window.addEventListener("load", () => {
       const img = document.getElementById("wwaMap");
       if (!img) return;
@@ -397,19 +393,12 @@
       }
     });
 
-    /* ==============================
-       Advisory-page matching logic
-       - affectedZones -> fetch zone names
-       - PA only
-       - FINAL end time: ends || expires
-       - Group by event + expires; combine locations
-       ============================== */
+    /* Advisories-page matching logic */
     const zoneCache = new Map();
 
     function formatTime(v) {
       if (!v) return "N/A";
       const d = new Date(v);
-      // mm/dd/yy + time
       return isNaN(d) ? String(v) : d.toLocaleString([], {
         month:"2-digit", day:"2-digit", year:"2-digit",
         hour:"2-digit", minute:"2-digit"
@@ -421,6 +410,17 @@
       return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
     }
 
+    function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal })
+        .finally(() => clearTimeout(t));
+    }
+
+    function isMarineZone(url) {
+      return typeof url === "string" && url.includes("/zones/marine/");
+    }
+
     function isWantedAlert(p) {
       const e = (p.event || "").toLowerCase();
       return (
@@ -429,17 +429,6 @@
         !e.includes("outlook") &&
         !e.includes("test")
       );
-    }
-
-    function isMarineZone(url) {
-      return typeof url === "string" && url.includes("/zones/marine/");
-    }
-
-    function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), timeoutMs);
-      return fetch(url, { ...options, signal: controller.signal })
-        .finally(() => clearTimeout(t));
     }
 
     async function fetchZone(url) {
@@ -454,6 +443,14 @@
       } catch {
         return null;
       }
+    }
+
+    function normalizeSummaryCounty(name) {
+      let s = String(name || "").trim();
+      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+      s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
+      s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
+      return s.trim();
     }
 
     function locationSortKey(name) {
@@ -472,12 +469,13 @@
       });
     }
 
-    function normalizeSummaryCounty(name) {
-      let s = String(name || "").trim();
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-      s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
-      s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-      return s.trim();
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
     function typeClass(e) {
@@ -487,13 +485,12 @@
       return "type-adv";
     }
 
-    function escapeHtml(s) {
-      return String(s)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    // Type priority sort: Warning -> Watch -> Advisory
+    function typePriority(e) {
+      const s = (e || "").toLowerCase();
+      if (s.includes("warning") || s.includes("emergency")) return 0;
+      if (s.includes("watch")) return 1;
+      return 2; // advisories/other
     }
 
     async function fetchAlerts() {
@@ -531,7 +528,6 @@
           }
           if (!names.length) continue;
 
-          // ✅ final end time (matches advisories page)
           const expires = p.ends || p.expires;
 
           rows.push({
@@ -541,7 +537,11 @@
           });
         }
 
-        const nowStr = new Date().toLocaleString([], { month:"numeric", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit", second:"2-digit" });
+        const nowStr = new Date().toLocaleString([], {
+          month:"numeric", day:"numeric", year:"numeric",
+          hour:"numeric", minute:"2-digit", second:"2-digit"
+        });
+
         if (!rows.length) {
           container.innerHTML = `<div class="muted">No active watches, warnings, or advisories.</div>`;
           status.textContent = `Last updated: ${nowStr} | Groups: 0`;
@@ -556,11 +556,17 @@
           row.names.forEach(n => grouped.get(k).names.add(n));
         }
 
-        // Sort: earliest expiry first, then event
-        const groupedArr = [...grouped.values()].sort((a, b) => {
-          const ae = toTimeMs(a.expires);
-          const be = toTimeMs(b.expires);
-          return ae - be || String(a.event).localeCompare(String(b.event));
+        let groupedArr = [...grouped.values()];
+
+        // ✅ Sort by Type priority, then Expiration (soonest first)
+        groupedArr.sort((a, b) => {
+          const tp = typePriority(a.event) - typePriority(b.event);
+          if (tp !== 0) return tp;
+
+          const te = toTimeMs(a.expires) - toTimeMs(b.expires);
+          if (te !== 0) return te;
+
+          return String(a.event).localeCompare(String(b.event));
         });
 
         status.textContent = `Last updated: ${nowStr} | Groups: ${groupedArr.length}`;
