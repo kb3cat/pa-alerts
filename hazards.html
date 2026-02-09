@@ -489,7 +489,7 @@ td{word-break:break-word;}
             <iframe
               id="radarIframe"
               title="Radar (locked)"
-              src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&zoom=7&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1&play=1"
+              src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1&play=1"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
               allowfullscreen>
@@ -1080,6 +1080,32 @@ function refreshAll(){
 
 document.getElementById("refreshBtn").addEventListener("click", refreshAll);
 
+ function setRadarZoom(){
+  const iframe = document.getElementById("radarIframe");
+  if(!iframe) return;
+
+  const isPhone = window.matchMedia("(max-width: 600px)").matches;
+
+  // Phone: whole PA | Desktop/iPad: current framing
+  const zoom = isPhone ? 5 : 7;
+
+  const url = new URL(iframe.src);
+  url.searchParams.set("zoom", String(zoom));
+
+  if (iframe.src !== url.toString()) {
+    iframe.src = url.toString();
+  }
+}
+
+// run once on load
+setRadarZoom();
+
+// re-run on rotation / resize
+window.addEventListener("resize", () => {
+  clearTimeout(window.__radarZoomTimer);
+  window.__radarZoomTimer = setTimeout(setRadarZoom, 200);
+});
+ 
 refreshAll();
 setInterval(refreshAll, 5 * 60 * 1000);
 
