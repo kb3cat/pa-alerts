@@ -521,7 +521,7 @@ async function fetchAlerts(){
 
     if(!arr.length){
       container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
-      status.textContent = `Last updated: ${nowStr} | Groups: 0`;
+      status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
       setupAutoScroll();
       return;
     }
@@ -535,7 +535,7 @@ async function fetchAlerts(){
       return String(a.event).localeCompare(String(b.event));
     });
 
-    status.textContent = `Last updated: ${nowStr} | Groups: ${arr.length}`;
+    status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
 
     container.innerHTML = `
       <table>
