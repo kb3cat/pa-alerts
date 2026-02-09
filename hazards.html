@@ -24,7 +24,7 @@
   --mapFallbackBg:#f6f6f6;
   --mapFallbackBorder:#999999;
 
-  /* Recent changes box */
+  /* Recent changes */
   --changesBg:#f7fbff;
   --changesBorder:#b7d5ff;
   --changesTitle:#0b3d91;
@@ -94,20 +94,29 @@ html,body{
 .wrap{
   height:100vh;
   display:grid;
-  grid-template-rows:auto 1fr;
+  grid-template-rows:auto auto 1fr; /* title, controls+changes, content */
   gap:10px;
   padding:10px;
   box-sizing:border-box;
 }
 
+/* Row 1 */
 .title-row{
   display:flex;
   align-items:center;
   gap:12px;
   flex-wrap:wrap;
 }
+.title-row h1{margin:0;font-size:1.35rem;}
+.spacer{flex:1}
 
-.title-row h1{margin:0;font-size:1.35rem; white-space:nowrap;}
+/* Row 2 */
+.controls-row{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  flex-wrap:wrap;
+}
 
 button{
   padding:6px 12px;
@@ -130,13 +139,11 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   white-space:nowrap;
 }
 
-.spacer{flex:1}
-
 /* =========================
    Recent changes (ticker + modal)
    ========================= */
 .changesBox{
-  flex: 1 1 520px;             /* lets it grow into the blank space */
+  flex: 1 1 520px;             /* grows into blank space */
   min-width: 320px;
   max-width: 820px;
   border:1px solid var(--changesBorder);
@@ -210,12 +217,8 @@ button:disabled{opacity:.6;cursor:not-allowed;}
 .tag.warn{ background: var(--warnBg); border-color: var(--warnBorder); color: var(--text); }
 .tag.bad{ background: var(--badBg); border-color: var(--badBorder); color: var(--text); }
 
-.scrolling{
-  animation: tickerUp linear infinite;
-}
-.changesTicker:hover .scrolling{
-  animation-play-state: paused;
-}
+.scrolling{ animation: tickerUp linear infinite; }
+.changesTicker:hover .scrolling{ animation-play-state: paused; }
 
 @keyframes tickerUp{
   from { transform: translateY(0); }
@@ -276,7 +279,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   margin-top: 10px;
 }
 
-/* IMPORTANT: ensure [hidden] wins (prevents “modal front and center”) */
+/* IMPORTANT: ensure [hidden] wins */
 #changesModal[hidden],
 #changesModalBackdrop[hidden]{
   display:none !important;
@@ -286,7 +289,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
 
 .grid{
   display:grid;
-  grid-template-rows:auto 1fr; /* visuals auto height; table fills rest */
+  grid-template-rows:auto 1fr;
   gap:10px;
   min-height:0;
 }
@@ -324,7 +327,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   width:100%;
   height:auto;
   border:1px solid var(--borderSoft);
-  visibility:hidden; /* prevent flash */
+  visibility:hidden;
   display:block;
 }
 
@@ -349,14 +352,13 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   border:1px solid var(--borderSoft);
   overflow:hidden;
   background:transparent;
-  /* height set via JS to match map */
 }
 .radarFrame iframe{
   width:100%;
   height:100%;
   border:0;
   display:block;
-  pointer-events:none; /* lock interaction */
+  pointer-events:none;
 }
 
 /* TABLE */
@@ -381,11 +383,8 @@ td{word-break:break-word;}
   100%{transform:translateY(0);}
 }
 
-/* Responsive: allow top line to wrap nicely */
 @media (max-width: 1100px){
-  .title-row h1{ width:100%; }
   .changesBox{ max-width: 100%; }
-  .spacer{ display:none; }
 }
 </style>
 </head>
@@ -409,17 +408,21 @@ td{word-break:break-word;}
 </script>
 
 <div class="wrap">
-  <!-- TOP ROW: headline + controls + changes box + theme -->
+  <!-- Row 1: H1 -->
   <div class="title-row">
     <h1>Pennsylvania Weather Hazard Overview</h1>
+    <div class="spacer"></div>
+    <button id="themeToggle" type="button">🌙 Dark</button>
+  </div>
 
+  <!-- Row 2: controls + recent changes + (space) -->
+  <div class="controls-row">
     <div class="controls">
       <span>Auto-refresh: 5 min</span>
       <button id="refreshBtn" type="button">Refresh</button>
       <span id="status">Loading…</span>
     </div>
 
-    <!-- Recent changes box sits to the right of status, before theme button -->
     <div class="changesBox" aria-label="Recent changes">
       <div class="changesHeader">
         <span class="changesTitle">Recent changes</span>
@@ -431,10 +434,6 @@ td{word-break:break-word;}
         <div class="changesTrack" id="changesTrack"></div>
       </div>
     </div>
-
-    <div class="spacer"></div>
-
-    <button id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
   <div class="grid">
@@ -502,7 +501,7 @@ td{word-break:break-word;}
 
 <script>
 /* ==============================
-   THEME (shared key with your other pages)
+   THEME
    ============================== */
 (() => {
   const root = document.documentElement;
@@ -536,7 +535,7 @@ td{word-break:break-word;}
 })();
 
 /* ==============================
-   MAP/RADAR SYNC (map drives height; radar follows)
+   MAP/RADAR SYNC
    ============================== */
 function syncRadarToMap(){
   const map = document.getElementById("wwaMap");
@@ -581,194 +580,16 @@ function setupAutoScroll(){
   if(!outer || !inner) return;
 
   inner.style.animation = "none";
-
   const overflow = inner.scrollHeight - outer.clientHeight;
   if(overflow <= 0) return;
 
   inner.style.setProperty("--scroll-distance", overflow + "px");
-
-  // Speed: ~18px/sec, minimum 20s
-  const duration = Math.max(20, overflow / 18);
+  const duration = Math.max(20, overflow / 18); // ~18px/sec, min 20s
   inner.style.animation = `summaryScroll ${duration}s linear infinite`;
 }
 
 /* ==============================
-   Recent Changes (scrolling box + modal)
-   Driven by REAL grouped alerts (arr)
-   ============================== */
-const RecentChanges = (() => {
-  const MAX_TICKER_ITEMS = 6;
-  const MAX_HISTORY_LINES = 50;
-
-  const track = document.getElementById("changesTrack");
-  const expandBtn = document.getElementById("changesExpandBtn");
-
-  const modalBackdrop = document.getElementById("changesModalBackdrop");
-  const modal = document.getElementById("changesModal");
-  const modalList = document.getElementById("changesModalList");
-  const modalSub = document.getElementById("changesModalSub");
-  const modalClose = document.getElementById("changesCloseBtn");
-  const foot = document.getElementById("changesFootNote");
-
-  let lastSnapshot = {};  // key -> { event, expires, locations }
-  let history = [];       // strings (newest first)
-  let lastHadChanges = false;
-
-  function escapeHtml(s){
-    return String(s)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
-  }
-
-  function tagClass(kind){
-    if (kind === "OK") return "ok";
-    if (kind === "NEW" || kind === "CHG") return "warn";
-    if (kind === "CLR") return "bad";
-    return "";
-  }
-
-  function renderTicker(lines){
-    track.classList.remove("scrolling");
-    track.style.removeProperty("--tickerEnd");
-    track.innerHTML = "";
-
-    const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
-
-    if (!use.length){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.innerHTML = `<span class="tag ok">OK</span><span>No changes since last refresh</span>`;
-      track.appendChild(div);
-      return;
-    }
-
-    for (const ln of use){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.title = ln.text;
-      const cls = tagClass(ln.kind);
-      div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
-      track.appendChild(div);
-    }
-
-    if (use.length > 1){
-      // duplicate for seamless loop
-      for (const ln of use){
-        const div = document.createElement("div");
-        div.className = "changesItem";
-        div.title = ln.text;
-        const cls = tagClass(ln.kind);
-        div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
-        track.appendChild(div);
-      }
-
-      requestAnimationFrame(() => {
-        const half = Math.floor(track.scrollHeight / 2);
-        track.style.setProperty("--tickerEnd", `-${half}px`);
-        const seconds = Math.max(10, use.length * 2.5);
-        track.style.animationDuration = `${seconds}s`;
-        track.classList.add("scrolling");
-      });
-    }
-  }
-
-  function renderModal(){
-    modalList.innerHTML = "";
-    if (!history.length){
-      const li = document.createElement("li");
-      li.textContent = "No changes logged yet.";
-      modalList.appendChild(li);
-    } else {
-      for (const line of history){
-        const li = document.createElement("li");
-        li.textContent = line;
-        modalList.appendChild(li);
-      }
-    }
-    foot.textContent = lastHadChanges
-      ? "Tip: Hover the ticker to pause the scroll."
-      : "No changes detected on the most recent refresh.";
-  }
-
-  function openModal(){
-    modalBackdrop.hidden = false;
-    modal.hidden = false;
-    modalClose.focus();
-    document.addEventListener("keydown", onKey, { passive:true });
-  }
-  function closeModal(){
-    modalBackdrop.hidden = true;
-    modal.hidden = true;
-    document.removeEventListener("keydown", onKey);
-  }
-  function onKey(e){ if(e.key === "Escape") closeModal(); }
-
-  // Compare snapshots: NEW, CLR, CHG (locations changed under same event+expires)
-  function diff(prev, cur){
-    const out = [];
-
-    for (const k of Object.keys(cur)){
-      if (!prev[k]){
-        out.push({ kind:"NEW", text:`${cur[k].event} – ${cur[k].locations}` });
-      } else {
-        if (prev[k].locations !== cur[k].locations){
-          out.push({ kind:"CHG", text:`${cur[k].event} – locations updated` });
-        }
-      }
-    }
-    for (const k of Object.keys(prev)){
-      if (!cur[k]){
-        out.push({ kind:"CLR", text:`${prev[k].event} – cleared` });
-      }
-    }
-    return out;
-  }
-
-  // Called by fetchAlerts with REAL grouped alert array
-  function updateFromGroups(groups, nowStr){
-    const cur = {};
-    for (const g of (groups || [])){
-      // stable group id already used by your render logic
-      const key = `${g.event}||${g.expires || ""}`;
-      const loc = (g.locations || "").trim() || "Locations updated";
-      cur[key] = { event: g.event, expires: g.expires || "", locations: loc };
-    }
-
-    const changes = diff(lastSnapshot, cur);
-    lastHadChanges = changes.length > 0;
-
-    if (changes.length){
-      const lines = changes.map(c => `[${nowStr}] ${c.kind}: ${c.text}`);
-      history = [...lines, ...history].slice(0, MAX_HISTORY_LINES);
-    }
-
-    lastSnapshot = structuredClone(cur);
-
-    renderTicker(changes);
-    renderModal();
-    modalSub.textContent = "Since last refresh";
-  }
-
-  // Wire UI
-  expandBtn.addEventListener("click", () => { renderModal(); openModal(); });
-  modalClose.addEventListener("click", closeModal);
-  modalBackdrop.addEventListener("click", closeModal);
-
-  // initial state
-  renderTicker([]);
-
-  return { updateFromGroups };
-})();
-
-/* ==============================
-   ALERT FETCH (advisories-page style)
-   - affectedZones -> zone name
-   - PA only
-   - normalize/combined zones
-   - sort: Type priority, then earliest expiration
+   ALERT FETCH (your existing logic)
    ============================== */
 const API_URL = "https://api.weather.gov/alerts/active?area=PA";
 const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
@@ -778,7 +599,7 @@ function typePriority(evt){
   const s = (evt || "").toLowerCase();
   if (s.includes("warning") || s.includes("emergency")) return 0;
   if (s.includes("watch")) return 1;
-  return 2; // advisory
+  return 2;
 }
 function typeClass(evt){
   const s = (evt || "").toLowerCase();
@@ -877,6 +698,232 @@ function refreshMap(){
   }
 }
 
+/* ==============================
+   Recent Changes (specific adds/drops/time)
+   ============================== */
+const RecentChanges = (() => {
+  const MAX_TICKER_ITEMS = 6;
+  const MAX_HISTORY_LINES = 80;
+
+  const track = document.getElementById("changesTrack");
+  const expandBtn = document.getElementById("changesExpandBtn");
+  const modalBackdrop = document.getElementById("changesModalBackdrop");
+  const modal = document.getElementById("changesModal");
+  const modalList = document.getElementById("changesModalList");
+  const modalSub = document.getElementById("changesModalSub");
+  const modalClose = document.getElementById("changesCloseBtn");
+  const foot = document.getElementById("changesFootNote");
+
+  // snapshot: id -> { event, expiresStr, expiresMs, locSet }
+  let last = {};
+  let history = [];
+  let lastHadChanges = false;
+
+  function renderTicker(lines){
+    track.classList.remove("scrolling");
+    track.style.removeProperty("--tickerEnd");
+    track.innerHTML = "";
+
+    const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
+
+    if (!use.length){
+      const div = document.createElement("div");
+      div.className = "changesItem";
+      div.innerHTML = `<span class="tag ok">OK</span><span>No changes since last refresh</span>`;
+      track.appendChild(div);
+      return;
+    }
+
+    for (const ln of use){
+      const div = document.createElement("div");
+      div.className = "changesItem";
+      div.title = ln.text;
+      const cls =
+        ln.kind === "OK" ? "ok" :
+        (ln.kind === "NEW" || ln.kind === "TIME" || ln.kind === "+") ? "warn" :
+        (ln.kind === "CLR" || ln.kind === "-") ? "bad" : "";
+
+      div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+      track.appendChild(div);
+    }
+
+    if (use.length > 1){
+      for (const ln of use){
+        const div = document.createElement("div");
+        div.className = "changesItem";
+        div.title = ln.text;
+        const cls =
+          ln.kind === "OK" ? "ok" :
+          (ln.kind === "NEW" || ln.kind === "TIME" || ln.kind === "+") ? "warn" :
+          (ln.kind === "CLR" || ln.kind === "-") ? "bad" : "";
+        div.innerHTML = `<span class="tag ${cls}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+        track.appendChild(div);
+      }
+
+      requestAnimationFrame(() => {
+        const half = Math.floor(track.scrollHeight / 2);
+        track.style.setProperty("--tickerEnd", `-${half}px`);
+        const seconds = Math.max(10, use.length * 2.5);
+        track.style.animationDuration = `${seconds}s`;
+        track.classList.add("scrolling");
+      });
+    }
+  }
+
+  function renderModal(){
+    modalList.innerHTML = "";
+    if (!history.length){
+      const li = document.createElement("li");
+      li.textContent = "No changes logged yet.";
+      modalList.appendChild(li);
+    } else {
+      for (const line of history){
+        const li = document.createElement("li");
+        li.textContent = line;
+        modalList.appendChild(li);
+      }
+    }
+    foot.textContent = lastHadChanges
+      ? "Tip: Hover the ticker to pause the scroll."
+      : "No changes detected on the most recent refresh.";
+  }
+
+  function openModal(){
+    modalBackdrop.hidden = false;
+    modal.hidden = false;
+    modalClose.focus();
+    document.addEventListener("keydown", onKey, { passive:true });
+  }
+  function closeModal(){
+    modalBackdrop.hidden = true;
+    modal.hidden = true;
+    document.removeEventListener("keydown", onKey);
+  }
+  function onKey(e){ if(e.key === "Escape") closeModal(); }
+
+  expandBtn.addEventListener("click", () => { renderModal(); openModal(); });
+  modalClose.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", closeModal);
+
+  function setFromArray(groups){
+    // Build deterministic ids from (event + expires) as your UI grouping already does.
+    // BUT: for TIME changes we match on event + locations first, and if expires differs,
+    // we report TIME instead of CLR+NEW.
+    const cur = {};
+    const curByEventLoc = new Map();  // event||locSig -> id
+    const curById = new Map();
+
+    for (const g of (groups || [])){
+      const id = `${g.event}||${g.expires || ""}`;
+      const locArr = (g.locationsArr || []);
+      const locSet = new Set(locArr);
+      const locSig = locArr.join(";");
+      const expiresStr = g.expiresStr || "N/A";
+      const expiresMs = g.expiresMs || Number.MAX_SAFE_INTEGER;
+
+      cur[id] = { event:g.event, expiresStr, expiresMs, locSet, locSig };
+      curByEventLoc.set(`${g.event}||${locSig}`, id);
+      curById.set(id, true);
+    }
+
+    // Build prev index for TIME matching
+    const prevByEventLoc = new Map(); // event||locSig -> prevId
+    for (const [pid, pv] of Object.entries(last)){
+      prevByEventLoc.set(`${pv.event}||${pv.locSig}`, pid);
+    }
+
+    const changes = [];
+
+    // 1) TIME changes (same event+same locations, expires changed)
+    const matchedPrev = new Set();
+    const matchedCur = new Set();
+
+    for (const [key, cid] of curByEventLoc.entries()){
+      const pid = prevByEventLoc.get(key);
+      if (!pid) continue;
+
+      const pv = last[pid];
+      const cv = cur[cid];
+      matchedPrev.add(pid);
+      matchedCur.add(cid);
+
+      if ((pv.expiresStr || "") !== (cv.expiresStr || "")){
+        changes.push({
+          kind: "TIME",
+          text: `${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}`
+        });
+      }
+
+      // 2) Locations adds/drops only when same event+same expires (handled below)
+      // Here we matched on same locations, so no +/- here.
+    }
+
+    // 3) For remaining ids that exist in both by exact id, check +/- location changes
+    for (const cid of Object.keys(cur)){
+      if (matchedCur.has(cid)) continue;
+      const cv = cur[cid];
+      const pv = last[cid];
+      if (!pv) continue; // handled later as NEW
+
+      // We’re comparing same event+same expires, so this is true +/- territory.
+      const added = [];
+      const removed = [];
+      for (const x of cv.locSet) if (!pv.locSet.has(x)) added.push(x);
+      for (const x of pv.locSet) if (!cv.locSet.has(x)) removed.push(x);
+
+      const showList = (arr) => arr.slice(0, 4).join("; ") + (arr.length > 4 ? ` (+${arr.length - 4} more)` : "");
+
+      if (added.length){
+        changes.push({ kind: "+", text: `${cv.event} – added ${added.length}: ${showList(added)}` });
+      }
+      if (removed.length){
+        changes.push({ kind: "-", text: `${cv.event} – removed ${removed.length}: ${showList(removed)}` });
+      }
+
+      matchedPrev.add(cid);
+      matchedCur.add(cid);
+    }
+
+    // 4) NEW groups (cur not present in prev, and not TIME-matched)
+    for (const cid of Object.keys(cur)){
+      if (last[cid] || matchedCur.has(cid)) continue;
+      const cv = cur[cid];
+      changes.push({ kind: "NEW", text: `${cv.event} – ${cv.locSig || "Locations updated"}` });
+    }
+
+    // 5) CLR groups (prev not present in cur, and not TIME-matched)
+    for (const pid of Object.keys(last)){
+      if (cur[pid] || matchedPrev.has(pid)) continue;
+      const pv = last[pid];
+      changes.push({ kind: "CLR", text: `${pv.event} – cleared` });
+    }
+
+    return { cur, changes };
+  }
+
+  function update(groups, nowStr){
+    const { cur, changes } = setFromArray(groups);
+    lastHadChanges = changes.length > 0;
+
+    if (changes.length){
+      const lines = changes.map(c => `[${nowStr}] ${c.kind}: ${c.text}`);
+      history = [...lines, ...history].slice(0, MAX_HISTORY_LINES);
+    }
+
+    last = cur;
+
+    renderTicker(changes);
+    renderModal();
+    modalSub.textContent = "Since last refresh";
+  }
+
+  renderTicker([]);
+  return { update };
+})();
+
+/* ==============================
+   fetchAlerts (unchanged output, plus RecentChanges.update call)
+   ============================== */
 async function fetchAlerts(){
   const status = document.getElementById("status");
   const btn = document.getElementById("refreshBtn");
@@ -894,7 +941,6 @@ async function fetchAlerts(){
     if(!r.ok) throw new Error("HTTP "+r.status);
     const d = await r.json();
 
-    // group by event + expires; combine normalized names
     const grouped = new Map();
 
     for(const f of (d.features || [])){
@@ -929,14 +975,13 @@ async function fetchAlerts(){
       container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
       status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
 
-      // Update recent changes using REAL groups (empty)
-      RecentChanges.updateFromGroups([], nowStr);
+      // Recent changes: empty update (allows CLR to show when alerts clear)
+      RecentChanges.update([], nowStr);
 
       setupAutoScroll();
       return;
     }
 
-    // sort by type priority, then expiration soonest
     arr.sort((a,b)=>{
       const tp = typePriority(a.event) - typePriority(b.event);
       if(tp !== 0) return tp;
@@ -947,18 +992,21 @@ async function fetchAlerts(){
 
     status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
 
-    // Build a lightweight list for RecentChanges (uses same grouping you render)
+    // Build groups for RecentChanges with full location sets + expires formatting
     const changeGroups = arr.map(g => {
       const namesSorted = sortLocations([...g.names]);
+      const expiresMs = toTimeMs(g.expires);
+      const expiresStr = g.expires ? fmtTime(g.expires) : "N/A";
       return {
         event: g.event,
-        expires: g.expires,
-        locations: namesSorted.join("; ")
+        expires: g.expires || "",
+        expiresMs,
+        expiresStr,
+        locationsArr: namesSorted
       };
     });
 
-    // Update recent changes BEFORE rendering table is fine (it uses same sorted output)
-    RecentChanges.updateFromGroups(changeGroups, nowStr);
+    RecentChanges.update(changeGroups, nowStr);
 
     container.innerHTML = `
       <table>
@@ -981,7 +1029,6 @@ async function fetchAlerts(){
       </table>
     `;
 
-    // after rendering, compute auto-scroll + keep radar synced
     requestAnimationFrame(() => {
       setupAutoScroll();
       syncRadarToMap();
@@ -992,8 +1039,8 @@ async function fetchAlerts(){
     container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
     status.textContent = "Error: " + (err?.message || String(err));
 
-    // Don’t change snapshot on error; just show “Error” line in ticker
-    // (keeps it from falsely clearing/adding groups)
+    // Leave snapshot unchanged to avoid false NEW/CLR,
+    // but show a visible ticker line
     const track = document.getElementById("changesTrack");
     if (track) {
       track.classList.remove("scrolling");
@@ -1014,11 +1061,9 @@ function refreshAll(){
 
 document.getElementById("refreshBtn").addEventListener("click", refreshAll);
 
-// initial + periodic
 refreshAll();
 setInterval(refreshAll, 5 * 60 * 1000);
 
-// Clean address bar after cache-bust
 if (location.search.includes("_ts=")) {
   history.replaceState(null, "", location.pathname);
 }
