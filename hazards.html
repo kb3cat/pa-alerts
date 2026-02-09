@@ -91,46 +91,46 @@ html,body{
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 
-/* tighter: remove that “mystery gap” by controlling header spacing explicitly */
 .wrap{
   height:100vh;
   display:grid;
   grid-template-rows:auto 1fr;
-  gap:8px;              /* was 10px */
+  gap:8px;
   padding:10px;
   box-sizing:border-box;
 }
 
-/* Header is now a 2-line block with a tight internal gap */
-.header{
-  display:flex;
-  flex-direction:column;
-  gap:4px;              /* tight H1 -> controls */
+/* ===== HEADER (grid — removes the “gap” problem) ===== */
+.headerGrid{
+  display:grid;
+  grid-template-columns: auto 1fr auto; /* left: title/controls, center: changes, right: theme */
+  grid-template-rows: auto auto;        /* row1: h1, row2: controls */
+  column-gap:12px;
+  row-gap:2px;                          /* tight */
+  align-items:start;
 }
 
-/* line 1: H1 + centered changes box + theme */
-.headRow{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-  flex-wrap:wrap;
-}
-
-.headRow h1{
+.headerGrid h1{
+  grid-column:1;
+  grid-row:1;
   margin:0;
   font-size:1.35rem;
-  white-space:nowrap;
   line-height:1.15;
+  white-space:nowrap;
 }
 
-/* line 2: controls under title (no extra top margin) */
-.controlsRow{
+.controls{
+  grid-column:1;
+  grid-row:2;
   display:flex;
   align-items:center;
   gap:12px;
+  font-size:.95em;
+  color:var(--muted);
   flex-wrap:wrap;
-  margin:0;            /* explicit */
-  padding:0;           /* explicit */
+  white-space:nowrap;
+  margin:0;
+  padding:0;
 }
 
 button{
@@ -144,24 +144,23 @@ button{
 button:hover{background:var(--btnBgHover);}
 button:disabled{opacity:.6;cursor:not-allowed;}
 
-.controls{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  font-size:.95em;
-  color:var(--muted);
-  flex-wrap:wrap;
-  white-space:nowrap;
+#themeToggle{
+  grid-column:3;
+  grid-row:1;
+  justify-self:end;
 }
 
-/* =========================
-   Recent changes (ticker + modal)
-   ========================= */
+/* Recent changes (center column) */
 .changesBox{
-  flex: 1 1 520px;
-  min-width: 320px;
+  grid-column:2;
+  grid-row:1 / span 2;    /* spans both rows so it stays centered vertically vs title+controls */
+  align-self:start;
+  justify-self:center;
+
+  width: min(820px, 100%);
   max-width: 820px;
-  margin: 0 auto;            /* centered between H1 and theme */
+  min-width: 320px;
+
   border:1px solid var(--changesBorder);
   background: var(--changesBg);
   border-radius:10px;
@@ -228,7 +227,9 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   color: var(--muted);
   line-height: 1.1rem;
 }
-.tag.ok{ background: var(--okBg); border-color: var(--okBorder); color: var(--text); }
+.tag.ok{ background: rgba(0,0,0,0.05); border-color: var(--borderSoft); color: var(--text); }
+:root[data-theme="dark"] .tag.ok{ background: rgba(255,255,255,0.06); }
+
 .tag.warn{ background: var(--warnBg); border-color: var(--warnBorder); color: var(--text); }
 .tag.bad{ background: var(--badBg); border-color: var(--badBorder); color: var(--text); }
 
@@ -293,15 +294,12 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   font-size: 0.9rem;
   margin-top: 10px;
 }
-
-/* ensure [hidden] wins */
 #changesModal[hidden],
 #changesModalBackdrop[hidden]{
   display:none !important;
 }
 
-/* ========================= */
-
+/* ===== MAIN GRID ===== */
 .grid{
   display:grid;
   grid-template-rows:auto 1fr;
@@ -398,9 +396,16 @@ td{word-break:break-word;}
   100%{transform:translateY(0);}
 }
 
+/* Responsive: stack header pieces cleanly */
 @media (max-width: 1100px){
-  .changesBox{ max-width: 100%; margin: 0; }
-  .headRow h1{ width:100%; white-space:normal; }
+  .headerGrid{
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+  }
+  .headerGrid h1{ grid-column:1 / -1; grid-row:1; white-space:normal; }
+  .controls{ grid-column:1 / -1; grid-row:2; }
+  .changesBox{ grid-column:1 / -1; grid-row:3; width:100%; min-width: 0; justify-self:stretch; }
+  #themeToggle{ grid-column:2; grid-row:1; align-self:start; }
 }
 </style>
 </head>
@@ -425,39 +430,33 @@ td{word-break:break-word;}
 
 <div class="wrap">
 
-  <!-- Header block with tight spacing -->
-  <div class="header">
-    <!-- Line 1 -->
-    <div class="headRow">
-      <h1>Pennsylvania Weather Hazard Overview</h1>
+  <!-- HEADER -->
+  <div class="headerGrid">
+    <h1>Pennsylvania Weather Hazard Overview</h1>
 
-      <div class="changesBox" aria-label="Recent changes">
-        <div class="changesHeader">
-          <span class="changesTitle">Recent changes</span>
-          <button id="changesExpandBtn" class="changesExpandBtn" type="button" aria-haspopup="dialog" aria-controls="changesModal">
-            Expand
-          </button>
-        </div>
-        <div class="changesTicker" role="status" aria-live="polite" aria-atomic="true">
-          <div class="changesTrack" id="changesTrack"></div>
-        </div>
-      </div>
-
-      <button id="themeToggle" type="button">🌙 Dark</button>
+    <div class="controls">
+      <span>Auto-refresh: 5 min</span>
+      <button id="refreshBtn" type="button">Refresh</button>
+      <span id="status">Loading…</span>
     </div>
 
-    <!-- Line 2 (tight, directly under title) -->
-    <div class="controlsRow">
-      <div class="controls">
-        <span>Auto-refresh: 5 min</span>
-        <button id="refreshBtn" type="button">Refresh</button>
-        <span id="status">Loading…</span>
+    <div class="changesBox" aria-label="Recent changes">
+      <div class="changesHeader">
+        <span class="changesTitle">Recent changes</span>
+        <button id="changesExpandBtn" class="changesExpandBtn" type="button" aria-haspopup="dialog" aria-controls="changesModal">
+          Expand
+        </button>
+      </div>
+      <div class="changesTicker" role="status" aria-live="polite" aria-atomic="true">
+        <div class="changesTrack" id="changesTrack"></div>
       </div>
     </div>
+
+    <button id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
+  <!-- MAIN -->
   <div class="grid">
-    <!-- MAP + RADAR -->
     <div class="panel">
       <div class="hdr">PA Alert Map & Radar</div>
       <div class="body">
@@ -491,7 +490,6 @@ td{word-break:break-word;}
       </div>
     </div>
 
-    <!-- ALERT SUMMARY -->
     <div class="panel">
       <div class="hdr">Alert Summary</div>
       <div class="body auto-scroll">
@@ -604,449 +602,4 @@ function setupAutoScroll(){
   if(overflow <= 0) return;
 
   inner.style.setProperty("--scroll-distance", overflow + "px");
-  const duration = Math.max(20, overflow / 18);
-  inner.style.animation = `summaryScroll ${duration}s linear infinite`;
-}
-
-/* ==============================
-   ALERT FETCH
-   ============================== */
-const API_URL = "https://api.weather.gov/alerts/active?area=PA";
-const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-const zoneCache = new Map();
-
-function typePriority(evt){
-  const s = (evt || "").toLowerCase();
-  if (s.includes("warning") || s.includes("emergency")) return 0;
-  if (s.includes("watch")) return 1;
-  return 2;
-}
-function typeClass(evt){
-  const s = (evt || "").toLowerCase();
-  if (s.includes("warning") || s.includes("emergency")) return "type-warning";
-  if (s.includes("watch")) return "type-watch";
-  return "type-adv";
-}
-
-function fmtTime(v){
-  if(!v) return "N/A";
-  const d = new Date(v);
-  return isNaN(d) ? String(v) : d.toLocaleString([],{
-    month:"2-digit", day:"2-digit", year:"2-digit",
-    hour:"2-digit", minute:"2-digit"
-  });
-}
-function toTimeMs(v){
-  const t = new Date(v || 0).getTime();
-  return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
-}
-
-function normalizeSummaryCounty(name){
-  let s = String(name || "").trim();
-  s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-  s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
-  s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-  return s.trim();
-}
-
-function locationSortKey(name){
-  return String(name || "")
-    .trim()
-    .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
-    .trim()
-    .toLowerCase();
-}
-function sortLocations(arr){
-  return [...arr].sort((a,b)=>{
-    const ka = locationSortKey(a);
-    const kb = locationSortKey(b);
-    return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
-  });
-}
-
-function fetchWithTimeout(url, options={}, timeoutMs=12000){
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, {...options, signal: controller.signal}).finally(() => clearTimeout(t));
-}
-
-function isWantedAlert(p){
-  const e = (p.event || "").toLowerCase();
-  return (
-    (e.includes("watch") || e.includes("warning") || e.includes("advisory") || e.includes("emergency")) &&
-    !e.includes("statement") &&
-    !e.includes("outlook") &&
-    !e.includes("test")
-  );
-}
-function isMarineZone(url){
-  return typeof url === "string" && url.includes("/zones/marine/");
-}
-
-function escapeHtml(s){
-  return String(s)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-async function zoneName(url){
-  if(zoneCache.has(url)) return zoneCache.get(url);
-  try{
-    const r = await fetchWithTimeout(url, {headers:{Accept:"application/geo+json"}}, 10000);
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const j = await r.json();
-    const name = (j.properties?.state === "PA") ? (j.properties?.name || null) : null;
-    zoneCache.set(url, name);
-    return name;
-  }catch{
-    zoneCache.set(url, null);
-    return null;
-  }
-}
-
-function refreshMap(){
-  const img = document.getElementById("wwaMap");
-  const fb = document.getElementById("wwaMapFallback");
-  if (fb) fb.style.display = "none";
-  if (img){
-    img.style.display = "block";
-    img.style.visibility = "hidden";
-    img.src = MAP_URL + "?t=" + Date.now();
-  }
-}
-
-/* ==============================
-   Recent Changes (specific adds/drops/time)
-   ============================== */
-const RecentChanges = (() => {
-  const MAX_TICKER_ITEMS = 6;
-  const MAX_HISTORY_LINES = 80;
-
-  const track = document.getElementById("changesTrack");
-  const expandBtn = document.getElementById("changesExpandBtn");
-  const modalBackdrop = document.getElementById("changesModalBackdrop");
-  const modal = document.getElementById("changesModal");
-  const modalList = document.getElementById("changesModalList");
-  const modalSub = document.getElementById("changesModalSub");
-  const modalClose = document.getElementById("changesCloseBtn");
-  const foot = document.getElementById("changesFootNote");
-
-  let last = {};
-  let history = [];
-  let lastHadChanges = false;
-
-  function clsFor(k){
-    return (k === "OK") ? "ok" :
-      (k === "NEW" || k === "TIME" || k === "+") ? "warn" :
-      (k === "CLR" || k === "-") ? "bad" : "";
-  }
-
-  function renderTicker(lines){
-    track.classList.remove("scrolling");
-    track.style.removeProperty("--tickerEnd");
-    track.innerHTML = "";
-
-    const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
-
-    if (!use.length){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.innerHTML = `<span class="tag ok">OK</span><span>No changes since last refresh</span>`;
-      track.appendChild(div);
-      return;
-    }
-
-    for (const ln of use){
-      const div = document.createElement("div");
-      div.className = "changesItem";
-      div.title = ln.text;
-      div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
-      track.appendChild(div);
-    }
-
-    if (use.length > 1){
-      for (const ln of use){
-        const div = document.createElement("div");
-        div.className = "changesItem";
-        div.title = ln.text;
-        div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
-        track.appendChild(div);
-      }
-
-      requestAnimationFrame(() => {
-        const half = Math.floor(track.scrollHeight / 2);
-        track.style.setProperty("--tickerEnd", `-${half}px`);
-        const seconds = Math.max(10, use.length * 2.5);
-        track.style.animationDuration = `${seconds}s`;
-        track.classList.add("scrolling");
-      });
-    }
-  }
-
-  function renderModal(){
-    modalList.innerHTML = "";
-    if (!history.length){
-      const li = document.createElement("li");
-      li.textContent = "No changes logged yet.";
-      modalList.appendChild(li);
-    } else {
-      for (const line of history){
-        const li = document.createElement("li");
-        li.textContent = line;
-        modalList.appendChild(li);
-      }
-    }
-    foot.textContent = lastHadChanges
-      ? "Tip: Hover the ticker to pause the scroll."
-      : "No changes detected on the most recent refresh.";
-  }
-
-  function openModal(){
-    modalBackdrop.hidden = false;
-    modal.hidden = false;
-    modalClose.focus();
-    document.addEventListener("keydown", onKey, { passive:true });
-  }
-  function closeModal(){
-    modalBackdrop.hidden = true;
-    modal.hidden = true;
-    document.removeEventListener("keydown", onKey);
-  }
-  function onKey(e){ if(e.key === "Escape") closeModal(); }
-
-  expandBtn.addEventListener("click", () => { renderModal(); openModal(); });
-  modalClose.addEventListener("click", closeModal);
-  modalBackdrop.addEventListener("click", closeModal);
-
-  function diff(prev, cur){
-    const changes = [];
-
-    const curEventLoc = new Map();
-    const prevEventLoc = new Map();
-    for (const [id, v] of Object.entries(cur)) curEventLoc.set(`${v.event}||${v.locSig}`, id);
-    for (const [id, v] of Object.entries(prev)) prevEventLoc.set(`${v.event}||${v.locSig}`, id);
-
-    const matchedPrev = new Set();
-    const matchedCur = new Set();
-
-    // TIME: same event+same locations; expires changed
-    for (const [key, cid] of curEventLoc.entries()){
-      const pid = prevEventLoc.get(key);
-      if (!pid) continue;
-      matchedPrev.add(pid);
-      matchedCur.add(cid);
-      const pv = prev[pid], cv = cur[cid];
-      if ((pv.expiresStr || "") !== (cv.expiresStr || "")){
-        changes.push({ kind:"TIME", text:`${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}` });
-      }
-    }
-
-    // +/-: same exact group (event||expires)
-    for (const [cid, cv] of Object.entries(cur)){
-      if (matchedCur.has(cid)) continue;
-      const pv = prev[cid];
-      if (!pv) continue;
-
-      const added = [];
-      const removed = [];
-      for (const x of cv.locSet) if (!pv.locSet.has(x)) added.push(x);
-      for (const x of pv.locSet) if (!cv.locSet.has(x)) removed.push(x);
-
-      const show = (arr) => arr.slice(0,4).join("; ") + (arr.length>4 ? ` (+${arr.length-4} more)` : "");
-      if (added.length) changes.push({ kind:"+", text:`${cv.event} – added ${added.length}: ${show(added)}` });
-      if (removed.length) changes.push({ kind:"-", text:`${cv.event} – removed ${removed.length}: ${show(removed)}` });
-
-      matchedPrev.add(cid);
-      matchedCur.add(cid);
-    }
-
-    // NEW
-    for (const [cid, cv] of Object.entries(cur)){
-      if (prev[cid] || matchedCur.has(cid)) continue;
-      changes.push({ kind:"NEW", text:`${cv.event} – ${cv.locSig || "Locations updated"}` });
-    }
-
-    // CLR
-    for (const [pid, pv] of Object.entries(prev)){
-      if (cur[pid] || matchedPrev.has(pid)) continue;
-      changes.push({ kind:"CLR", text:`${pv.event} – cleared` });
-    }
-
-    return changes;
-  }
-
-  function update(groups, nowStr){
-    const cur = {};
-    for (const g of (groups || [])){
-      const id = `${g.event}||${g.expires || ""}`;
-      const locArr = g.locationsArr || [];
-      cur[id] = {
-        event: g.event,
-        expires: g.expires || "",
-        expiresStr: g.expiresStr || "N/A",
-        locSet: new Set(locArr),
-        locSig: locArr.join(";")
-      };
-    }
-
-    const changes = diff(last, cur);
-    lastHadChanges = changes.length > 0;
-
-    if (changes.length){
-      const lines = changes.map(c => `[${nowStr}] ${c.kind}: ${c.text}`);
-      history = [...lines, ...history].slice(0, MAX_HISTORY_LINES);
-    }
-
-    last = cur;
-    renderTicker(changes);
-    renderModal();
-    modalSub.textContent = "Since last refresh";
-  }
-
-  renderTicker([]);
-  return { update };
-})();
-
-/* ==============================
-   fetchAlerts
-   ============================== */
-async function fetchAlerts(){
-  const status = document.getElementById("status");
-  const btn = document.getElementById("refreshBtn");
-  const container = document.getElementById("tableContainer");
-
-  btn.disabled = true;
-  status.textContent = "Loading…";
-
-  try{
-    const r = await fetchWithTimeout(
-      API_URL,
-      {headers:{Accept:"application/geo+json"}, cache:"no-store"},
-      12000
-    );
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const d = await r.json();
-
-    const grouped = new Map();
-
-    for(const f of (d.features || [])){
-      const p = f?.properties;
-      if(!p || !isWantedAlert(p)) continue;
-
-      const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
-      if(!zones.length) continue;
-
-      const zoneInfos = await Promise.all(zones.map(z => zoneName(z)));
-      const namesRaw = zoneInfos.filter(Boolean);
-      if(!namesRaw.length) continue;
-
-      const names = namesRaw.map(normalizeSummaryCounty);
-      const expires = p.ends || p.expires || "";
-
-      const key = `${p.event}||${expires}`;
-      if(!grouped.has(key)){
-        grouped.set(key, {event: p.event, expires: expires, names: new Set()});
-      }
-      names.forEach(n => grouped.get(key).names.add(n));
-    }
-
-    let arr = [...grouped.values()];
-
-    const nowStr = new Date().toLocaleString([],{
-      month:"2-digit", day:"2-digit", year:"2-digit",
-      hour:"2-digit", minute:"2-digit", second:"2-digit"
-    });
-
-    if(!arr.length){
-      container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
-      status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
-      RecentChanges.update([], nowStr);
-      setupAutoScroll();
-      return;
-    }
-
-    arr.sort((a,b)=>{
-      const tp = typePriority(a.event) - typePriority(b.event);
-      if(tp !== 0) return tp;
-      const te = toTimeMs(a.expires) - toTimeMs(b.expires);
-      if(te !== 0) return te;
-      return String(a.event).localeCompare(String(b.event));
-    });
-
-    status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
-
-    const changeGroups = arr.map(g => {
-      const namesSorted = sortLocations([...g.names]);
-      return {
-        event: g.event,
-        expires: g.expires || "",
-        expiresStr: g.expires ? fmtTime(g.expires) : "N/A",
-        locationsArr: namesSorted
-      };
-    });
-    RecentChanges.update(changeGroups, nowStr);
-
-    container.innerHTML = `
-      <table>
-        <colgroup>
-          <col style="width:22%;">
-          <col style="width:63%;">
-          <col style="width:15%;">
-        </colgroup>
-        <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-        ${arr.map(g=>{
-          const namesSorted = sortLocations([...g.names]);
-          return `
-            <tr>
-              <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-              <td>${namesSorted.map(escapeHtml).join("; ")}</td>
-              <td>${escapeHtml(fmtTime(g.expires))}</td>
-            </tr>
-          `;
-        }).join("")}
-      </table>
-    `;
-
-    requestAnimationFrame(() => {
-      setupAutoScroll();
-      syncRadarToMap();
-    });
-
-  }catch(err){
-    console.error(err);
-    container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
-    status.textContent = "Error: " + (err?.message || String(err));
-
-    const track = document.getElementById("changesTrack");
-    if (track) {
-      track.classList.remove("scrolling");
-      track.style.removeProperty("--tickerEnd");
-      track.innerHTML = `<div class="changesItem"><span class="tag bad">ERR</span><span>Unable to load alerts (see status)</span></div>`;
-    }
-
-    setupAutoScroll();
-  }finally{
-    btn.disabled = false;
-  }
-}
-
-function refreshAll(){
-  refreshMap();
-  fetchAlerts();
-}
-
-document.getElementById("refreshBtn").addEventListener("click", refreshAll);
-
-refreshAll();
-setInterval(refreshAll, 5 * 60 * 1000);
-
-// Clean address bar after cache-bust
-if (location.search.includes("_ts=")) {
-  history.replaceState(null, "", location.pathname);
-}
-</script>
-</body>
-</html>
+  const d
