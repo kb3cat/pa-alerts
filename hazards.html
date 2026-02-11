@@ -441,7 +441,32 @@ td{word-break:break-word;}
     }
   }
 }
+/* =========================
+   MOBILE: STOP ALERT CARD CLIPPING
+   ========================= */
+@media (max-width: 768px){
 
+  /* These are common “card/panel” wrappers that end up with fixed heights */
+  .card,
+  .panel,
+  .section,
+  .box,
+  .container,
+  .alert-summary,
+  #alertSummary,
+  #alertSummaryContainer {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* If your layout uses flex/grid, this prevents flex children from being forced smaller */
+  .card,
+  .panel,
+  .alert-summary {
+    min-height: 0 !important;
+  }
+}
 </style>
 </head>
 
