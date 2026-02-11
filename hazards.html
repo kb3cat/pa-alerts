@@ -416,6 +416,32 @@ td{word-break:break-word;}
 @media (max-width: 900px){
   .visuals{ grid-template-columns:1fr; }
 }
+
+/* =========================
+   MOBILE ALERT HEIGHT FIX
+   ========================= */
+@media (max-width: 768px){
+
+  .alert-summary,
+  #alertSummaryContainer {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #alertSummaryContainer {
+    max-height: 60dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @supports not (height: 1dvh) {
+    #alertSummaryContainer {
+      max-height: 60vh;
+    }
+  }
+}
+
 </style>
 </head>
 
