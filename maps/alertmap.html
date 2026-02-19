@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NWS Alerts Map (Starter)</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">
+      <div class="h1">NWS Alerts Map</div>
+      <div class="sub">Starter backup map (api.weather.gov)</div>
+    </div>
+
+    <div class="controls">
+      <label>
+        State
+        <select id="stateSelect">
+          <option value="PA" selected>PA</option>
+          <option value="MD">MD</option>
+          <option value="NJ">NJ</option>
+          <option value="NY">NY</option>
+          <option value="VA">VA</option>
+          <option value="WV">WV</option>
+          <option value="DE">DE</option>
+          <option value="DC">DC</option>
+          <option value="">(All)</option>
+        </select>
+      </label>
+
+      <label>
+        Type contains
+        <input id="typeFilter" type="text" placeholder="e.g., Warning, Watch, Advisory" />
+      </label>
+
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+
+    <div class="status">
+      <span id="statusText">Ready.</span>
+      <span class="dot" id="statusDot" aria-hidden="true"></span>
+      <span id="lastUpdated"></span>
+    </div>
+  </header>
+
+  <main>
+    <div id="map"></div>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
