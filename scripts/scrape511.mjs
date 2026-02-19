@@ -30,26 +30,24 @@ async function scrapeTable(url, tableSelector) {
 async function main() {
   const outputs = [];
 
-  // These URLs are public list pages :contentReference[oaicite:3]{index=3}
-  outputs.push({
-    name: "travel_delays",
-    url: "https://www.511pa.com/list/events/traffic",
-    // You may need to adjust selector after first run; start by inspecting with DevTools
-    tableSelector: "table"
-  });
+outputs.push({
+  name: "road_conditions",
+  url: "https://www.511pa.com/list/roadcondition",
+  tableSelector: "table"
+});
 
-  outputs.push({
-    name: "road_conditions",
-    url: "https://www.511pa.com/list/roadcondition",
-    tableSelector: "table"
-  });
+outputs.push({
+  name: "travel_delays",
+  url: "https://www.511pa.com/list/events/traffic",
+  tableSelector: "table"
+});
 
-  // Vehicle restrictions area exists publicly :contentReference[oaicite:4]{index=4}
-  outputs.push({
-    name: "vehicle_restrictions",
-    url: "https://www.511pa.com/map/page/LLWS",
-    tableSelector: "table"
-  });
+// NEW: restrictions list (speed + travel restrictions)
+outputs.push({
+  name: "restrictions",
+  url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc",
+  tableSelector: "table"
+});
 
   if (!fs.existsSync("data")) fs.mkdirSync("data");
 
