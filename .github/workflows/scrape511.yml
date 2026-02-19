@@ -2,7 +2,7 @@ name: Scrape 511PA (public POC)
 
 on:
   schedule:
-    - cron: "*/10 * * * *"   # every 10 minutes
+    - cron: "*/5 * * * *"   # every 5 minutes
   workflow_dispatch:
 
 permissions:
@@ -31,6 +31,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/*.json
+          git add data/*.json debug/*.png
           git commit -m "Update 511PA POC data" || exit 0
           git push
