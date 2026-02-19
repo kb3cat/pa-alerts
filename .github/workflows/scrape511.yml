@@ -1,8 +1,8 @@
-name: Scrape 511PA (public POC)
+name: scrape
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -18,19 +18,29 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install deps
+      - name: Install Playwright (Chromium)
         run: |
           npm init -y
           npm i playwright
           npx playwright install --with-deps chromium
 
       - name: Run scraper
-        run: node scripts/scrape_511.mjs
+        run: node ./scripts/scrape_511.mjs
 
       - name: Commit & push data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/*.json debug/*.png 2>/dev/null || git add data/*.json
-          git commit -m "Update 511PA POC data" || exit 0
+
+          # Always add JSON outputs
+          git add data/*.json
+
+          # Add screenshots only if they exist (don’t fail if none)
+          git add debug/*.png 2>/dev/null || true
+
+          # Show what will be committed (useful if something goes wrong)
+          git status --porcelain
+
+          # Commit only if there are changes
+          git commit -m "Update 511PA data" || exit 0
           git push
