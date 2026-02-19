@@ -133,7 +133,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
     <div class="subtitle">Automated pull every 5 minutes (GitHub Action).</div>
   </div>
 
-  <!-- Upper-right status pill -->
+  <!-- Upper-right status pill (pipeline health) -->
   <div id="statuspill" class="status-pill status-err" title="Loading…">
     <span class="status-dot"></span>
     <span id="statusline">LOADING…</span>
@@ -177,11 +177,11 @@ const REFRESH_MS = 60000;
 const ROAD_FILE  = "road_conditions.json";
 const RESTR_FILE = "restrictions.json";
 
-// NEW: file written by the Action each run (see workflow snippet below)
+// Written by the Action each run (workflow below)
 const LAST_RUN_FILE = "last_run.json";
 
-// If last run older than this => RED "NOT UPDATING"
-const STALE_MINUTES = 15;
+// ✅ Changed to 25 minutes to avoid false reds from GitHub schedule jitter
+const STALE_MINUTES = 25;
 
 function candidatePaths(filename) {
   const here = new URL(".", window.location.href);
@@ -200,7 +200,7 @@ async function fetchFirstWorkingJson(filename) {
 
   for (const p of candidatePaths(filename)) {
     try {
-      const r = await fetch(p, { cache:"no-store" });
+      const r = await fetch(p + (p.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache:"no-store" });
       if (!r.ok) { lastErr = new Error(`${r.status} ${r.statusText}`); continue; }
       const json = await r.json();
       return { json, sourceUrl: p };
@@ -314,16 +314,12 @@ function formatDataLastUpdated(dt) {
 }
 
 async function loadBoard(){
-  // We will compute a "pipeline health" state
-  // based on last_run.json + ability to load the data files.
   let lastRunDt = null;
   let warnings = [];
 
+  // 1) Load last_run.json (written by workflow)
   try {
-    // 1) Read last run time (Action writes this file)
     const lastRunRes = await fetchFirstWorkingJson(LAST_RUN_FILE);
-
-    // Support a few common keys so you have flexibility:
     const raw =
       lastRunRes.json?.ran_at ||
       lastRunRes.json?.updated ||
@@ -331,90 +327,74 @@ async function loadBoard(){
       null;
 
     if (!raw) {
-      warnings.push(`"${LAST_RUN_FILE}" is missing a timestamp field (expected ran_at/updated/timestamp).`);
+      warnings.push(`data/${LAST_RUN_FILE} missing timestamp (expected ran_at/updated/timestamp).`);
     } else {
       const parsed = new Date(raw);
-      if (isNaN(parsed.getTime())) {
-        warnings.push(`"${LAST_RUN_FILE}" timestamp is invalid: ${raw}`);
-      } else {
-        lastRunDt = parsed;
-      }
+      if (isNaN(parsed.getTime())) warnings.push(`data/${LAST_RUN_FILE} timestamp invalid: ${raw}`);
+      else lastRunDt = parsed;
     }
   } catch (e) {
     warnings.push(`Could not load data/${LAST_RUN_FILE}.`);
   }
 
-  // 2) Use lastRunDt to set footer + stale status
-  if (lastRunDt) {
-    document.getElementById("updated").textContent = formatDataLastUpdated(lastRunDt);
-  } else {
-    document.getElementById("updated").textContent = "Data Last Updated: Unknown";
-  }
+  // Update footer
+  document.getElementById("updated").textContent = lastRunDt
+    ? formatDataLastUpdated(lastRunDt)
+    : "Data Last Updated: Unknown";
 
-  // 3) If stale => RED immediately (even if old JSON is still present)
+  // If we can't determine last run, treat as RED (not updating)
   if (!lastRunDt) {
     setStatus(
       "err",
       "NOT UPDATING",
-      `Dashboard cannot determine last run time.\nFix: ensure data/${LAST_RUN_FILE} is being written by the workflow.`
+      `Dashboard can't determine last run time.\nFix: ensure the workflow writes data/${LAST_RUN_FILE}.`
     );
     return;
   }
 
+  // Stale check (pipeline health)
   const ageMin = minutesAgo(lastRunDt);
   if (ageMin > STALE_MINUTES) {
     setStatus(
       "err",
       "NOT UPDATING",
-      `Last run is ${ageMin.toFixed(1)} minutes ago (threshold ${STALE_MINUTES}m).\nFix: check GitHub Actions runs/logs, and confirm the scrape job is succeeding.`
+      `Last successful run was ${ageMin.toFixed(1)} minutes ago.\nThreshold is ${STALE_MINUTES} minutes.\nFix: check GitHub Actions runs/logs.`
     );
     return;
   }
 
-  // 4) Now load actual data files; failures here become ORANGE (needs attention)
-  let road, restr;
-  try {
-    const roadRes = await fetchFirstWorkingJson(ROAD_FILE);
-    road = roadRes.json;
-  } catch (e) {
-    warnings.push(`Could not load data/${ROAD_FILE}.`);
-  }
+  // 2) Load the data files (failures are ORANGE)
+  let road = null, restr = null;
 
-  try {
-    const restrRes = await fetchFirstWorkingJson(RESTR_FILE);
-    restr = restrRes.json;
-  } catch (e) {
-    warnings.push(`Could not load data/${RESTR_FILE}.`);
-  }
+  try { road  = (await fetchFirstWorkingJson(ROAD_FILE)).json; }
+  catch { warnings.push(`Could not load data/${ROAD_FILE}.`); }
 
-  // If either file missing => ORANGE, but keep rendering what we can
-  const roadRows = normalizeRows(road?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
-  const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
+  try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; }
+  catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
 
-  // Expected structure checks (optional, but makes “orange” meaningful)
   if (road && !Array.isArray(road.rows)) warnings.push(`data/${ROAD_FILE} loaded but missing expected "rows" array.`);
   if (restr && !Array.isArray(restr.rows)) warnings.push(`data/${RESTR_FILE} loaded but missing expected "rows" array.`);
+
+  const roadRows = normalizeRows(road?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
+  const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
 
   const closures = roadRows.filter(isClosure);
   const speed = restrRows.filter(isSpeedRestriction);
   const vehicle = restrRows.filter(isTierRestriction);
 
-  // Update counts
   document.getElementById("closuresCount").textContent = String(closures.length);
   document.getElementById("speedCount").textContent = String(speed.length);
   document.getElementById("vehicleCount").textContent = String(vehicle.length);
 
-  // Render
   renderList("closuresList", closures, "");
   renderList("speedList", speed, "speed");
   renderList("vehicleList", vehicle, "vehicle");
 
-  // 5) Health status (NOT incident status)
   if (warnings.length) {
     setStatus(
       "attn",
       "NEEDS ATTENTION",
-      `Workflow ran recently (${ageMin.toFixed(1)}m ago), but something needs fixed:\n- ${warnings.join("\n- ")}\n\nFix: check the scrape workflow logs and ensure it writes JSON outputs + ${LAST_RUN_FILE}.`
+      `Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`
     );
   } else {
     setStatus(
