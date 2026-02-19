@@ -16,11 +16,20 @@ const VIEW_BOUNDS = L.latLngBounds(
 const map = L.map("map", { zoomControl: true });
 map.fitBounds(VIEW_BOUNDS);
 
-// Muted basemap (reads more like NWS products)
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  maxZoom: 18,
-  attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-}).addTo(map);
+// Remove normal basemap entirely
+// Add county boundaries instead
+
+fetch("https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json")
+  .then(r => r.json())
+  .then(data => {
+    L.geoJSON(data, {
+      style: {
+        color: "#475569",
+        weight: 1,
+        fillOpacity: 0
+      }
+    }).addTo(map);
+  });
 
 // Hazard color mapping (event-name based like the NWS product feel)
 // You can tweak these hex values after you see it live.
