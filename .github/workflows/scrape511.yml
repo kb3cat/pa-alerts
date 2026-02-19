@@ -15,6 +15,7 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,38 +23,50 @@ jobs:
         with:
           node-version: "20"
 
+      # Cache npm packages
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      # Cache Playwright browsers (prevents full reinstall every run)
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium
+
+      # Install Playwright
       - name: Install Playwright (Chromium)
         run: |
-          npm init -y
           npm i playwright
           npx playwright install --with-deps chromium
 
+      # Run scraper
       - name: Run scraper
         run: node ./scripts/scrape_511.mjs
 
-      # ✅ This makes the dashboard footer show the actual action run time
+      # Write timestamp for dashboard
       - name: Write last run timestamp
         run: |
           mkdir -p data
           echo "{\"ran_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > data/last_run.json
 
+      # Commit and push data
       - name: Commit & push data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Always add JSON outputs
           git add data/*.json
-
-          # Add screenshots only if they exist (don’t fail if none)
           git add debug/*.png 2>/dev/null || true
 
-          # Show what will be committed
           git status --porcelain
 
-          # Commit only if there are changes
           git commit -m "Update 511PA data" || exit 0
 
-          # ✅ Avoid push failures if main changed since checkout
           git pull --rebase origin main
           git push
