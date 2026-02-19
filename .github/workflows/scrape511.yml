@@ -37,15 +37,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Always add JSON outputs
+          # Only add what you actually want tracked (keep node_modules out)
           git add data/*.json
-
-          # Add screenshots only if they exist (don’t fail if none)
           git add debug/*.png 2>/dev/null || true
 
-          # Show what will be committed (useful if something goes wrong)
           git status --porcelain
 
           # Commit only if there are changes
           git commit -m "Update 511PA data" || exit 0
+
+          # ✅ Avoid push failures when another run pushed first
+          git pull --rebase origin main
           git push
