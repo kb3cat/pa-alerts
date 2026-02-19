@@ -134,7 +134,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   </div>
 
   <!-- Upper-right status pill -->
-  <div id="statuspill" class="status-pill status-err" title="Board health">
+  <div id="statuspill" class="status-pill status-err" title="Loading…">
     <span class="status-dot"></span>
     <span id="statusline">LOADING…</span>
   </div>
@@ -168,14 +168,19 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 
 </div>
 
-<div class="footer" id="updated">Last Updated: —</div>
+<div class="footer" id="updated">Data Last Updated: —</div>
 
 <script>
 const REFRESH_MS = 60000;
-const ROAD_FILE = "road_conditions.json";
+
+// Your existing JSON outputs
+const ROAD_FILE  = "road_conditions.json";
 const RESTR_FILE = "restrictions.json";
 
-// If the data is older than this, show RED ("NOT UPDATING")
+// NEW: file written by the Action each run (see workflow snippet below)
+const LAST_RUN_FILE = "last_run.json";
+
+// If last run older than this => RED "NOT UPDATING"
 const STALE_MINUTES = 15;
 
 function candidatePaths(filename) {
@@ -190,26 +195,38 @@ function candidatePaths(filename) {
   ];
 }
 
-// Fetch JSON + capture Last-Modified timestamp (when available)
-async function fetchFirstWorkingJsonWithMeta(filename) {
+async function fetchFirstWorkingJson(filename) {
   let lastErr = null;
 
   for (const p of candidatePaths(filename)) {
     try {
       const r = await fetch(p, { cache:"no-store" });
       if (!r.ok) { lastErr = new Error(`${r.status} ${r.statusText}`); continue; }
-
-      const lastMod = r.headers.get("last-modified");
-      const dt = lastMod ? new Date(lastMod) : null;
       const json = await r.json();
-
-      return { json, sourceUrl: p, lastModified: dt };
+      return { json, sourceUrl: p };
     } catch (e) {
       lastErr = e;
     }
   }
 
   throw new Error(`JSON not found: ${filename}` + (lastErr ? ` (last error: ${lastErr})` : ""));
+}
+
+function minutesAgo(dt) {
+  return (Date.now() - dt.getTime()) / 60000;
+}
+
+function setStatus(state, text, hover) {
+  const pill = document.getElementById("statuspill");
+  const line = document.getElementById("statusline");
+
+  pill.classList.remove("status-ok","status-attn","status-err");
+  if (state === "ok") pill.classList.add("status-ok");
+  if (state === "attn") pill.classList.add("status-attn");
+  if (state === "err") pill.classList.add("status-err");
+
+  line.textContent = text;
+  pill.title = hover || "";
 }
 
 function normalizeRows(rows) {
@@ -223,26 +240,21 @@ function normalizeRows(rows) {
 function cleanLine(s) {
   let t = s;
 
-  // Common prefix cleanup
   t = t.replace(/^Row Details\s*\|\s*/i, "");
-  t = t.replace(/\bOther incident on\b\s*/i, ""); // “Other incident on I-81…” -> “I-81…”
+  t = t.replace(/\bOther incident on\b\s*/i, "");
 
-  // Remove trailing “chips” like “| I-81 | ACTIVE | View on map”
-  // (works even if route varies)
   t = t.replace(/\s*\|\s*I-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
   t = t.replace(/\s*\|\s*US-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
   t = t.replace(/\s*\|\s*PA-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
   t = t.replace(/\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
   t = t.replace(/\s*\|\s*View on map\s*$/i, "");
 
-  // Collapse any doubled separators leftover
   t = t.replace(/\s*\|\s*\|\s*/g, " | ");
   t = t.replace(/\s{2,}/g, " ");
 
   return t.trim();
 }
 
-// Filter out “section/header” rows that aren’t real events
 function isFakeHeaderRow(s) {
   const t = s.trim().toLowerCase();
 
@@ -283,107 +295,133 @@ function renderList(elId, items, kind) {
 function isClosure(text) {
   return /\b(closed|closure)\b/i.test(text);
 }
-
-// Keep speed strict so the category header doesn’t sneak in
 function isSpeedRestriction(text) {
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
   const hasSpeed = /\b(mph|speed)\b/i.test(text);
   return hasSpeed && hasRoad;
 }
-
-// Tier restrictions (winter) — do NOT treat generic “restriction” as enough
 function isTierRestriction(text) {
   const tierish = /\btier\s*[1-3]\b/i.test(text);
   const permit = /\b(no permit travel|permit travel)\b/i.test(text);
   const commercial = /\b(commercial vehicles?|cmv|trucks?)\b/i.test(text);
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
-
   return hasRoad && (tierish || permit || commercial);
 }
 
-function minutesAgo(dt) {
-  return (Date.now() - dt.getTime()) / 60000;
-}
-
-function setStatus(state, text) {
-  const pill = document.getElementById("statuspill");
-  const line = document.getElementById("statusline");
-
-  pill.classList.remove("status-ok","status-attn","status-err");
-  if (state === "ok") pill.classList.add("status-ok");
-  if (state === "attn") pill.classList.add("status-attn");
-  if (state === "err") pill.classList.add("status-err");
-
-  line.textContent = text;
+function formatDataLastUpdated(dt) {
+  if (!dt) return "Data Last Updated: —";
+  return "Data Last Updated: " + dt.toLocaleString();
 }
 
 async function loadBoard(){
-  try{
-    // Pull both JSONs and capture Last-Modified when available
-    const roadRes  = await fetchFirstWorkingJsonWithMeta(ROAD_FILE);
-    const restrRes = await fetchFirstWorkingJsonWithMeta(RESTR_FILE);
+  // We will compute a "pipeline health" state
+  // based on last_run.json + ability to load the data files.
+  let lastRunDt = null;
+  let warnings = [];
 
-    const road  = roadRes.json;
-    const restr = restrRes.json;
+  try {
+    // 1) Read last run time (Action writes this file)
+    const lastRunRes = await fetchFirstWorkingJson(LAST_RUN_FILE);
 
-    // Build lists
-    const roadRows = normalizeRows(road.rows)
-      .map(cleanLine)
-      .filter(s => !isFakeHeaderRow(s));
+    // Support a few common keys so you have flexibility:
+    const raw =
+      lastRunRes.json?.ran_at ||
+      lastRunRes.json?.updated ||
+      lastRunRes.json?.timestamp ||
+      null;
 
-    const restrRows = normalizeRows(restr.rows)
-      .map(cleanLine)
-      .filter(s => !isFakeHeaderRow(s));
-
-    const closures = roadRows.filter(isClosure);
-
-    const speed = restrRows.filter(isSpeedRestriction);
-
-    const vehicle = restrRows.filter(isTierRestriction);
-
-    // Update counts
-    document.getElementById("closuresCount").textContent = closures.length;
-    document.getElementById("speedCount").textContent = speed.length;
-    document.getElementById("vehicleCount").textContent = vehicle.length;
-
-    // Render
-    renderList("closuresList", closures, "");
-    renderList("speedList", speed, "speed");
-    renderList("vehicleList", vehicle, "vehicle");
-
-    // Determine freshness:
-    // Use the newest available Last-Modified from either file (if headers exist).
-    const modDates = [roadRes.lastModified, restrRes.lastModified].filter(Boolean);
-    const freshest = modDates.length ? new Date(Math.max(...modDates.map(d => d.getTime()))) : null;
-
-    // Footer stamp is "page refreshed" time (your old behavior)
-    document.getElementById("updated").textContent =
-      "Last Updated: " + new Date().toLocaleString();
-
-    // Status logic:
-    // RED if stale or we can’t determine freshness (no Last-Modified) AND fetch succeeded? (we’ll treat unknown as OK/ATTN)
-    // ORANGE if fresh and anything exists in any category
-    // GREEN if fresh and all empty
-    const attentionCount = closures.length + speed.length + vehicle.length;
-
-    if (freshest) {
-      const ageMin = minutesAgo(freshest);
-      if (ageMin > STALE_MINUTES) {
-        setStatus("err", "NOT UPDATING");
-      } else if (attentionCount > 0) {
-        setStatus("attn", "NEEDS ATTENTION");
-      } else {
-        setStatus("ok", "OK");
-      }
+    if (!raw) {
+      warnings.push(`"${LAST_RUN_FILE}" is missing a timestamp field (expected ran_at/updated/timestamp).`);
     } else {
-      // If GitHub doesn’t send Last-Modified (rare), still show OK vs ATTN based on content
-      if (attentionCount > 0) setStatus("attn", "NEEDS ATTENTION");
-      else setStatus("ok", "OK");
+      const parsed = new Date(raw);
+      if (isNaN(parsed.getTime())) {
+        warnings.push(`"${LAST_RUN_FILE}" timestamp is invalid: ${raw}`);
+      } else {
+        lastRunDt = parsed;
+      }
     }
+  } catch (e) {
+    warnings.push(`Could not load data/${LAST_RUN_FILE}.`);
+  }
 
-  } catch(e) {
-    console.error(e);
-    setStatus("err", "NOT UPDATING");
+  // 2) Use lastRunDt to set footer + stale status
+  if (lastRunDt) {
+    document.getElementById("updated").textContent = formatDataLastUpdated(lastRunDt);
+  } else {
+    document.getElementById("updated").textContent = "Data Last Updated: Unknown";
+  }
+
+  // 3) If stale => RED immediately (even if old JSON is still present)
+  if (!lastRunDt) {
+    setStatus(
+      "err",
+      "NOT UPDATING",
+      `Dashboard cannot determine last run time.\nFix: ensure data/${LAST_RUN_FILE} is being written by the workflow.`
+    );
+    return;
+  }
+
+  const ageMin = minutesAgo(lastRunDt);
+  if (ageMin > STALE_MINUTES) {
+    setStatus(
+      "err",
+      "NOT UPDATING",
+      `Last run is ${ageMin.toFixed(1)} minutes ago (threshold ${STALE_MINUTES}m).\nFix: check GitHub Actions runs/logs, and confirm the scrape job is succeeding.`
+    );
+    return;
+  }
+
+  // 4) Now load actual data files; failures here become ORANGE (needs attention)
+  let road, restr;
+  try {
+    const roadRes = await fetchFirstWorkingJson(ROAD_FILE);
+    road = roadRes.json;
+  } catch (e) {
+    warnings.push(`Could not load data/${ROAD_FILE}.`);
+  }
+
+  try {
+    const restrRes = await fetchFirstWorkingJson(RESTR_FILE);
+    restr = restrRes.json;
+  } catch (e) {
+    warnings.push(`Could not load data/${RESTR_FILE}.`);
+  }
+
+  // If either file missing => ORANGE, but keep rendering what we can
+  const roadRows = normalizeRows(road?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
+  const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
+
+  // Expected structure checks (optional, but makes “orange” meaningful)
+  if (road && !Array.isArray(road.rows)) warnings.push(`data/${ROAD_FILE} loaded but missing expected "rows" array.`);
+  if (restr && !Array.isArray(restr.rows)) warnings.push(`data/${RESTR_FILE} loaded but missing expected "rows" array.`);
+
+  const closures = roadRows.filter(isClosure);
+  const speed = restrRows.filter(isSpeedRestriction);
+  const vehicle = restrRows.filter(isTierRestriction);
+
+  // Update counts
+  document.getElementById("closuresCount").textContent = String(closures.length);
+  document.getElementById("speedCount").textContent = String(speed.length);
+  document.getElementById("vehicleCount").textContent = String(vehicle.length);
+
+  // Render
+  renderList("closuresList", closures, "");
+  renderList("speedList", speed, "speed");
+  renderList("vehicleList", vehicle, "vehicle");
+
+  // 5) Health status (NOT incident status)
+  if (warnings.length) {
+    setStatus(
+      "attn",
+      "NEEDS ATTENTION",
+      `Workflow ran recently (${ageMin.toFixed(1)}m ago), but something needs fixed:\n- ${warnings.join("\n- ")}\n\nFix: check the scrape workflow logs and ensure it writes JSON outputs + ${LAST_RUN_FILE}.`
+    );
+  } else {
+    setStatus(
+      "ok",
+      "OK",
+      `Workflow ran ${ageMin.toFixed(1)} minutes ago.\nData files loaded successfully.\nNo action needed.`
+    );
   }
 }
 
