@@ -1,156 +1,387 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>PA 511 Status Board</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PA 511 Traffic Board</title>
 
-<style>
-body {
-    margin:0;
-    background:#111;
-    font-family:Arial, Helvetica, sans-serif;
-    color:white;
-}
+  <style>
+    :root{
+      --bg:#0f0f10;
+      --panel:#171718;
+      --panel2:#1d1d1f;
+      --border:#2a2a2d;
+      --text:#e9e9ea;
+      --muted:#a7a7aa;
+      --accent:#ffb000;
+      --red:#ff2b2b;
+      --blue:#00bfff;
+      --yellow:#ffe600;
+      --green:#29d36a;
+    }
 
-.header {
-    padding:15px;
-    font-size:28px;
-    background:#222;
-    border-bottom:2px solid #333;
-}
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
 
-.row {
-    display:flex;
-    height:30vh;
-    border-bottom:2px solid #222;
-}
+    .topbar{
+      background:#222;
+      border-bottom:2px solid var(--border);
+      padding:12px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .topbar .title{
+      font-size:22px;
+      font-weight:700;
+      letter-spacing:.3px;
+    }
+    .topbar .subtitle{
+      color:var(--muted);
+      font-size:13px;
+      white-space:nowrap;
+    }
 
-.panel {
-    flex:1;
-    padding:15px;
-    overflow:auto;
-}
+    .grid{
+      display:flex;
+      flex-direction:column;
+      height:calc(100vh - 52px);
+    }
 
-.title {
-    font-size:24px;
-    margin-bottom:10px;
-    color:#ffa500;
-}
+    .row{
+      flex:1;
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:10px;
+      padding:10px;
+      border-bottom:2px solid #141416;
+      min-height:0;
+    }
 
-.item {
-    padding:8px;
-    margin:6px 0;
-    background:#1a1a1a;
-    border-left:5px solid red;
-    font-size:16px;
-}
+    .kpi{
+      background:linear-gradient(180deg, var(--panel), #141415);
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:14px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      min-height:0;
+    }
+    .kpi h2{
+      margin:0;
+      font-size:34px;
+      line-height:1.05;
+      font-weight:800;
+      letter-spacing:.2px;
+    }
+    .kpi .count{
+      font-size:90px;
+      font-weight:900;
+      line-height:0.95;
+      margin:6px 0 0;
+    }
+    .kpi .source{
+      margin-top:8px;
+      font-size:14px;
+      color:var(--muted);
+    }
 
-.speed .item {
-    border-left-color:#00bfff;
-}
+    .listpanel{
+      background:var(--panel2);
+      border:1px solid var(--border);
+      border-radius:6px;
+      padding:10px 12px;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .listpanel .paneltitle{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:8px 0 10px;
+      border-bottom:1px solid var(--border);
+      margin-bottom:10px;
+      min-height:44px;
+    }
+    .listpanel .paneltitle .name{
+      font-size:22px;
+      font-weight:800;
+      color:var(--accent);
+      letter-spacing:.2px;
+    }
+    .listpanel .paneltitle .hint{
+      font-size:12px;
+      color:var(--muted);
+      text-align:right;
+      white-space:nowrap;
+    }
 
-.travel .item {
-    border-left-color:#ffff00;
-    color:#fff;
-}
+    .items{
+      overflow:auto;
+      padding-right:6px;
+      min-height:0;
+    }
 
-.timestamp {
-    position:fixed;
-    bottom:5px;
-    right:10px;
-    font-size:12px;
-    color:#aaa;
-}
-</style>
+    .item{
+      padding:10px 10px;
+      margin:8px 0;
+      background:#141415;
+      border:1px solid #232326;
+      border-left:7px solid var(--red);
+      border-radius:6px;
+      font-size:15px;
+      line-height:1.25;
+      word-break:break-word;
+    }
+
+    .speed .item{ border-left-color: var(--blue); }
+    .vehicle .item{ border-left-color: var(--yellow); }
+
+    .pillrow{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
+    .pill{
+      font-size:12px;
+      padding:4px 8px;
+      border-radius:999px;
+      background:#0f0f10;
+      border:1px solid #2b2b2e;
+      color:var(--muted);
+    }
+
+    .footer{
+      position:fixed;
+      bottom:8px;
+      right:12px;
+      color:var(--muted);
+      font-size:12px;
+      background:rgba(0,0,0,.25);
+      padding:6px 10px;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:999px;
+      backdrop-filter: blur(6px);
+    }
+
+    /* color accents for KPI titles */
+    .kpi.closures h2{ color:var(--red); }
+    .kpi.speed h2{ color:var(--blue); }
+    .kpi.vehicle h2{ color:var(--yellow); }
+
+    /* Responsive */
+    @media (max-width: 900px){
+      .row{ grid-template-columns: 1fr; }
+      .kpi .count{ font-size:64px; }
+      .kpi h2{ font-size:28px; }
+    }
+  </style>
 </head>
 
 <body>
+  <div class="topbar">
+    <div class="title">PA 511 Status Board (POC)</div>
+    <div class="subtitle" id="statusline">Loading…</div>
+  </div>
 
-<div class="header">Pennsylvania 511 Status Board (POC)</div>
+  <div class="grid">
 
-<!-- Closures -->
-<div class="row">
-    <div class="panel closures">
-        <div class="title">Road Closures</div>
-        <div id="closures"></div>
+    <!-- Row 1: Closures -->
+    <div class="row closures">
+      <div class="kpi closures">
+        <div>
+          <h2>Closures</h2>
+          <div class="count" id="closuresCount">—</div>
+          <div class="source">Source: 511PA public list → scraped JSON</div>
+        </div>
+        <div class="pillrow">
+          <span class="pill">Road / Ramp closures</span>
+          <span class="pill">From road_conditions.json</span>
+        </div>
+      </div>
+
+      <div class="listpanel">
+        <div class="paneltitle">
+          <div class="name">Closures</div>
+          <div class="hint">Top items shown • auto-refresh</div>
+        </div>
+        <div class="items" id="closuresList"></div>
+      </div>
     </div>
-</div>
 
-<!-- Speed Restrictions -->
-<div class="row speed">
-    <div class="panel">
-        <div class="title">Speed Restrictions</div>
-        <div id="speed"></div>
+    <!-- Row 2: Speed Restrictions -->
+    <div class="row speed">
+      <div class="kpi speed">
+        <div>
+          <h2>Speed<br/>Restrictions</h2>
+          <div class="count" id="speedCount">—</div>
+          <div class="source">Source: 511PA restrictions list → scraped JSON</div>
+        </div>
+        <div class="pillrow">
+          <span class="pill">mph / speed</span>
+          <span class="pill">From restrictions.json</span>
+        </div>
+      </div>
+
+      <div class="listpanel speed">
+        <div class="paneltitle">
+          <div class="name">Speed Restrictions</div>
+          <div class="hint">Matches: “mph” / “speed”</div>
+        </div>
+        <div class="items" id="speedList"></div>
+      </div>
     </div>
-</div>
 
-<!-- Travel Restrictions -->
-<div class="row travel">
-    <div class="panel">
-        <div class="title">Travel Restrictions</div>
-        <div id="travel"></div>
+    <!-- Row 3: Vehicle Restrictions -->
+    <div class="row vehicle">
+      <div class="kpi vehicle">
+        <div>
+          <h2>Vehicle<br/>Restrictions</h2>
+          <div class="count" id="vehicleCount">—</div>
+          <div class="source">Source: 511PA restrictions list → scraped JSON</div>
+        </div>
+        <div class="pillrow">
+          <span class="pill">Tier / vehicle</span>
+          <span class="pill">No permit travel</span>
+          <span class="pill">From restrictions.json</span>
+        </div>
+      </div>
+
+      <div class="listpanel vehicle">
+        <div class="paneltitle">
+          <div class="name">Vehicle Restrictions</div>
+          <div class="hint">Matches: tier / restriction / vehicle</div>
+        </div>
+        <div class="items" id="vehicleList"></div>
+      </div>
     </div>
-</div>
 
-<div class="timestamp" id="updated"></div>
+  </div>
 
-<script>
-async function loadData() {
-    try {
-        const data = await fetch('data/road_conditions.json')
-            .then(r => r.json());
+  <div class="footer" id="updated">Last Updated: —</div>
 
-        const rows = data.rows || [];
+  <script>
+    // ---- Settings you may tweak ----
+    const MAX_ITEMS_PER_ROW = 20;     // keep readable on “video wall”
+    const REFRESH_MS = 60_000;        // refresh UI (reads local JSON)
+    const DATA_ROAD = "data/road_conditions.json";
+    const DATA_RESTR = "data/restrictions.json";
 
-        const closures = [];
-        const speed = [];
-        const travel = [];
-
-        rows.forEach(r => {
-            const text = r.join(" ");
-
-            if (/closed/i.test(text))
-                closures.push(text);
-
-            else if (/mph|speed/i.test(text))
-                speed.push(text);
-
-            else if (/restriction|tier|vehicle/i.test(text))
-                travel.push(text);
-        });
-
-        render("closures", closures);
-        render("speed", speed);
-        render("travel", travel);
-
-        document.getElementById("updated").innerText =
-            "Last Updated: " + new Date().toLocaleString();
-
-    } catch(e) {
-        console.error(e);
+    async function fetchJson(path) {
+      const r = await fetch(path, { cache: "no-store" });
+      if (!r.ok) throw new Error(`Failed to load ${path}: ${r.status}`);
+      return r.json();
     }
-}
 
-function render(id, items) {
-    const el = document.getElementById(id);
-    el.innerHTML = "";
-
-    if (!items.length) {
-        el.innerHTML = "<div class='item'>None currently reported</div>";
-        return;
+    function normalizeRows(rows) {
+      return (rows || [])
+        .map(r => (Array.isArray(r) ? r : [String(r)]))
+        .map(r => r.map(x => (x ?? "").toString().trim()).filter(Boolean))
+        .filter(r => r.length);
     }
 
-    items.forEach(i => {
+    function rowToText(row) {
+      // Join with separators so the “card” reads cleanly
+      return row.join(" | ");
+    }
+
+    function setCount(id, n) {
+      document.getElementById(id).textContent = String(n);
+    }
+
+    function renderList(elId, items, cssClass) {
+      const el = document.getElementById(elId);
+      el.innerHTML = "";
+
+      if (!items.length) {
         const div = document.createElement("div");
-        div.className = "item";
-        div.textContent = i;
+        div.className = `item ${cssClass || ""}`;
+        div.style.borderLeftColor = "var(--green)";
+        div.textContent = "None currently reported";
         el.appendChild(div);
-    });
-}
+        return;
+      }
 
-loadData();
-setInterval(loadData, 60000);
-</script>
+      items.slice(0, MAX_ITEMS_PER_ROW).forEach(t => {
+        const div = document.createElement("div");
+        div.className = `item ${cssClass || ""}`;
+        div.textContent = t;
+        el.appendChild(div);
+      });
+    }
 
+    function isSpeedRestriction(text) {
+      return /(^|\b)(mph|speed)\b/i.test(text);
+    }
+
+    function isVehicleRestriction(text) {
+      // “Vehicle restrictions” bucket (exclude speed)
+      if (isSpeedRestriction(text)) return false;
+      return /(^|\b)(tier|restriction|restricted|no permit|permit travel|vehicle|commercial|truck|trucks|cmv)\b/i.test(text);
+    }
+
+    function isClosure(text) {
+      return /(^|\b)(closed|closure)\b/i.test(text);
+    }
+
+    async function loadBoard() {
+      try {
+        // Pull both JSON files generated by your GitHub Action
+        const [road, restr] = await Promise.all([
+          fetchJson(DATA_ROAD),
+          fetchJson(DATA_RESTR)
+        ]);
+
+        const roadRows = normalizeRows(road.rows).map(rowToText);
+        const restrRows = normalizeRows(restr.rows).map(rowToText);
+
+        // Closures: primarily from road conditions
+        const closures = roadRows.filter(isClosure);
+
+        // Speed restrictions: from restrictions list
+        const speed = restrRows.filter(isSpeedRestriction);
+
+        // Vehicle restrictions: from restrictions list (not speed)
+        const vehicle = restrRows.filter(isVehicleRestriction);
+
+        setCount("closuresCount", closures.length);
+        setCount("speedCount", speed.length);
+        setCount("vehicleCount", vehicle.length);
+
+        renderList("closuresList", closures, "");
+        renderList("speedList", speed, "speed");
+        renderList("vehicleList", vehicle, "vehicle");
+
+        const now = new Date();
+        document.getElementById("updated").textContent =
+          "Last Updated: " + now.toLocaleString();
+
+        // Helpful status line
+        const meta = [];
+        if (road.fetched_at) meta.push(`road_conditions: ${road.fetched_at}`);
+        if (restr.fetched_at) meta.push(`restrictions: ${restr.fetched_at}`);
+        document.getElementById("statusline").textContent =
+          meta.length ? ("Data timestamps • " + meta.join(" • ")) : "Data loaded";
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("statusline").textContent =
+          "ERROR loading data (open DevTools console)";
+      }
+    }
+
+    loadBoard();
+    setInterval(loadBoard, REFRESH_MS);
+  </script>
 </body>
 </html>
