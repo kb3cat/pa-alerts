@@ -1,31 +1,35 @@
-// PA Alerts — NWS-style Watches/Warnings/Advisories map
-// Fixes "stuck loading" by adding:
-// - fetch timeouts
-// - limited concurrency for affectedZones geometry fallback
-// - progress status updates
+// PA Alerts — NWS-style W/W/A map (PA + surrounding window)
+// Adds: county labels, major highways/US routes (reference overlay), PA state highlight
+// Fixes: "frozen loading" with time budgets, global zone cap, concurrency, aborting prior run
 
-const statusText = document.getElementById("statusText");
-const statusDot  = document.getElementById("statusDot");
+const statusText  = document.getElementById("statusText");
+const statusDot   = document.getElementById("statusDot");
 const lastUpdated = document.getElementById("lastUpdated");
-const refreshBtn = document.getElementById("refreshBtn");
+const refreshBtn  = document.getElementById("refreshBtn");
 
-// Fixed window like the NWS product you showed (tweak if you want)
+// Fixed window similar to your screenshot (tweak anytime)
 const VIEW_BOUNDS = L.latLngBounds(
   L.latLng(38.6, -81.0),  // SW
   L.latLng(42.9, -73.7)   // NE
 );
 
-// Map
+// --- Map ---
 const map = L.map("map", { zoomControl: true });
 map.fitBounds(VIEW_BOUNDS);
 
-// Muted basemap (you can remove this entirely if you want pure "blank + counties")
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  maxZoom: 18,
-  attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
-}).addTo(map);
+// Basemap: ESRI Light Gray + Reference overlay
+// Reference layer includes major roads/highways & labels in a clean way.
+L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  { maxZoom: 18, attribution: "Esri" }
+).addTo(map);
 
-// ---------- Status helpers ----------
+L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+  { maxZoom: 18, attribution: "Esri" }
+).addTo(map);
+
+// --- Status helpers ---
 function setStatus(text, mode = "idle") {
   statusText.textContent = text;
   const colors = { idle:"#6b7280", loading:"#f59e0b", ok:"#22c55e", error:"#ef4444" };
@@ -49,7 +53,7 @@ function escapeHtml(str){
 }
 function escapeAttr(str){ return String(str).replace(/"/g, "%22"); }
 
-// ---------- Hazard color mapping (event-name based like NWS products) ----------
+// --- Hazard coloring (event-name based like the NWS product feel) ---
 const HAZARD_COLORS = [
   { match: "marine dense fog advisory", color: "#475569", label: "Marine Dense Fog Advisory" },
   { match: "dense fog advisory",        color: "#64748b", label: "Dense Fog Advisory" },
@@ -68,9 +72,7 @@ function isWWA(feature) {
 }
 
 function getHazardColor(eventLower){
-  for (const h of HAZARD_COLORS) {
-    if (eventLower.includes(h.match)) return h.color;
-  }
+  for (const h of HAZARD_COLORS) if (eventLower.includes(h.match)) return h.color;
   if (eventLower.includes("warning")) return TYPE_COLORS.warning;
   if (eventLower.includes("watch")) return TYPE_COLORS.watch;
   if (eventLower.includes("advisory")) return TYPE_COLORS.advisory;
@@ -78,8 +80,7 @@ function getHazardColor(eventLower){
 }
 
 function featureStyle(feature){
-  const p = feature?.properties || {};
-  const eventLower = (p.event || "").toLowerCase();
+  const eventLower = ((feature?.properties?.event) || "").toLowerCase();
   const color = getHazardColor(eventLower);
   return { color, weight: 2, fillColor: color, fillOpacity: 0.35 };
 }
@@ -104,7 +105,7 @@ function onEachAlert(feature, layer){
   layer.bindPopup(html, { maxWidth: 460 });
 }
 
-// ---------- Legend ----------
+// --- Legend ---
 const legend = L.control({ position: "bottomleft" });
 legend.onAdd = function () {
   const div = L.DomUtil.create("div", "legend");
@@ -118,9 +119,7 @@ function updateLegend(activeEventsLowerSet) {
   if (!rows) return;
 
   const active = HAZARD_COLORS.filter(h => {
-    for (const e of activeEventsLowerSet) {
-      if (e.includes(h.match)) return true;
-    }
+    for (const e of activeEventsLowerSet) if (e.includes(h.match)) return true;
     return false;
   });
 
@@ -140,14 +139,12 @@ function updateLegend(activeEventsLowerSet) {
   }
 }
 
-// ---------- County outlines + labels (darker) ----------
-function computeBBoxFromCoords(coords) {
-  // coords: Polygon => [ring[]], MultiPolygon => [[ring[]], ...]
+// --- Helpers: quick intersects without building Leaflet layers for everything ---
+function bboxFromCoords(coords) {
   let minLat =  90, minLng =  180, maxLat = -90, maxLng = -180;
 
   const walkRing = (ring) => {
-    for (const pt of ring) {
-      const lng = pt[0], lat = pt[1];
+    for (const [lng, lat] of ring) {
       if (lat < minLat) minLat = lat;
       if (lat > maxLat) maxLat = lat;
       if (lng < minLng) minLng = lng;
@@ -157,15 +154,13 @@ function computeBBoxFromCoords(coords) {
 
   const walkPoly = (poly) => { for (const ring of poly) walkRing(ring); };
 
-  // Polygon: coords = [ring, ring, ...]
-  // MultiPolygon: coords = [[ring...], [ring...], ...]
   if (!Array.isArray(coords) || coords.length === 0) return null;
 
+  // Polygon: [ring[]...]
   if (Array.isArray(coords[0]) && Array.isArray(coords[0][0]) && typeof coords[0][0][0] === "number") {
-    // Polygon
     walkPoly(coords);
   } else {
-    // MultiPolygon
+    // MultiPolygon: [[ring[]...], ...]
     for (const poly of coords) walkPoly(poly);
   }
 
@@ -179,32 +174,42 @@ function bboxIntersectsView(b) {
   return !(b.maxLng < sw.lng || b.minLng > ne.lng || b.maxLat < sw.lat || b.minLat > ne.lat);
 }
 
-async function loadCounties() {
-  // NOTE: This is a large file. We cull features to VIEW_BOUNDS before adding.
-  const url = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json";
+function featureIntersectsBounds(feature, bounds) {
   try {
+    const tmp = L.geoJSON(feature);
+    const b = tmp.getBounds();
+    tmp.remove();
+    return b.isValid() && b.intersects(bounds);
+  } catch {
+    return false;
+  }
+}
+
+// --- County outlines + labels (darker; labels appear at zoom >= 7) ---
+async function loadCounties() {
+  try {
+    const url = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json";
     const res = await fetch(url);
     if (!res.ok) throw new Error(`County GeoJSON HTTP ${res.status}`);
     const geo = await res.json();
 
+    // Cull counties to our view window before adding (faster)
     const filtered = {
       type: "FeatureCollection",
       features: geo.features.filter(f => {
         const g = f.geometry;
         if (!g) return false;
-        const bbox = computeBBoxFromCoords(g.coordinates);
-        return bboxIntersectsView(bbox);
+        const bb = bboxFromCoords(g.coordinates);
+        return bboxIntersectsView(bb);
       })
     };
 
     const countiesLayer = L.geoJSON(filtered, {
-      style: { color: "#0f172a", weight: 1.8, fillOpacity: 0 },
-
+      style: { color: "#0b1220", weight: 2.0, fillOpacity: 0 },
       onEachFeature: (feature, layer) => {
         const name = feature?.properties?.NAME;
         if (!name) return;
 
-        // Show labels only when zoomed in enough to avoid clutter
         const shouldLabel = () => map.getZoom() >= 7;
 
         layer.bindTooltip(name, {
@@ -213,8 +218,8 @@ async function loadCounties() {
           className: "county-label"
         });
 
-        layer.on("mouseover", () => layer.setStyle({ weight: 2.6, color: "#020617" }));
-        layer.on("mouseout",  () => layer.setStyle({ weight: 1.8, color: "#0f172a" }));
+        layer.on("mouseover", () => layer.setStyle({ weight: 2.8, color: "#020617" }));
+        layer.on("mouseout",  () => layer.setStyle({ weight: 2.0, color: "#0b1220" }));
 
         map.on("zoomend", () => {
           const tt = layer.getTooltip();
@@ -232,24 +237,75 @@ async function loadCounties() {
 }
 loadCounties();
 
-// ---------- Alerts layer ----------
-let alertLayer = L.geoJSON([], {
-  style: featureStyle,
-  onEachFeature: onEachAlert
-}).addTo(map);
+// --- PA state highlight (thick outline + subtle fill) ---
+async function loadStateHighlight() {
+  try {
+    const url = "https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/us-states.json";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`States GeoJSON HTTP ${res.status}`);
+    const geo = await res.json();
 
-// ---------- Fetch helpers with timeout ----------
-async function fetchJsonWithTimeout(url, ms, extraHeaders = {}) {
+    const layer = L.geoJSON(geo, {
+      filter: (f) => (f?.properties?.name === "Pennsylvania"),
+      style: {
+        color: "#020617",
+        weight: 4,
+        fillColor: "#0b1220",
+        fillOpacity: 0.08
+      }
+    });
+
+    layer.addTo(map);
+  } catch (e) {
+    console.warn("State highlight failed:", e);
+  }
+}
+loadStateHighlight();
+
+// --- Alerts layer ---
+let alertLayer = L.geoJSON([], { style: featureStyle, onEachFeature: onEachAlert }).addTo(map);
+
+// --- Fetch controls / anti-freeze ---
+let currentRun = { abort: null, inProgress: false };
+
+// Limits (these prevent “stuck loading”)
+const MAIN_ALERTS_TIMEOUT_MS = 20000;
+const ZONE_TIMEOUT_MS = 8000;
+const OVERALL_TIME_BUDGET_MS = 25000;     // stop and render what we have
+const GLOBAL_ZONE_FETCH_CAP = 60;         // total zone URL fetches per refresh
+const ZONE_FETCH_CONCURRENCY = 6;         // parallel zone fetches
+const MAX_ZONES_PER_ALERT = 20;           // cap zones per alert
+
+const zoneGeomCache = new Map();          // url -> geometry|null
+
+function makeAbortable() {
+  if (currentRun.abort) currentRun.abort.abort();
+  const abort = new AbortController();
+  currentRun.abort = abort;
+  return abort;
+}
+
+async function fetchJsonWithTimeout(url, ms, signal) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms);
 
+  const combined = signal
+    ? new AbortController()
+    : controller;
+
+  // If we have an external signal, "combine" by aborting combined when either aborts
+  if (signal) {
+    const onAbort = () => { try { combined.abort(); } catch {} };
+    signal.addEventListener("abort", onAbort, { once: true });
+    controller.signal.addEventListener("abort", onAbort, { once: true });
+  }
+
   try {
     const res = await fetch(url, {
-      signal: controller.signal,
+      signal: combined.signal,
       headers: {
         Accept: "application/geo+json, application/json",
-        "User-Agent": "PA Alerts Backup Map",
-        ...extraHeaders
+        "User-Agent": "PA Alerts Backup Map"
       }
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
@@ -259,31 +315,30 @@ async function fetchJsonWithTimeout(url, ms, extraHeaders = {}) {
   }
 }
 
-// ---------- Geometry fallback (fast + concurrency-limited) ----------
-const zoneGeomCache = new Map();
+async function mapWithConcurrency(items, limit, mapper, progressCb) {
+  const results = new Array(items.length);
+  let i = 0, done = 0;
 
-// Limit how many zone URLs we’ll fetch per alert (prevents huge slowdowns)
-const MAX_ZONES_PER_ALERT = 25;
-
-// Limit global concurrency for zone fetches
-const ZONE_FETCH_CONCURRENCY = 6;
-
-function featureIntersectsBounds(feature, bounds) {
-  try {
-    const tmp = L.geoJSON(feature);
-    const b = tmp.getBounds();
-    tmp.remove();
-    return b.isValid() && b.intersects(bounds);
-  } catch {
-    return false;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      try { results[idx] = await mapper(items[idx], idx); }
+      catch { results[idx] = null; }
+      finally {
+        done++;
+        if (progressCb) progressCb(done, items.length);
+      }
+    }
   }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => worker()));
+  return results;
 }
 
-async function fetchZoneGeometry(zoneUrl) {
+async function fetchZoneGeometry(zoneUrl, signal) {
   if (zoneGeomCache.has(zoneUrl)) return zoneGeomCache.get(zoneUrl);
 
-  // 10s timeout per zone
-  const zone = await fetchJsonWithTimeout(zoneUrl, 10000);
+  const zone = await fetchJsonWithTimeout(zoneUrl, ZONE_TIMEOUT_MS, signal);
   const geom = zone?.geometry || null;
 
   zoneGeomCache.set(zoneUrl, geom);
@@ -294,56 +349,36 @@ function mergeToMultiPolygon(geoms) {
   const coords = [];
   for (const g of geoms) {
     if (!g || !g.type || !g.coordinates) continue;
-
     if (g.type === "Polygon") coords.push(g.coordinates);
     else if (g.type === "MultiPolygon") for (const poly of g.coordinates) coords.push(poly);
   }
-  if (!coords.length) return null;
-  return { type: "MultiPolygon", coordinates: coords };
+  return coords.length ? { type: "MultiPolygon", coordinates: coords } : null;
 }
 
-async function mapWithConcurrency(items, limit, mapper, onProgress) {
-  const results = new Array(items.length);
-  let i = 0;
-  let done = 0;
-
-  async function worker() {
-    while (i < items.length) {
-      const idx = i++;
-      try {
-        results[idx] = await mapper(items[idx], idx);
-      } catch (e) {
-        results[idx] = null;
-      } finally {
-        done++;
-        if (onProgress) onProgress(done, items.length);
-      }
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
-}
-
-async function ensureAlertGeometry(alertFeature, progressCb) {
+async function ensureAlertGeometry(alertFeature, signal, counters, progressCb) {
   if (alertFeature?.geometry) return alertFeature;
 
   let zones = alertFeature?.properties?.affectedZones;
   if (!Array.isArray(zones) || zones.length === 0) return alertFeature;
 
-  // Trim zones to keep it fast
-  if (zones.length > MAX_ZONES_PER_ALERT) zones = zones.slice(0, MAX_ZONES_PER_ALERT);
+  zones = zones.slice(0, MAX_ZONES_PER_ALERT);
 
-  // Fetch zones with limited concurrency + progress updates
+  // Respect global cap
+  const remaining = Math.max(0, GLOBAL_ZONE_FETCH_CAP - counters.zoneFetches);
+  if (remaining <= 0) return alertFeature;
+  zones = zones.slice(0, remaining);
+
   const geoms = await mapWithConcurrency(
     zones,
     ZONE_FETCH_CONCURRENCY,
     async (z) => {
-      const geom = await fetchZoneGeometry(z);
+      if (counters.zoneFetches >= GLOBAL_ZONE_FETCH_CAP) return null;
+      counters.zoneFetches++;
+
+      const geom = await fetchZoneGeometry(z, signal);
       if (!geom) return null;
 
-      // Cull: only keep zone geoms that touch our view window
+      // Cull to view window
       const test = { type: "Feature", geometry: geom, properties: {} };
       if (!featureIntersectsBounds(test, VIEW_BOUNDS)) return null;
 
@@ -358,62 +393,79 @@ async function ensureAlertGeometry(alertFeature, progressCb) {
   return { ...alertFeature, geometry: merged };
 }
 
-// ---------- Main fetch ----------
 async function fetchAlerts() {
-  setStatus("Loading alerts…", "loading");
+  const abort = makeAbortable();
+  currentRun.inProgress = true;
 
-  // 20s timeout for the main alerts call
-  const data = await fetchJsonWithTimeout("https://api.weather.gov/alerts/active", 20000);
-  const features = Array.isArray(data.features) ? data.features : [];
+  const start = Date.now();
+  const counters = { zoneFetches: 0 };
 
-  // W/W/A only
-  const wwa = features.filter(isWWA);
+  try {
+    setStatus("Loading alerts…", "loading");
 
-  const output = [];
-  let processed = 0;
+    const data = await fetchJsonWithTimeout("https://api.weather.gov/alerts/active", MAIN_ALERTS_TIMEOUT_MS, abort.signal);
+    const features = Array.isArray(data.features) ? data.features : [];
 
-  for (const f of wwa) {
-    processed++;
-    setStatus(`Loading alerts… (${processed}/${wwa.length})`, "loading");
+    const wwa = features.filter(isWWA);
 
-    // If it already has geometry, just use it
-    if (f.geometry) {
-      if (featureIntersectsBounds(f, VIEW_BOUNDS)) output.push(f);
-      continue;
+    const output = [];
+    let processed = 0;
+
+    for (const f of wwa) {
+      processed++;
+
+      // Hard time budget to prevent “forever loading”
+      if (Date.now() - start > OVERALL_TIME_BUDGET_MS) break;
+
+      setStatus(`Loading alerts… (${processed}/${wwa.length}) zones:${counters.zoneFetches}/${GLOBAL_ZONE_FETCH_CAP}`, "loading");
+
+      // If alert has geometry, cheap path
+      if (f.geometry) {
+        if (featureIntersectsBounds(f, VIEW_BOUNDS)) output.push(f);
+        continue;
+      }
+
+      // Otherwise fallback to zones (bounded)
+      const withGeom = await ensureAlertGeometry(
+        f,
+        abort.signal,
+        counters,
+        (doneZones, totalZones) => {
+          setStatus(`Loading alerts… (${processed}/${wwa.length}) zones ${doneZones}/${totalZones} (${counters.zoneFetches}/${GLOBAL_ZONE_FETCH_CAP})`, "loading");
+        }
+      );
+
+      if (withGeom.geometry && featureIntersectsBounds(withGeom, VIEW_BOUNDS)) output.push(withGeom);
     }
 
-    // Otherwise, build geometry from zones (with progress)
-    const withGeom = await ensureAlertGeometry(f, (doneZones, totalZones) => {
-      setStatus(`Loading alerts… (${processed}/${wwa.length}) zones ${doneZones}/${totalZones}`, "loading");
-    });
+    alertLayer.clearLayers();
+    alertLayer.addData(output);
 
-    if (withGeom.geometry && featureIntersectsBounds(withGeom, VIEW_BOUNDS)) output.push(withGeom);
+    // Keep view fixed like the NWS product
+    map.fitBounds(VIEW_BOUNDS.pad(0.02));
+
+    const activeEventsLower = new Set(output.map(f => ((f?.properties?.event) || "").toLowerCase()));
+    updateLegend(activeEventsLower);
+
+    const partialNote = (Date.now() - start > OVERALL_TIME_BUDGET_MS) ? " (partial)" : "";
+    setStatus(`Loaded ${output.length} alert(s).${partialNote}`, "ok");
+    lastUpdated.textContent = `Updated: ${mmddyy_hhmmss(new Date())}`;
+  } catch (err) {
+    if (String(err).includes("AbortError")) {
+      setStatus("Load canceled (refresh started).", "idle");
+    } else {
+      console.error(err);
+      setStatus(`Error loading alerts: ${err?.message || err}`, "error");
+    }
+  } finally {
+    currentRun.inProgress = false;
   }
-
-  alertLayer.clearLayers();
-  alertLayer.addData(output);
-
-  // Keep the view fixed like the NWS product
-  map.fitBounds(VIEW_BOUNDS.pad(0.02));
-
-  // Update legend based on active events
-  const activeEventsLower = new Set(output.map(f => ((f?.properties?.event) || "").toLowerCase()));
-  updateLegend(activeEventsLower);
-
-  setStatus(`Loaded ${output.length} alert(s).`, "ok");
-  lastUpdated.textContent = `Updated: ${mmddyy_hhmmss(new Date())}`;
 }
 
-function handleErr(err) {
-  console.error(err);
-  setStatus(`Error loading alerts: ${err?.message || err}`, "error");
-}
-
-// UI
-refreshBtn.addEventListener("click", () => fetchAlerts().catch(handleErr));
+refreshBtn.addEventListener("click", () => fetchAlerts());
 
 // Auto refresh every 5 minutes
-setInterval(() => fetchAlerts().catch(handleErr), 300000);
+setInterval(() => fetchAlerts(), 300000);
 
 // Initial load
-fetchAlerts().catch(handleErr);
+fetchAlerts();
