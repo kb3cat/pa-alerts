@@ -442,7 +442,7 @@ async function fetchAlerts() {
     alertLayer.addData(output);
 
     // Keep view fixed like the NWS product
-    map.fitBounds(VIEW_BOUNDS.pad(0.02));
+    map.fitBounds(VIEW_BOUNDS.pad(-0.08));
 
     const activeEventsLower = new Set(output.map(f => ((f?.properties?.event) || "").toLowerCase()));
     updateLegend(activeEventsLower);
