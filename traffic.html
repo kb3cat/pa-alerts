@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Pennsylvania 511 Status Board (POC)</title>
+<title>PA 511 Status Board</title>
 
 <style>
 :root{
   --bg:#0f0f10;
-  --panel:#171718;
   --panel2:#1d1d1f;
   --border:#2a2a2d;
   --text:#e9e9ea;
@@ -20,15 +19,9 @@
   --green:#29d36a;
 }
 
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family: Arial, Helvetica, sans-serif;
-}
+body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Helvetica, sans-serif; }
 
 /* HEADER */
-
 .topbar{
   background:#222;
   border-bottom:2px solid var(--border);
@@ -37,23 +30,11 @@ body{
   justify-content:space-between;
   align-items:center;
 }
-
-.title{
-  font-size:22px;
-  font-weight:700;
-}
-
-.subtitle{
-  color:var(--muted);
-  font-size:13px;
-}
+.title{ font-size:22px; font-weight:700; }
+.subtitle{ color:var(--muted); font-size:13px; }
 
 /* ROWS */
-
-.grid{
-  padding:10px;
-}
-
+.grid{ padding:10px; }
 .row{
   background:var(--panel2);
   border:1px solid var(--border);
@@ -62,8 +43,7 @@ body{
   padding:10px 12px;
 }
 
-/* PANEL TITLES */
-
+/* TITLES */
 .paneltitle{
   display:flex;
   justify-content:space-between;
@@ -72,25 +52,11 @@ body{
   padding-bottom:8px;
   margin-bottom:8px;
 }
-
-.paneltitle .name{
-  font-size:22px;
-  font-weight:900;
-  color:var(--orange);
-}
-
-.paneltitle .count{
-  font-size:18px;
-  color:var(--muted);
-}
+.paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
+.paneltitle .count{ font-size:18px; color:var(--muted); }
 
 /* ITEMS */
-
-.items{
-  max-height:45vh;
-  overflow:auto;
-}
-
+.items{ max-height:45vh; overflow:auto; }
 .item{
   padding:10px;
   margin:8px 0;
@@ -100,13 +66,12 @@ body{
   border-radius:6px;
   font-size:15px;
   line-height:1.25;
+  word-break:break-word;
 }
-
 .speed .item{ border-left-color: var(--blue); }
 .vehicle .item{ border-left-color: var(--yellow); }
 
 /* FOOTER */
-
 .footer{
   position:fixed;
   bottom:8px;
@@ -124,7 +89,7 @@ body{
 <body>
 
 <div class="topbar">
-  <div class="title">Pennsylvania 511 Status Board</div>
+  <div class="title">PA 511 Status Board</div>
   <div class="subtitle" id="statusline">Loading…</div>
 </div>
 
@@ -160,7 +125,6 @@ body{
 
 <script>
 const REFRESH_MS = 60000;
-
 const ROAD_FILE = "road_conditions.json";
 const RESTR_FILE = "restrictions.json";
 
@@ -184,34 +148,102 @@ async function fetchFirstWorkingJson(filename) {
       return await r.json();
     } catch {}
   }
-  throw new Error("JSON not found");
+  throw new Error(`JSON not found: ${filename}`);
 }
 
 function normalizeRows(rows) {
   return (rows || [])
-    .map(r => Array.isArray(r) ? r.join(" | ") : r)
+    .map(r => Array.isArray(r) ? r.join(" | ") : String(r || ""))
+    .map(s => s.trim())
     .filter(Boolean);
 }
 
-function render(id, items, emptyColor){
-  const el = document.getElementById(id);
+// Remove junk/boilerplate phrases and trailing “status chips”
+function cleanLine(s) {
+  let t = s;
+
+  // Common prefix cleanup
+  t = t.replace(/^Row Details\s*\|\s*/i, "");
+  t = t.replace(/\bOther incident on\b\s*/i, ""); // “Other incident on I-81…” -> “I-81…”
+
+  // Remove trailing “chips” like “| I-81 | ACTIVE | View on map”
+  // (works even if route varies)
+  t = t.replace(/\s*\|\s*I-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*US-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*PA-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*View on map\s*$/i, "");
+
+  // Collapse any doubled separators leftover
+  t = t.replace(/\s*\|\s*\|\s*/g, " | ");
+  t = t.replace(/\s{2,}/g, " ");
+
+  return t.trim();
+}
+
+// Filter out “section/header” rows that aren’t real events
+function isFakeHeaderRow(s) {
+  const t = s.trim().toLowerCase();
+
+  // 511PA sometimes includes a row that is literally just a category label
+  if (t === "speed restrictions") return true;
+  if (t === "vehicle restrictions") return true;
+  if (t === "restrictions") return true;
+
+  // If it’s super short and has no roadway keywords, it’s probably not an event
+  const hasRoadHint = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(s);
+  if (!hasRoadHint && t.length <= 25) return true;
+
+  // If it contains only generic words (no digits/exits/locations), treat as header-ish
+  const hasDigit = /\d/.test(s);
+  if (!hasDigit && !hasRoadHint) return true;
+
+  return false;
+}
+
+function renderList(elId, items, kind) {
+  const el = document.getElementById(elId);
   el.innerHTML = "";
 
-  if(!items.length){
-    const div=document.createElement("div");
-    div.className="item";
-    div.style.borderLeftColor="var(--green)";
-    div.textContent="None currently reported";
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = `item ${kind || ""}`;
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
     el.appendChild(div);
     return;
   }
 
-  items.forEach(i=>{
-    const div=document.createElement("div");
-    div.className="item";
-    div.textContent=i;
+  items.forEach(text => {
+    const div = document.createElement("div");
+    div.className = `item ${kind || ""}`;
+    div.textContent = text;
     el.appendChild(div);
   });
+}
+
+function isClosure(text) {
+  return /\b(closed|closure)\b/i.test(text);
+}
+
+// Keep speed strict so the category header doesn’t sneak in
+function isSpeedRestriction(text) {
+  // require some “event-ish” detail (road+digit or “speed limit has been reduced”)
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+  const hasSpeed = /\b(mph|speed)\b/i.test(text);
+  return hasSpeed && hasRoad;
+}
+
+// Tier restrictions (winter) — do NOT treat generic “restriction” as enough
+function isTierRestriction(text) {
+  // common patterns: “Tier 1”, “Tier 2”, “Tier 3”, “Restrictions lifted”, “No permit travel”, “Commercial vehicle restriction”
+  const tierish = /\btier\s*[1-3]\b/i.test(text);
+  const permit = /\b(no permit travel|permit travel)\b/i.test(text);
+  const commercial = /\b(commercial vehicles?|cmv|trucks?)\b/i.test(text);
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+
+  // must be tier/permit/commercial + a roadway reference
+  return hasRoad && (tierish || permit || commercial);
 }
 
 async function loadBoard(){
@@ -219,34 +251,45 @@ async function loadBoard(){
     const road = await fetchFirstWorkingJson(ROAD_FILE);
     const restr = await fetchFirstWorkingJson(RESTR_FILE);
 
-    const roadRows = normalizeRows(road.rows);
-    const restrRows = normalizeRows(restr.rows);
+    // Build lists
+    const roadRows = normalizeRows(road.rows)
+      .map(cleanLine)
+      .filter(s => !isFakeHeaderRow(s));
 
-    const closures = roadRows.filter(t=>/closed|closure/i.test(t));
-    const speed = restrRows.filter(t=>/mph|speed/i.test(t));
-    const vehicle = restrRows.filter(t=>/tier|restriction|vehicle|truck|permit/i.test(t) && !/mph/i.test(t));
+    const restrRows = normalizeRows(restr.rows)
+      .map(cleanLine)
+      .filter(s => !isFakeHeaderRow(s));
 
-    document.getElementById("closuresCount").textContent=closures.length;
-    document.getElementById("speedCount").textContent=speed.length;
-    document.getElementById("vehicleCount").textContent=vehicle.length;
+    const closures = roadRows.filter(isClosure);
 
-    render("closuresList",closures);
-    render("speedList",speed);
-    render("vehicleList",vehicle);
+    const speed = restrRows
+      .filter(isSpeedRestriction);
+
+    const vehicle = restrRows
+      .filter(isTierRestriction);
+
+    // Update counts
+    document.getElementById("closuresCount").textContent = closures.length;
+    document.getElementById("speedCount").textContent = speed.length;
+    document.getElementById("vehicleCount").textContent = vehicle.length;
+
+    // Render
+    renderList("closuresList", closures, "");
+    renderList("speedList", speed, "speed");
+    renderList("vehicleList", vehicle, "vehicle");
 
     document.getElementById("updated").textContent =
-      "Last Updated: "+new Date().toLocaleString();
+      "Last Updated: " + new Date().toLocaleString();
 
-    document.getElementById("statusline").textContent="OK";
-
-  }catch(e){
+    document.getElementById("statusline").textContent = "OK";
+  } catch(e) {
     console.error(e);
-    document.getElementById("statusline").textContent="ERROR loading data";
+    document.getElementById("statusline").textContent = "ERROR loading data";
   }
 }
 
 loadBoard();
-setInterval(loadBoard,REFRESH_MS);
+setInterval(loadBoard, REFRESH_MS);
 </script>
 
 </body>
