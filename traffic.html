@@ -1,296 +1,418 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PA 511 Status Board</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pennsylvania 511 Roadway Status Board</title>
 
-<style>
-:root{
-  --bg:#0f0f10;
-  --panel2:#1d1d1f;
-  --border:#2a2a2d;
-  --text:#e9e9ea;
-  --muted:#a7a7aa;
-  --orange:#ffb000;
-  --red:#ff2b2b;
-  --blue:#00bfff;
-  --yellow:#ffe600;
-  --green:#29d36a;
-}
+  <style>
+    :root{
+      --bg:#0b0f19;
+      --card:#121a2a;
+      --text:#e7eefc;
+      --muted:rgba(231,238,252,.72);
+      --border:rgba(255,255,255,.10);
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
 
-body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Helvetica, sans-serif; }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(90,120,255,.25), transparent 60%),
+                  radial-gradient(1000px 700px at 100% 0%, rgba(0,255,180,.15), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
 
-/* HEADER */
-.topbar{
-  background:#222;
-  border-bottom:2px solid var(--border);
-  padding:12px 16px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.title{ font-size:22px; font-weight:700; }
-.subtitle{ color:var(--muted); font-size:13px; }
+    .wrap{
+      max-width:1200px;
+      margin:0 auto;
+      padding:18px 14px 40px;
+    }
 
-/* ROWS */
-.grid{ padding:10px; }
-.row{
-  background:var(--panel2);
-  border:1px solid var(--border);
-  border-radius:6px;
-  margin-bottom:12px;
-  padding:10px 12px;
-}
+    header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:14px;
+      padding:14px 14px;
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:rgba(18,26,42,.75);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
 
-/* TITLES */
-.paneltitle{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  border-bottom:1px solid var(--border);
-  padding-bottom:8px;
-  margin-bottom:8px;
-}
-.paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
-.paneltitle .count{ font-size:18px; color:var(--muted); }
+    .titleBlock h1{
+      margin:0;
+      font-size:1.35rem;
+      letter-spacing:.2px;
+    }
+    .titleBlock .sub{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:.92rem;
+    }
 
-/* ITEMS */
-.items{ max-height:45vh; overflow:auto; }
-.item{
-  padding:10px;
-  margin:8px 0;
-  background:#141415;
-  border:1px solid #232326;
-  border-left:7px solid var(--red);
-  border-radius:6px;
-  font-size:15px;
-  line-height:1.25;
-  word-break:break-word;
-}
-.speed .item{ border-left-color: var(--blue); }
-.vehicle .item{ border-left-color: var(--yellow); }
+    .statusBlock{
+      text-align:right;
+      min-width:240px;
+    }
 
-/* FOOTER */
-.footer{
-  position:fixed;
-  bottom:8px;
-  right:12px;
-  color:var(--muted);
-  font-size:12px;
-  background:rgba(0,0,0,.25);
-  padding:6px 10px;
-  border:1px solid rgba(255,255,255,.08);
-  border-radius:999px;
-}
-</style>
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:.5rem;
+      padding:.38rem .78rem;
+      border-radius:999px;
+      font-weight:800;
+      font-size:.92rem;
+      border:1px solid rgba(255,255,255,.14);
+      user-select:none;
+      white-space:nowrap;
+    }
+    .status-dot{
+      width:10px;
+      height:10px;
+      border-radius:999px;
+      background: currentColor;
+      opacity:.9;
+    }
+
+    .status-ok{
+      background: rgba(0, 180, 0, .18);
+      color: #c9ffcf;
+      border-color: rgba(0, 180, 0, .35);
+    }
+
+    .status-attn{
+      background: rgba(255, 165, 0, .18);
+      color: #ffe6b8;
+      border-color: rgba(255, 165, 0, .35);
+    }
+
+    .status-err{
+      background: rgba(255, 0, 0, .18);
+      color: #ffd0d0;
+      border-color: rgba(255, 0, 0, .35);
+    }
+
+    .last-updated{
+      margin-top:.4rem;
+      font-size:.82rem;
+      color:var(--muted);
+    }
+
+    .grid{
+      margin-top:14px;
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:14px;
+    }
+
+    .card{
+      border:1px solid var(--border);
+      border-radius:16px;
+      background:rgba(18,26,42,.75);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+      padding:14px;
+    }
+
+    .card h2{
+      margin:0 0 10px 0;
+      font-size:1.05rem;
+      letter-spacing:.2px;
+    }
+
+    .meta{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      color:var(--muted);
+      font-size:.9rem;
+    }
+    .meta .pill{
+      padding:.25rem .55rem;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      overflow:hidden;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.10);
+    }
+    thead th{
+      text-align:left;
+      font-size:.85rem;
+      color:var(--muted);
+      padding:10px 10px;
+      border-bottom:1px solid var(--border);
+      background:rgba(255,255,255,.03);
+    }
+    tbody td{
+      padding:10px 10px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      vertical-align:top;
+      font-size:.92rem;
+    }
+    tbody tr:last-child td{border-bottom:none}
+    .muted{color:var(--muted)}
+    .right{text-align:right}
+
+    .footerNote{
+      margin-top:12px;
+      color:var(--muted);
+      font-size:.85rem;
+      line-height:1.35;
+    }
+
+    .errorBox{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,0,0,.35);
+      background: rgba(255,0,0,.12);
+      color:#ffd0d0;
+      display:none;
+      white-space:pre-wrap;
+    }
+  </style>
 </head>
 
 <body>
+  <div class="wrap">
+    <header>
+      <div class="titleBlock">
+        <h1 id="boardTitle">Pennsylvania 511 Roadway Status Board</h1>
+        <div class="sub">Automated pull every 5 minutes (GitHub Action). Board refreshes in-browser.</div>
+      </div>
 
-<div class="topbar">
-  <div class="title">PA 511 Status Board</div>
-  <div class="subtitle" id="statusline">Loading…</div>
-</div>
+      <div class="statusBlock">
+        <div id="boardStatus" class="status-pill status-ok">
+          <span class="status-dot"></span>
+          <span id="boardStatusText">OK</span>
+        </div>
+        <div id="lastUpdated" class="last-updated">Last updated: —</div>
+      </div>
+    </header>
 
-<div class="grid">
+    <div class="grid">
+      <section class="card">
+        <h2>Summary</h2>
+        <div class="meta">
+          <span class="pill">Attention items: <strong id="attentionCount">0</strong></span>
+          <span class="pill">Data age (min): <strong id="ageMinutes">—</strong></span>
+          <span class="pill">Source file: <strong id="sourceFileLabel">—</strong></span>
+        </div>
+        <div id="errorBox" class="errorBox"></div>
+        <div class="footerNote">
+          Status logic:
+          <strong>Green</strong> = updating + nothing flagged.
+          <strong>Orange</strong> = updating + at least one attention item.
+          <strong>Red</strong> = stale or failed fetch.
+        </div>
+      </section>
 
-  <div class="row closures">
-    <div class="paneltitle">
-      <div class="name">Closures</div>
-      <div class="count" id="closuresCount">—</div>
+      <section class="card">
+        <h2>Items</h2>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:160px;">Type</th>
+              <th>Description</th>
+              <th style="width:220px;">Location</th>
+              <th style="width:160px;">Last Update</th>
+            </tr>
+          </thead>
+          <tbody id="itemsTbody">
+            <tr>
+              <td class="muted" colspan="4">Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="footerNote">
+          This table expects your JSON to have an array like <code>incidents</code>, <code>events</code>, or <code>closures</code>.
+          If yours differs, scroll down to the “CONFIG” section in the script and adjust <code>DATA_URL</code> and <code>pickItems()</code>.
+        </div>
+      </section>
     </div>
-    <div class="items" id="closuresList"></div>
   </div>
 
-  <div class="row speed">
-    <div class="paneltitle">
-      <div class="name">Speed Restrictions</div>
-      <div class="count" id="speedCount">—</div>
-    </div>
-    <div class="items" id="speedList"></div>
-  </div>
+  <script>
+    /*****************************************************************
+     * CONFIG — YOU MUST SET THIS TO A JSON YOUR SCRAPER PRODUCES
+     *****************************************************************/
+    // Pick ONE JSON file that always exists in your repo.
+    // Examples: "./data/pa511.json", "./data/incidents.json", "./data/cameras.json"
+    const DATA_URL = "./data/pa511.json";
 
-  <div class="row vehicle">
-    <div class="paneltitle">
-      <div class="name">Vehicle Restrictions</div>
-      <div class="count" id="vehicleCount">—</div>
-    </div>
-    <div class="items" id="vehicleList"></div>
-  </div>
+    // If the data is older than this, show RED (NOT UPDATING)
+    const STALE_MINUTES = 15;
 
-</div>
+    // If attention items >= this AND data is fresh, show ORANGE
+    const ATTENTION_MIN = 1;
 
-<div class="footer" id="updated">Last Updated: —</div>
+    // How often the page re-checks status (does NOT affect GitHub Action)
+    const UI_REFRESH_MS = 60_000;
 
-<script>
-const REFRESH_MS = 60000;
-const ROAD_FILE = "road_conditions.json";
-const RESTR_FILE = "restrictions.json";
+    /*****************************************************************
+     * UI helpers
+     *****************************************************************/
+    const els = {
+      statusPill: document.getElementById("boardStatus"),
+      statusText: document.getElementById("boardStatusText"),
+      lastUpdated: document.getElementById("lastUpdated"),
+      attentionCount: document.getElementById("attentionCount"),
+      ageMinutes: document.getElementById("ageMinutes"),
+      tbody: document.getElementById("itemsTbody"),
+      errorBox: document.getElementById("errorBox"),
+      sourceFileLabel: document.getElementById("sourceFileLabel")
+    };
 
-function candidatePaths(filename) {
-  const here = new URL(".", window.location.href);
-  const parts = location.pathname.split("/").filter(Boolean);
-  const repoBase = parts.length ? `/${parts[0]}/` : "/";
+    function setStatus(state, text){
+      els.statusPill.classList.remove("status-ok","status-attn","status-err");
+      if (state === "ok") els.statusPill.classList.add("status-ok");
+      if (state === "attn") els.statusPill.classList.add("status-attn");
+      if (state === "err") els.statusPill.classList.add("status-err");
+      els.statusText.textContent = text;
+    }
 
-  return [
-    new URL(`data/${filename}`, here).toString(),
-    new URL(`../data/${filename}`, here).toString(),
-    new URL(`${repoBase}data/${filename}`, window.location.origin).toString()
-  ];
-}
+    function setLastUpdated(dt){
+      els.lastUpdated.textContent = dt
+        ? `Last updated: ${dt.toLocaleString()}`
+        : "Last updated: —";
+    }
 
-async function fetchFirstWorkingJson(filename) {
-  for (const p of candidatePaths(filename)) {
-    try {
-      const r = await fetch(p, { cache:"no-store" });
-      if (!r.ok) continue;
-      return await r.json();
-    } catch {}
-  }
-  throw new Error(`JSON not found: ${filename}`);
-}
+    function showError(msg){
+      els.errorBox.style.display = msg ? "block" : "none";
+      els.errorBox.textContent = msg || "";
+    }
 
-function normalizeRows(rows) {
-  return (rows || [])
-    .map(r => Array.isArray(r) ? r.join(" | ") : String(r || ""))
-    .map(s => s.trim())
-    .filter(Boolean);
-}
+    function minutesAgo(dt){
+      return (Date.now() - dt.getTime()) / 60000;
+    }
 
-// Remove junk/boilerplate phrases and trailing “status chips”
-function cleanLine(s) {
-  let t = s;
+    /*****************************************************************
+     * Data interpretation
+     * Adjust pickItems() if your JSON structure is different.
+     *****************************************************************/
+    function pickItems(json){
+      // Try common keys in priority order:
+      if (Array.isArray(json?.incidents)) return json.incidents.map(x => ({...x, __type:"Incident"}));
+      if (Array.isArray(json?.events)) return json.events.map(x => ({...x, __type:"Event"}));
+      if (Array.isArray(json?.closures)) return json.closures.map(x => ({...x, __type:"Closure"}));
 
-  // Common prefix cleanup
-  t = t.replace(/^Row Details\s*\|\s*/i, "");
-  t = t.replace(/\bOther incident on\b\s*/i, ""); // “Other incident on I-81…” -> “I-81…”
+      // If the JSON itself is an array:
+      if (Array.isArray(json)) return json.map(x => ({...x, __type: x?.type || "Item"}));
 
-  // Remove trailing “chips” like “| I-81 | ACTIVE | View on map”
-  // (works even if route varies)
-  t = t.replace(/\s*\|\s*I-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
-  t = t.replace(/\s*\|\s*US-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
-  t = t.replace(/\s*\|\s*PA-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
-  t = t.replace(/\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
-  t = t.replace(/\s*\|\s*View on map\s*$/i, "");
+      // Nothing recognized:
+      return [];
+    }
 
-  // Collapse any doubled separators leftover
-  t = t.replace(/\s*\|\s*\|\s*/g, " | ");
-  t = t.replace(/\s{2,}/g, " ");
+    function formatItemRow(item){
+      // Best-effort field mapping (safe defaults)
+      const type = item.__type || item.type || "Item";
+      const desc = item.description || item.desc || item.title || item.summary || JSON.stringify(item);
+      const loc = item.location || item.road || item.segment || item.county || item.region || "";
+      const updated = item.updated || item.last_updated || item.lastUpdate || item.timestamp || "";
 
-  return t.trim();
-}
+      const updatedText = updated ? String(updated) : "—";
 
-// Filter out “section/header” rows that aren’t real events
-function isFakeHeaderRow(s) {
-  const t = s.trim().toLowerCase();
+      return `
+        <tr>
+          <td>${escapeHtml(type)}</td>
+          <td>${escapeHtml(desc)}</td>
+          <td>${escapeHtml(loc || "—")}</td>
+          <td>${escapeHtml(updatedText)}</td>
+        </tr>
+      `;
+    }
 
-  // 511PA sometimes includes a row that is literally just a category label
-  if (t === "speed restrictions") return true;
-  if (t === "vehicle restrictions") return true;
-  if (t === "restrictions") return true;
+    function renderItems(items){
+      if (!items.length){
+        els.tbody.innerHTML = `<tr><td class="muted" colspan="4">No items found in JSON (or structure not recognized).</td></tr>`;
+        return;
+      }
+      // Show up to 200 to keep UI snappy
+      const top = items.slice(0, 200);
+      els.tbody.innerHTML = top.map(formatItemRow).join("");
+    }
 
-  // If it’s super short and has no roadway keywords, it’s probably not an event
-  const hasRoadHint = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(s);
-  if (!hasRoadHint && t.length <= 25) return true;
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
 
-  // If it contains only generic words (no digits/exits/locations), treat as header-ish
-  const hasDigit = /\d/.test(s);
-  if (!hasDigit && !hasRoadHint) return true;
+    /*****************************************************************
+     * Fetch + status logic
+     *****************************************************************/
+    async function fetchJsonAndLastModified(url){
+      // Cache-bust so we see the freshest file from Pages/CDN
+      const bust = (url.includes("?") ? "&" : "?") + "v=" + Date.now();
+      const res = await fetch(url + bust, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
 
-  return false;
-}
+      // GitHub Pages usually provides Last-Modified for static assets.
+      const lastModHeader = res.headers.get("last-modified");
+      const dt = lastModHeader ? new Date(lastModHeader) : new Date();
 
-function renderList(elId, items, kind) {
-  const el = document.getElementById(elId);
-  el.innerHTML = "";
+      const json = await res.json();
+      return { dt, json };
+    }
 
-  if (!items.length) {
-    const div = document.createElement("div");
-    div.className = `item ${kind || ""}`;
-    div.style.borderLeftColor = "var(--green)";
-    div.textContent = "None currently reported";
-    el.appendChild(div);
-    return;
-  }
+    async function updateBoard(){
+      els.sourceFileLabel.textContent = DATA_URL;
 
-  items.forEach(text => {
-    const div = document.createElement("div");
-    div.className = `item ${kind || ""}`;
-    div.textContent = text;
-    el.appendChild(div);
-  });
-}
+      try{
+        showError("");
 
-function isClosure(text) {
-  return /\b(closed|closure)\b/i.test(text);
-}
+        const { dt, json } = await fetchJsonAndLastModified(DATA_URL);
 
-// Keep speed strict so the category header doesn’t sneak in
-function isSpeedRestriction(text) {
-  // require some “event-ish” detail (road+digit or “speed limit has been reduced”)
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
-  const hasSpeed = /\b(mph|speed)\b/i.test(text);
-  return hasSpeed && hasRoad;
-}
+        const ageMin = minutesAgo(dt);
+        const items = pickItems(json);
+        const attention = items.length;
 
-// Tier restrictions (winter) — do NOT treat generic “restriction” as enough
-function isTierRestriction(text) {
-  // common patterns: “Tier 1”, “Tier 2”, “Tier 3”, “Restrictions lifted”, “No permit travel”, “Commercial vehicle restriction”
-  const tierish = /\btier\s*[1-3]\b/i.test(text);
-  const permit = /\b(no permit travel|permit travel)\b/i.test(text);
-  const commercial = /\b(commercial vehicles?|cmv|trucks?)\b/i.test(text);
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+        // Update UI numbers
+        setLastUpdated(dt);
+        els.attentionCount.textContent = String(attention);
+        els.ageMinutes.textContent = ageMin.toFixed(1);
 
-  // must be tier/permit/commercial + a roadway reference
-  return hasRoad && (tierish || permit || commercial);
-}
+        // Status logic
+        if (ageMin > STALE_MINUTES){
+          setStatus("err","NOT UPDATING");
+        } else if (attention >= ATTENTION_MIN){
+          setStatus("attn","NEEDS ATTENTION");
+        } else {
+          setStatus("ok","OK");
+        }
 
-async function loadBoard(){
-  try{
-    const road = await fetchFirstWorkingJson(ROAD_FILE);
-    const restr = await fetchFirstWorkingJson(RESTR_FILE);
+        renderItems(items);
+      } catch (err){
+        // Red if we can't load the data at all
+        setStatus("err","NOT UPDATING");
+        setLastUpdated(null);
+        els.attentionCount.textContent = "—";
+        els.ageMinutes.textContent = "—";
+        els.tbody.innerHTML = `<tr><td class="muted" colspan="4">Failed to load data.</td></tr>`;
+        showError(String(err));
+        console.error(err);
+      }
+    }
 
-    // Build lists
-    const roadRows = normalizeRows(road.rows)
-      .map(cleanLine)
-      .filter(s => !isFakeHeaderRow(s));
-
-    const restrRows = normalizeRows(restr.rows)
-      .map(cleanLine)
-      .filter(s => !isFakeHeaderRow(s));
-
-    const closures = roadRows.filter(isClosure);
-
-    const speed = restrRows
-      .filter(isSpeedRestriction);
-
-    const vehicle = restrRows
-      .filter(isTierRestriction);
-
-    // Update counts
-    document.getElementById("closuresCount").textContent = closures.length;
-    document.getElementById("speedCount").textContent = speed.length;
-    document.getElementById("vehicleCount").textContent = vehicle.length;
-
-    // Render
-    renderList("closuresList", closures, "");
-    renderList("speedList", speed, "speed");
-    renderList("vehicleList", vehicle, "vehicle");
-
-    document.getElementById("updated").textContent =
-      "Last Updated: " + new Date().toLocaleString();
-
-    document.getElementById("statusline").textContent = "OK";
-  } catch(e) {
-    console.error(e);
-    document.getElementById("statusline").textContent = "ERROR loading data";
-  }
-}
-
-loadBoard();
-setInterval(loadBoard, REFRESH_MS);
-</script>
-
+    // Initial load + periodic refresh
+    updateBoard();
+    setInterval(updateBoard, UI_REFRESH_MS);
+  </script>
 </body>
 </html>
