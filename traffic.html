@@ -1,556 +1,156 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PA 511 Network Roadway Impacts</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<meta charset="UTF-8">
+<title>PA 511 Status Board</title>
 
 <style>
-  :root{
-    --bg:#0b1220; --panel:#111a2e; --border:#26324d;
-    --text:#e5e7eb; --muted:#9ca3af;
-    --red:#ef4444; --orange:#f97316; --yellow:#eab308;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  }
-  body{margin:0;font-family:system-ui;background:var(--bg);color:var(--text)}
-  header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
-  h1{font-size:18px;margin:0}
-  .meta{font-size:12px;color:var(--muted);line-height:1.35;text-align:right}
-  .wrap{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;padding:12px}
-  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-  .card h2{font-size:14px;margin:0;padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
-  .dot{width:10px;height:10px;border-radius:999px;display:inline-block}
-  .red{background:var(--red)} .orange{background:var(--orange)} .yellow{background:var(--yellow)}
-  .toolbar{display:flex;gap:8px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border);align-items:center}
-  input,select,button{
-    background:#0f172a;color:var(--text);
-    border:1px solid var(--border);border-radius:10px;
-    padding:8px 10px;font-size:13px;
-  }
-  button{cursor:pointer}
-  button:disabled{opacity:.6;cursor:not-allowed}
-  table{width:100%;border-collapse:collapse;font-size:12px}
-  th,td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
-  th{color:#cbd5e1;text-align:left;position:sticky;top:0;background:var(--panel);z-index:1}
-  tr:hover{background:rgba(255,255,255,.05);cursor:pointer}
-  .scroller{max-height:22vh;overflow:auto}
-  #map{height:64vh}
-  .debug{border-top:1px solid var(--border);padding:10px 12px;font-family:var(--mono);font-size:11px;color:#cbd5e1;white-space:pre-wrap}
-  .pill{display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:12px}
-  @media(max-width:1100px){.wrap{grid-template-columns:1fr}#map{height:52vh}}
+body {
+    margin:0;
+    background:#111;
+    font-family:Arial, Helvetica, sans-serif;
+    color:white;
+}
+
+.header {
+    padding:15px;
+    font-size:28px;
+    background:#222;
+    border-bottom:2px solid #333;
+}
+
+.row {
+    display:flex;
+    height:30vh;
+    border-bottom:2px solid #222;
+}
+
+.panel {
+    flex:1;
+    padding:15px;
+    overflow:auto;
+}
+
+.title {
+    font-size:24px;
+    margin-bottom:10px;
+    color:#ffa500;
+}
+
+.item {
+    padding:8px;
+    margin:6px 0;
+    background:#1a1a1a;
+    border-left:5px solid red;
+    font-size:16px;
+}
+
+.speed .item {
+    border-left-color:#00bfff;
+}
+
+.travel .item {
+    border-left-color:#ffff00;
+    color:#fff;
+}
+
+.timestamp {
+    position:fixed;
+    bottom:5px;
+    right:10px;
+    font-size:12px;
+    color:#aaa;
+}
 </style>
 </head>
 
 <body>
-<header>
-  <div>
-    <h1>PA 511 Network Roadway Impacts</h1>
-    <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap;">
-      <span class="pill"><span class="dot red"></span> Closures</span>
-      <span class="pill"><span class="dot orange"></span> Lane Restrictions</span>
-      <span class="pill"><span class="dot yellow"></span> Traffic Disruptions</span>
-      <span class="pill">No roadwork • No ramps • Statewide</span>
+
+<div class="header">Pennsylvania 511 Status Board (POC)</div>
+
+<!-- Closures -->
+<div class="row">
+    <div class="panel closures">
+        <div class="title">Road Closures</div>
+        <div id="closures"></div>
     </div>
-  </div>
-  <div class="meta" id="status">Loading…</div>
-</header>
-
-<div class="wrap">
-  <div class="card">
-    <div class="toolbar">
-      <button id="refreshBtn">Refresh</button>
-      <label class="pill" title="Filter by county">
-        County
-        <select id="countyFilter"><option value="">All</option></select>
-      </label>
-      <input id="textFilter" placeholder="Filter text (route, town, type…)" style="min-width:260px;" />
-      <label class="pill" title="Hide smaller non-network routes (keeps Interstates/US/PA routes)">
-        <input type="checkbox" id="strictNetwork" checked /> Strict network
-      </label>
-      <label class="pill" title="Show diagnostic info at bottom">
-        <input type="checkbox" id="showDebug" checked /> Debug
-      </label>
-    </div>
-
-    <h2><span class="dot red"></span> 511 Network Roadway Closures</h2>
-    <div class="scroller">
-      <table id="tblClosures">
-        <thead><tr><th>Route</th><th>County</th><th>Details</th><th>Updated</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <h2><span class="dot orange"></span> 511 Network Lane Restrictions</h2>
-    <div class="scroller">
-      <table id="tblRestrictions">
-        <thead><tr><th>Route</th><th>County</th><th>Details</th><th>Updated</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <h2><span class="dot yellow"></span> 511 Network Traffic Disruptions</h2>
-    <div class="scroller">
-      <table id="tblDisruptions">
-        <thead><tr><th>Route</th><th>County</th><th>Details</th><th>Updated</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div class="debug" id="debugBox" style="display:none"></div>
-  </div>
-
-  <div class="card">
-    <h2>Map</h2>
-    <div id="map"></div>
-  </div>
 </div>
 
+<!-- Speed Restrictions -->
+<div class="row speed">
+    <div class="panel">
+        <div class="title">Speed Restrictions</div>
+        <div id="speed"></div>
+    </div>
+</div>
+
+<!-- Travel Restrictions -->
+<div class="row travel">
+    <div class="panel">
+        <div class="title">Travel Restrictions</div>
+        <div id="travel"></div>
+    </div>
+</div>
+
+<div class="timestamp" id="updated"></div>
+
 <script>
-/**
- * ========= CONFIG =========
- * Replace these two URLs if needed.
- * Tip: these should be the LAYER endpoint (…/FeatureServer/0), NOT the /query endpoint.
- */
-const SERVICES = {
-  incidentsLayer: "https://services8.arcgis.com/sodCWEIiVaMSrQtn/arcgis/rest/services/Traffic_Incidents/FeatureServer/0",
-  closuresLayer:  "https://services8.arcgis.com/sodCWEIiVaMSrQtn/arcgis/rest/services/Emergency_Closures/FeatureServer/0"
-};
+async function loadData() {
+    try {
+        const data = await fetch('data/road_conditions.json')
+            .then(r => r.json());
 
-// How many features per page (ArcGIS max record count often 1000/2000)
-const PAGE_SIZE = 1000;
+        const rows = data.rows || [];
 
-// Refresh interval
-const REFRESH_MS = 60_000;
+        const closures = [];
+        const speed = [];
+        const travel = [];
 
-/**
- * ========= UI =========
- */
-const statusEl = document.getElementById("status");
-const refreshBtn = document.getElementById("refreshBtn");
-const countyFilter = document.getElementById("countyFilter");
-const textFilter = document.getElementById("textFilter");
-const strictNetworkEl = document.getElementById("strictNetwork");
-const showDebugEl = document.getElementById("showDebug");
-const debugBox = document.getElementById("debugBox");
+        rows.forEach(r => {
+            const text = r.join(" ");
 
-const tables = {
-  closure: document.querySelector("#tblClosures tbody"),
-  restriction: document.querySelector("#tblRestrictions tbody"),
-  disruption: document.querySelector("#tblDisruptions tbody")
-};
+            if (/closed/i.test(text))
+                closures.push(text);
 
-function setDebug(text) {
-  const show = showDebugEl.checked;
-  debugBox.style.display = show ? "block" : "none";
-  if (show) debugBox.textContent = text;
-}
+            else if (/mph|speed/i.test(text))
+                speed.push(text);
 
-/**
- * ========= MAP =========
- */
-const map = L.map("map").setView([40.95, -77.75], 7);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+            else if (/restriction|tier|vehicle/i.test(text))
+                travel.push(text);
+        });
 
-const layers = {
-  closure: L.layerGroup().addTo(map),
-  restriction: L.layerGroup().addTo(map),
-  disruption: L.layerGroup().addTo(map)
-};
+        render("closures", closures);
+        render("speed", speed);
+        render("travel", travel);
 
-const style = {
-  closure:     { color: "#ef4444", weight: 6, opacity: 0.9 },
-  restriction: { color: "#f97316", weight: 5, opacity: 0.9 },
-  disruption:  { color: "#eab308", weight: 4, opacity: 0.9 }
-};
+        document.getElementById("updated").innerText =
+            "Last Updated: " + new Date().toLocaleString();
 
-/**
- * ========= ARC GIS FETCH (paged) =========
- * Uses f=pjson and converts ESRI JSON -> GeoJSON features.
- */
-async function fetchArcGisLayerAll(layerUrl, where = "1=1") {
-  let all = [];
-  let offset = 0;
-  let got = 0;
-
-  // We intentionally request ESRI JSON (pjson) because it's consistently supported,
-  // then convert geometry ourselves.
-  while (true) {
-    const q = new URL(layerUrl + "/query");
-    q.searchParams.set("where", where);
-    q.searchParams.set("outFields", "*");
-    q.searchParams.set("returnGeometry", "true");
-    q.searchParams.set("outSR", "4326");
-    q.searchParams.set("f", "pjson");
-    q.searchParams.set("resultOffset", String(offset));
-    q.searchParams.set("resultRecordCount", String(PAGE_SIZE));
-
-    const r = await fetch(q.toString(), { cache: "no-store" });
-    if (!r.ok) throw new Error(`Fetch failed ${r.status} for ${layerUrl}`);
-    const data = await r.json();
-
-    const features = (data && Array.isArray(data.features)) ? data.features : [];
-    got = features.length;
-    if (got === 0) break;
-
-    all.push(...features);
-    offset += got;
-
-    // If fewer than page size, we're done.
-    if (got < PAGE_SIZE) break;
-
-    // Safety cap in case a service ignores paging (rare)
-    if (all.length > 50_000) break;
-  }
-
-  return all;
-}
-
-function esriToGeoJsonFeature(esriFeature) {
-  const p = esriFeature.attributes || {};
-  const g = esriFeature.geometry || null;
-
-  // ESRI geometries can be:
-  // - Point: {x, y}
-  // - Polyline: {paths: [[[x,y],...], ...]}
-  // - Polygon: {rings: [[[x,y],...], ...]}
-  let geom = null;
-
-  if (g && typeof g.x === "number" && typeof g.y === "number") {
-    geom = { type: "Point", coordinates: [g.x, g.y] };
-  } else if (g && Array.isArray(g.paths)) {
-    // Convert to MultiLineString if multiple paths, else LineString.
-    if (g.paths.length === 1) {
-      geom = { type: "LineString", coordinates: g.paths[0].map(([x,y]) => [x,y]) };
-    } else {
-      geom = { type: "MultiLineString", coordinates: g.paths.map(path => path.map(([x,y]) => [x,y])) };
+    } catch(e) {
+        console.error(e);
     }
-  } else if (g && Array.isArray(g.rings)) {
-    geom = { type: "Polygon", coordinates: g.rings.map(ring => ring.map(([x,y]) => [x,y])) };
-  }
-
-  return { type: "Feature", geometry: geom, properties: p };
 }
 
-/**
- * ========= NORMALIZATION =========
- * 511-ish layers vary. We try multiple field names.
- */
-function pick(p, keys) {
-  for (const k of keys) {
-    const v = p[k];
-    if (v !== undefined && v !== null && String(v).trim() !== "") return v;
-  }
-  return "";
-}
+function render(id, items) {
+    const el = document.getElementById(id);
+    el.innerHTML = "";
 
-function normalizeIncident(p) {
-  return {
-    id: String(pick(p, ["OBJECTID","ObjectId","objectid","ID","Id","EventID","event_id"])),
-    route: String(pick(p, ["RouteName","PrimaryRoute","Route","RoadName","Roadway","facility","Facility"])),
-    county: String(pick(p, ["County","CountyName","COUNTY","Cnty","county"])),
-    direction: String(pick(p, ["Direction","Dir","DIR","direction"])),
-    desc: String(pick(p, ["Description","Desc","Details","EventDescription","EVENTDESC","Narrative"])),
-    updated: String(pick(p, ["LastUpdated","LastUpdate","Updated","UpdateTime","last_updated","Timestamp","TS"])),
-    type: String(pick(p, ["EventType","Type","EVENTTYPE","IncidentType","Category"])),
-    severity: String(pick(p, ["Severity","SEVERITY","Impact","IMPACT"])),
-    raw: p
-  };
-}
-
-function normalizeClosure(p) {
-  return {
-    id: String(pick(p, ["OBJECTID","ObjectId","objectid","ID","Id","EventID","event_id"])),
-    route: String(pick(p, ["RouteName","PrimaryRoute","Route","RoadName","Roadway","facility","Facility"])),
-    county: String(pick(p, ["County","CountyName","COUNTY","Cnty","county"])),
-    direction: String(pick(p, ["Direction","Dir","DIR","direction"])),
-    desc: String(pick(p, ["Description","Desc","Details","EventDescription","EVENTDESC","Narrative"])),
-    updated: String(pick(p, ["LastUpdated","LastUpdate","Updated","UpdateTime","last_updated","Timestamp","TS"])),
-    type: String(pick(p, ["EventType","Type","EVENTTYPE","IncidentType","Category"])),
-    raw: p
-  };
-}
-
-/**
- * ========= FILTERS =========
- * - No ramps (your requirement)
- * - Try to keep “511 network roadways” (strict mode defaults on)
- * - No roadwork: we filter out “construction/roadwork/maintenance/work zone” keywords.
- */
-function looksLikeRamp(text) {
-  const t = (text || "").toLowerCase();
-  // aggressive, because you said “Don’t include ramps.”
-  return t.includes("ramp") || t.includes("exit") || t.includes("on-ramp") || t.includes("off-ramp");
-}
-
-function isLikelyRoadwork(text) {
-  const t = (text || "").toLowerCase();
-  return (
-    t.includes("construction") ||
-    t.includes("work zone") ||
-    t.includes("roadwork") ||
-    t.includes("maintenance") ||
-    t.includes("bridge work") ||
-    t.includes("paving")
-  );
-}
-
-function isNetworkRoute(route) {
-  const r = (route || "").toUpperCase();
-  // Strict network: Interstates + US + PA routes. You can tweak this if 511 uses different naming.
-  return r.startsWith("I-") || r.startsWith("US-") || r.startsWith("PA-") || r.startsWith("SR ") || r.startsWith("SR-");
-}
-
-/**
- * ========= CATEGORIZATION =========
- * We bucket into:
- * - closure (red)
- * - restriction (orange)
- * - disruption (yellow)
- */
-function categorize(e, kind /* "incident" | "closure" */) {
-  const desc = (e.desc || "").toLowerCase();
-  const type = (e.type || "").toLowerCase();
-
-  // Closures layer is assumed closure, but still guard against ramps.
-  if (kind === "closure") return "closure";
-
-  // Incidents: lane/shoulder blocked => restriction
-  if (desc.includes("lane") && (desc.includes("blocked") || desc.includes("closed"))) return "restriction";
-  if (desc.includes("shoulder") && (desc.includes("blocked") || desc.includes("closed"))) return "restriction";
-
-  // Some feeds encode closure in incident text
-  if (desc.includes("closed") || type.includes("closure") || type.includes("road closed")) return "closure";
-
-  return "disruption";
-}
-
-/**
- * ========= RENDER =========
- */
-function clearUI() {
-  Object.values(tables).forEach(t => t.innerHTML = "");
-  Object.values(layers).forEach(l => l.clearLayers());
-}
-
-function addRow(cat, rowObj, layerObj) {
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td>${escapeHtml(rowObj.route)}${rowObj.direction ? " " + escapeHtml(rowObj.direction) : ""}</td>
-    <td>${escapeHtml(rowObj.county)}</td>
-    <td>${escapeHtml(rowObj.desc || rowObj.type)}</td>
-    <td>${escapeHtml(rowObj.updated)}</td>
-  `;
-
-  tr.addEventListener("click", () => {
-    if (!layerObj) return;
-    if (layerObj.getBounds) map.fitBounds(layerObj.getBounds(), { maxZoom: 14 });
-    if (layerObj.getLatLng) map.setView(layerObj.getLatLng(), 14);
-    layerObj.openPopup?.();
-  });
-
-  tables[cat].appendChild(tr);
-}
-
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-function geoJsonLayerFor(feature, cat, popupHtml) {
-  // Points -> circle marker; Lines -> styled polyline
-  return L.geoJSON(feature, {
-    style: style[cat],
-    pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 6, ...style[cat], fillOpacity: 0.6 })
-  }).bindPopup(popupHtml);
-}
-
-/**
- * ========= MAIN LOAD =========
- */
-let lastData = [];
-let lastDebug = "";
-
-function rebuildCountyOptions(rows) {
-  const set = new Set(rows.map(r => (r.county || "").trim()).filter(Boolean));
-  const list = Array.from(set).sort((a,b) => a.localeCompare(b));
-  const current = countyFilter.value;
-  countyFilter.innerHTML = `<option value="">All</option>` + list.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("");
-  // try to preserve selection
-  if (list.includes(current)) countyFilter.value = current;
-}
-
-function applyClientFilters(rows) {
-  const cty = countyFilter.value;
-  const q = textFilter.value.trim().toLowerCase();
-  const strict = strictNetworkEl.checked;
-
-  return rows.filter(r => {
-    if (cty && r.county !== cty) return false;
-    if (strict && !isNetworkRoute(r.route)) return false;
-
-    if (!q) return true;
-    const blob = [r.route, r.county, r.direction, r.desc, r.type].join(" ").toLowerCase();
-    return blob.includes(q);
-  });
-}
-
-async function load() {
-  refreshBtn.disabled = true;
-  const started = new Date();
-
-  const dbg = [];
-  dbg.push(`Started: ${started.toLocaleString()}`);
-  dbg.push(`Incidents layer: ${SERVICES.incidentsLayer}`);
-  dbg.push(`Closures  layer: ${SERVICES.closuresLayer}`);
-  dbg.push(`PAGE_SIZE: ${PAGE_SIZE}`);
-
-  try {
-    clearUI();
-    statusEl.textContent = "Loading…";
-
-    // Pull raw ESRI features (paged)
-    const [incRaw, clsRaw] = await Promise.all([
-      fetchArcGisLayerAll(SERVICES.incidentsLayer, "1=1"),
-      fetchArcGisLayerAll(SERVICES.closuresLayer,  "1=1")
-    ]);
-
-    dbg.push(`Fetched incidents: ${incRaw.length}`);
-    dbg.push(`Fetched closures : ${clsRaw.length}`);
-
-    // Convert ESRI -> GeoJSON features
-    const incGeo = incRaw.map(esriToGeoJsonFeature);
-    const clsGeo = clsRaw.map(esriToGeoJsonFeature);
-
-    // Normalize + filter (no ramps, no roadwork)
-    const rows = [];
-
-    // Closures
-    for (const f of clsGeo) {
-      const e = normalizeClosure(f.properties || {});
-      const compositeText = `${e.route} ${e.desc} ${e.type}`;
-
-      if (looksLikeRamp(compositeText)) continue;
-      if (isLikelyRoadwork(compositeText)) continue;
-
-      // Must have geometry and route
-      if (!f.geometry || !e.route) continue;
-
-      const cat = "closure";
-      rows.push({ ...e, cat, feature: f, source: "closure" });
+    if (!items.length) {
+        el.innerHTML = "<div class='item'>None currently reported</div>";
+        return;
     }
 
-    // Incidents
-    for (const f of incGeo) {
-      const e = normalizeIncident(f.properties || {});
-      const compositeText = `${e.route} ${e.desc} ${e.type}`;
-
-      if (looksLikeRamp(compositeText)) continue;
-      if (isLikelyRoadwork(compositeText)) continue;
-
-      if (!f.geometry || !e.route) continue;
-
-      const cat = categorize(e, "incident");
-      rows.push({ ...e, cat, feature: f, source: "incident" });
-    }
-
-    dbg.push(`After no-ramp/no-roadwork filters: ${rows.length}`);
-
-    // Build county options on the filtered base (before user filters)
-    rebuildCountyOptions(rows);
-    lastData = rows;
-
-    // Apply user filters
-    const shown = applyClientFilters(rows);
-    dbg.push(`After user filters: ${shown.length}`);
-
-    // Render
-    let counts = { closure: 0, restriction: 0, disruption: 0 };
-
-    for (const r of shown) {
-      const popup = `
-        <b>${escapeHtml(r.route)} ${escapeHtml(r.direction || "")}</b><br/>
-        <b>${escapeHtml(r.cat.toUpperCase())}</b><br/>
-        ${escapeHtml(r.county)} County<br/>
-        ${escapeHtml(r.desc || r.type)}<br/>
-        <small>Updated: ${escapeHtml(r.updated)} | Source: ${escapeHtml(r.source)} | ID: ${escapeHtml(r.id)}</small>
-      `;
-
-      const layerObj = geoJsonLayerFor(r.feature, r.cat, popup);
-      layerObj.addTo(layers[r.cat]);
-
-      addRow(r.cat, r, layerObj);
-      counts[r.cat]++;
-    }
-
-    const finished = new Date();
-    statusEl.textContent =
-      `Updated ${finished.toLocaleString()} | Showing ${shown.length} (Closures ${counts.closure} / Restrictions ${counts.restriction} / Disruptions ${counts.disruption})`;
-
-    dbg.push(`Counts: closures=${counts.closure} restrictions=${counts.restriction} disruptions=${counts.disruption}`);
-    dbg.push(`Finished: ${finished.toLocaleString()}`);
-    lastDebug = dbg.join("\n");
-    setDebug(lastDebug);
-
-  } catch (err) {
-    const finished = new Date();
-    statusEl.textContent = `ERROR ${finished.toLocaleString()}: ${err.message}`;
-    dbg.push(`ERROR: ${err.stack || err.message || String(err)}`);
-    lastDebug = dbg.join("\n");
-    setDebug(lastDebug);
-  } finally {
-    refreshBtn.disabled = false;
-  }
+    items.forEach(i => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.textContent = i;
+        el.appendChild(div);
+    });
 }
 
-function rerenderOnly() {
-  // re-render from lastData without refetch
-  clearUI();
-  const rows = lastData || [];
-  const shown = applyClientFilters(rows);
-
-  let counts = { closure: 0, restriction: 0, disruption: 0 };
-
-  for (const r of shown) {
-    const popup = `
-      <b>${escapeHtml(r.route)} ${escapeHtml(r.direction || "")}</b><br/>
-      <b>${escapeHtml(r.cat.toUpperCase())}</b><br/>
-      ${escapeHtml(r.county)} County<br/>
-      ${escapeHtml(r.desc || r.type)}<br/>
-      <small>Updated: ${escapeHtml(r.updated)} | Source: ${escapeHtml(r.source)} | ID: ${escapeHtml(r.id)}</small>
-    `;
-    const layerObj = geoJsonLayerFor(r.feature, r.cat, popup);
-    layerObj.addTo(layers[r.cat]);
-    addRow(r.cat, r, layerObj);
-    counts[r.cat]++;
-  }
-
-  statusEl.textContent =
-    `${statusEl.textContent.split("|")[0].trim()} | Showing ${shown.length} (Closures ${counts.closure} / Restrictions ${counts.restriction} / Disruptions ${counts.disruption})`;
-
-  setDebug(lastDebug + `\n\nRerender: showing=${shown.length} strictNetwork=${strictNetworkEl.checked} county="${countyFilter.value}" q="${textFilter.value}"`);
-}
-
-/**
- * ========= EVENTS =========
- */
-refreshBtn.addEventListener("click", load);
-countyFilter.addEventListener("change", rerenderOnly);
-strictNetworkEl.addEventListener("change", rerenderOnly);
-showDebugEl.addEventListener("change", () => setDebug(lastDebug));
-
-textFilter.addEventListener("input", () => {
-  window.clearTimeout(window.__tf);
-  window.__tf = window.setTimeout(rerenderOnly, 150);
-});
-
-// Initial + interval
-load();
-setInterval(load, REFRESH_MS);
+loadData();
+setInterval(loadData, 60000);
 </script>
+
 </body>
 </html>
