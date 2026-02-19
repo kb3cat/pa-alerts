@@ -18,7 +18,7 @@ const VIEW_BOUNDS = L.latLngBounds(
 const map = L.map("map", { zoomControl: true });
 // Consistent initial view (slightly tighter than full PA bounds)
 map.fitBounds(VIEW_BOUNDS, { padding: [20, 20] });
-map.setZoom(map.getZoom() + 1);
+map.setZoom(map.getZoom() + 0);
 
 // Basemap: ESRI Light Gray + Reference overlay (major roads + labels)
 L.tileLayer(
