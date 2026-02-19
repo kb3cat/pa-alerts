@@ -1,374 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PA 511 Status Board (POC)</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PA 511 Status Board (POC)</title>
 
-  <style>
-    :root{
-      --bg:#0f0f10;
-      --panel:#171718;
-      --panel2:#1d1d1f;
-      --border:#2a2a2d;
-      --text:#e9e9ea;
-      --muted:#a7a7aa;
-      --orange:#ffb000;
-      --red:#ff2b2b;
-      --blue:#00bfff;
-      --yellow:#ffe600;
-      --green:#29d36a;
-    }
+<style>
+:root{
+  --bg:#0f0f10;
+  --panel:#171718;
+  --panel2:#1d1d1f;
+  --border:#2a2a2d;
+  --text:#e9e9ea;
+  --muted:#a7a7aa;
+  --orange:#ffb000;
+  --red:#ff2b2b;
+  --blue:#00bfff;
+  --yellow:#ffe600;
+  --green:#29d36a;
+}
 
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-    }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
 
-    .topbar{
-      background:#222;
-      border-bottom:2px solid var(--border);
-      padding:12px 16px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .topbar .title{
-      font-size:22px;
-      font-weight:700;
-      letter-spacing:.3px;
-    }
-    .topbar .subtitle{
-      color:var(--muted);
-      font-size:13px;
-      white-space:nowrap;
-      max-width:60vw;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
+/* HEADER */
 
-    .grid{
-      display:flex;
-      flex-direction:column;
-      height:calc(100vh - 52px);
-    }
+.topbar{
+  background:#222;
+  border-bottom:2px solid var(--border);
+  padding:12px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
 
-    .row{
-      flex:1;
-      display:grid;
-      grid-template-columns: 320px 1fr;
-      gap:10px;
-      padding:10px;
-      border-bottom:2px solid #141416;
-      min-height:0;
-    }
+.title{
+  font-size:22px;
+  font-weight:700;
+}
 
-    .kpi{
-      background:linear-gradient(180deg, var(--panel), #141415);
-      border:1px solid var(--border);
-      border-radius:6px;
-      padding:14px;
-      display:flex;
-      flex-direction:column;
-      justify-content:space-between;
-      min-height:0;
-    }
-    .kpi h2{
-      margin:0;
-      font-size:34px;
-      line-height:1.05;
-      font-weight:900;
-      letter-spacing:.2px;
-      color:var(--orange); /* keep ALL titles orange */
-    }
-    .kpi .count{
-      font-size:90px;
-      font-weight:900;
-      line-height:0.95;
-      margin:10px 0 0;
-    }
+.subtitle{
+  color:var(--muted);
+  font-size:13px;
+}
 
-    .listpanel{
-      background:var(--panel2);
-      border:1px solid var(--border);
-      border-radius:6px;
-      padding:10px 12px;
-      display:flex;
-      flex-direction:column;
-      min-height:0;
-    }
-    .listpanel .paneltitle{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:8px 0 10px;
-      border-bottom:1px solid var(--border);
-      margin-bottom:10px;
-      min-height:44px;
-    }
-    .listpanel .paneltitle .name{
-      font-size:22px;
-      font-weight:900;
-      color:var(--orange); /* keep ALL titles orange */
-      letter-spacing:.2px;
-    }
-    .listpanel .paneltitle .hint{
-      font-size:12px;
-      color:var(--muted);
-      text-align:right;
-      white-space:nowrap;
-    }
+/* ROWS */
 
-    .items{
-      overflow:auto;
-      padding-right:6px;
-      min-height:0;
-    }
+.grid{
+  padding:10px;
+}
 
-    .item{
-      padding:10px 10px;
-      margin:8px 0;
-      background:#141415;
-      border:1px solid #232326;
-      border-left:7px solid var(--red);
-      border-radius:6px;
-      font-size:15px;
-      line-height:1.25;
-      word-break:break-word;
-    }
+.row{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  margin-bottom:12px;
+  padding:10px 12px;
+}
 
-    .speed .item{ border-left-color: var(--blue); }
-    .vehicle .item{ border-left-color: var(--yellow); }
+/* PANEL TITLES */
 
-    .footer{
-      position:fixed;
-      bottom:8px;
-      right:12px;
-      color:var(--muted);
-      font-size:12px;
-      background:rgba(0,0,0,.25);
-      padding:6px 10px;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:999px;
-      backdrop-filter: blur(6px);
-    }
+.paneltitle{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid var(--border);
+  padding-bottom:8px;
+  margin-bottom:8px;
+}
 
-    @media (max-width: 900px){
-      .row{ grid-template-columns: 1fr; }
-      .kpi .count{ font-size:64px; }
-      .kpi h2{ font-size:28px; }
-    }
-  </style>
+.paneltitle .name{
+  font-size:22px;
+  font-weight:900;
+  color:var(--orange);
+}
+
+.paneltitle .count{
+  font-size:18px;
+  color:var(--muted);
+}
+
+/* ITEMS */
+
+.items{
+  max-height:45vh;
+  overflow:auto;
+}
+
+.item{
+  padding:10px;
+  margin:8px 0;
+  background:#141415;
+  border:1px solid #232326;
+  border-left:7px solid var(--red);
+  border-radius:6px;
+  font-size:15px;
+  line-height:1.25;
+}
+
+.speed .item{ border-left-color: var(--blue); }
+.vehicle .item{ border-left-color: var(--yellow); }
+
+/* FOOTER */
+
+.footer{
+  position:fixed;
+  bottom:8px;
+  right:12px;
+  color:var(--muted);
+  font-size:12px;
+  background:rgba(0,0,0,.25);
+  padding:6px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+}
+</style>
 </head>
 
 <body>
-  <div class="topbar">
-    <div class="title">PA 511 Status Board (POC)</div>
-    <div class="subtitle" id="statusline">Loading…</div>
+
+<div class="topbar">
+  <div class="title">PA 511 Status Board</div>
+  <div class="subtitle" id="statusline">Loading…</div>
+</div>
+
+<div class="grid">
+
+  <div class="row closures">
+    <div class="paneltitle">
+      <div class="name">Closures</div>
+      <div class="count" id="closuresCount">—</div>
+    </div>
+    <div class="items" id="closuresList"></div>
   </div>
 
-  <div class="grid">
-
-    <!-- Row 1: Closures -->
-    <div class="row closures">
-      <div class="kpi closures">
-        <div>
-          <h2>Closures</h2>
-          <div class="count" id="closuresCount">—</div>
-        </div>
-      </div>
-
-      <div class="listpanel">
-        <div class="paneltitle">
-          <div class="name">Closures</div>
-          <div class="hint">Top items shown • auto-refresh</div>
-        </div>
-        <div class="items" id="closuresList"></div>
-      </div>
+  <div class="row speed">
+    <div class="paneltitle">
+      <div class="name">Speed Restrictions</div>
+      <div class="count" id="speedCount">—</div>
     </div>
-
-    <!-- Row 2: Speed Restrictions -->
-    <div class="row speed">
-      <div class="kpi speed">
-        <div>
-          <h2>Speed<br/>Restrictions</h2>
-          <div class="count" id="speedCount">—</div>
-        </div>
-      </div>
-
-      <div class="listpanel speed">
-        <div class="paneltitle">
-          <div class="name">Speed Restrictions</div>
-          <div class="hint">Matches: “mph” / “speed”</div>
-        </div>
-        <div class="items" id="speedList"></div>
-      </div>
-    </div>
-
-    <!-- Row 3: Vehicle Restrictions -->
-    <div class="row vehicle">
-      <div class="kpi vehicle">
-        <div>
-          <h2>Vehicle<br/>Restrictions</h2>
-          <div class="count" id="vehicleCount">—</div>
-        </div>
-      </div>
-
-      <div class="listpanel vehicle">
-        <div class="paneltitle">
-          <div class="name">Vehicle Restrictions</div>
-          <div class="hint">Matches: tier / restriction / vehicle</div>
-        </div>
-        <div class="items" id="vehicleList"></div>
-      </div>
-    </div>
-
+    <div class="items" id="speedList"></div>
   </div>
 
-  <div class="footer" id="updated">Last Updated: —</div>
+  <div class="row vehicle">
+    <div class="paneltitle">
+      <div class="name">Vehicle Restrictions</div>
+      <div class="count" id="vehicleCount">—</div>
+    </div>
+    <div class="items" id="vehicleList"></div>
+  </div>
 
-  <script>
-    // ---- Settings ----
-    const MAX_ITEMS_PER_ROW = 20;
-    const REFRESH_MS = 60_000;
+</div>
 
-    // Filenames expected in your repo:
-    const ROAD_FILE = "road_conditions.json";
-    const RESTR_FILE = "restrictions.json";
+<div class="footer" id="updated">Last Updated: —</div>
 
-    // Helper: try multiple paths so traffic.html can live anywhere
-    function candidatePaths(filename) {
-      const here = new URL(".", window.location.href);       // folder traffic.html is in
-      const repoBase = `/${location.pathname.split("/")[1]}/`; // e.g. "/pa-alerts/" when hosted as project pages
+<script>
+const REFRESH_MS = 60000;
 
-      return [
-        new URL(`data/${filename}`, here).toString(),         // same folder + /data/
-        new URL(`../data/${filename}`, here).toString(),      // one level up + /data/
-        new URL(`${repoBase}data/${filename}`, window.location.origin).toString() // /<repo>/data/
-      ];
-    }
+const ROAD_FILE = "road_conditions.json";
+const RESTR_FILE = "restrictions.json";
 
-    async function fetchFirstWorkingJson(filename) {
-      const paths = candidatePaths(filename);
-      let lastErr = null;
+function candidatePaths(filename) {
+  const here = new URL(".", window.location.href);
+  const parts = location.pathname.split("/").filter(Boolean);
+  const repoBase = parts.length ? `/${parts[0]}/` : "/";
 
-      for (const p of paths) {
-        try {
-          const r = await fetch(p, { cache: "no-store" });
-          if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-          const j = await r.json();
-          return { json: j, usedPath: p, tried: paths };
-        } catch (e) {
-          lastErr = e;
-        }
-      }
+  return [
+    new URL(`data/${filename}`, here).toString(),
+    new URL(`../data/${filename}`, here).toString(),
+    new URL(`${repoBase}data/${filename}`, window.location.origin).toString()
+  ];
+}
 
-      const msg = `Failed to load ${filename}. Tried:\n- ${paths.join("\n- ")}\nLast error: ${lastErr}`;
-      throw new Error(msg);
-    }
+async function fetchFirstWorkingJson(filename) {
+  for (const p of candidatePaths(filename)) {
+    try {
+      const r = await fetch(p, { cache:"no-store" });
+      if (!r.ok) continue;
+      return await r.json();
+    } catch {}
+  }
+  throw new Error("JSON not found");
+}
 
-    function normalizeRows(rows) {
-      return (rows || [])
-        .map(r => (Array.isArray(r) ? r : [String(r)]))
-        .map(r => r.map(x => (x ?? "").toString().trim()).filter(Boolean))
-        .filter(r => r.length);
-    }
+function normalizeRows(rows) {
+  return (rows || [])
+    .map(r => Array.isArray(r) ? r.join(" | ") : r)
+    .filter(Boolean);
+}
 
-    function rowToText(row) {
-      return row.join(" | ");
-    }
+function render(id, items, emptyColor){
+  const el = document.getElementById(id);
+  el.innerHTML = "";
 
-    function setCount(id, n) {
-      document.getElementById(id).textContent = String(n);
-    }
+  if(!items.length){
+    const div=document.createElement("div");
+    div.className="item";
+    div.style.borderLeftColor="var(--green)";
+    div.textContent="None currently reported";
+    el.appendChild(div);
+    return;
+  }
 
-    function renderList(elId, items, kind) {
-      const el = document.getElementById(elId);
-      el.innerHTML = "";
+  items.forEach(i=>{
+    const div=document.createElement("div");
+    div.className="item";
+    div.textContent=i;
+    el.appendChild(div);
+  });
+}
 
-      if (!items.length) {
-        const div = document.createElement("div");
-        div.className = `item ${kind || ""}`;
-        div.style.borderLeftColor = "var(--green)";
-        div.textContent = "None currently reported";
-        el.appendChild(div);
-        return;
-      }
+async function loadBoard(){
+  try{
+    const road = await fetchFirstWorkingJson(ROAD_FILE);
+    const restr = await fetchFirstWorkingJson(RESTR_FILE);
 
-      items.slice(0, MAX_ITEMS_PER_ROW).forEach(t => {
-        const div = document.createElement("div");
-        div.className = `item ${kind || ""}`;
-        div.textContent = t;
-        el.appendChild(div);
-      });
-    }
+    const roadRows = normalizeRows(road.rows);
+    const restrRows = normalizeRows(restr.rows);
 
-    function isSpeedRestriction(text) {
-      return /(^|\b)(mph|speed)\b/i.test(text);
-    }
+    const closures = roadRows.filter(t=>/closed|closure/i.test(t));
+    const speed = restrRows.filter(t=>/mph|speed/i.test(t));
+    const vehicle = restrRows.filter(t=>/tier|restriction|vehicle|truck|permit/i.test(t) && !/mph/i.test(t));
 
-    function isVehicleRestriction(text) {
-      if (isSpeedRestriction(text)) return false;
-      return /(^|\b)(tier|restriction|restricted|no permit|permit travel|vehicle|commercial|truck|trucks|cmv)\b/i.test(text);
-    }
+    document.getElementById("closuresCount").textContent=closures.length;
+    document.getElementById("speedCount").textContent=speed.length;
+    document.getElementById("vehicleCount").textContent=vehicle.length;
 
-    function isClosure(text) {
-      return /(^|\b)(closed|closure)\b/i.test(text);
-    }
+    render("closuresList",closures);
+    render("speedList",speed);
+    render("vehicleList",vehicle);
 
-    async function loadBoard() {
-      try {
-        const roadRes = await fetchFirstWorkingJson(ROAD_FILE);
-        const restrRes = await fetchFirstWorkingJson(RESTR_FILE);
+    document.getElementById("updated").textContent =
+      "Last Updated: "+new Date().toLocaleString();
 
-        const road = roadRes.json;
-        const restr = restrRes.json;
+    document.getElementById("statusline").textContent="OK";
 
-        const roadRows = normalizeRows(road.rows).map(rowToText);
-        const restrRows = normalizeRows(restr.rows).map(rowToText);
+  }catch(e){
+    console.error(e);
+    document.getElementById("statusline").textContent="ERROR loading data";
+  }
+}
 
-        const closures = roadRows.filter(isClosure);
-        const speed = restrRows.filter(isSpeedRestriction);
-        const vehicle = restrRows.filter(isVehicleRestriction);
+loadBoard();
+setInterval(loadBoard,REFRESH_MS);
+</script>
 
-        setCount("closuresCount", closures.length);
-        setCount("speedCount", speed.length);
-        setCount("vehicleCount", vehicle.length);
-
-        renderList("closuresList", closures, "");
-        renderList("speedList", speed, "speed");
-        renderList("vehicleList", vehicle, "vehicle");
-
-        const now = new Date();
-        document.getElementById("updated").textContent =
-          "Last Updated: " + now.toLocaleString();
-
-        // Status line: show which paths were used (useful for debugging, not “sources”)
-        const short = (u) => {
-          try {
-            const x = new URL(u);
-            return x.pathname;
-          } catch { return u; }
-        };
-
-        const msg =
-          `OK • road: ${short(roadRes.usedPath)} • restrictions: ${short(restrRes.usedPath)}`;
-        document.getElementById("statusline").textContent = msg;
-
-      } catch (err) {
-        console.error(err);
-        document.getElementById("statusline").textContent =
-          "ERROR loading data — likely missing JSON in /data/ (see console for details)";
-      }
-    }
-
-    loadBoard();
-    setInterval(loadBoard, REFRESH_MS);
-  </script>
 </body>
 </html>
