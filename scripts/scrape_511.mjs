@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import fs from "fs";
 
 async function dismissPopups(page) {
-  // Try multiple times because some modals have "Next" -> "Done"
+  // 511PA sometimes shows a guided modal. Try a few cycles.
   const selectors = [
     'button:has-text("Done")',
     'button:has-text("Next")',
@@ -26,7 +26,7 @@ async function dismissPopups(page) {
     await page.waitForTimeout(400);
   }
 
-  // Also try hitting Escape a couple times
+  // Escape sometimes closes overlays
   for (let i = 0; i < 2; i++) {
     try { await page.keyboard.press("Escape"); } catch {}
     await page.waitForTimeout(200);
@@ -34,7 +34,6 @@ async function dismissPopups(page) {
 }
 
 async function extractTable(page, tableSelector) {
-  // Returns {headers, rows}
   const headers = await page.$$eval(`${tableSelector} thead th`, ths =>
     ths.map(th => th.innerText.trim()).filter(Boolean)
   ).catch(() => []);
@@ -51,37 +50,32 @@ async function scrapeTable(url, tableSelector, name) {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
 
-  // Slightly longer timeouts for GitHub Actions + JS-heavy pages
   page.setDefaultTimeout(30000);
 
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await dismissPopups(page);
 
-  // Wait for *a table* to exist
   await page.waitForSelector(tableSelector, { timeout: 20000 }).catch(() => {});
 
-  // Many 511PA lists populate rows after initial load; wait for either rows or "No data"
-  // We'll attempt a few cycles.
   let headers = [];
   let rows = [];
+  let usedSelector = tableSelector;
+
   for (let attempt = 0; attempt < 6; attempt++) {
     await dismissPopups(page);
 
-    // Try to wait for at least one row
     try {
-      await page.waitForSelector(`${tableSelector} tbody tr`, { timeout: 4000 });
+      await page.waitForSelector(`${usedSelector} tbody tr`, { timeout: 4000 });
     } catch {}
 
-    ({ headers, rows } = await extractTable(page, tableSelector));
-
+    ({ headers, rows } = await extractTable(page, usedSelector));
     if (rows.length > 0) break;
 
-    // Some pages use DataTables wrapper and the first "table" may not be the data table.
-    // Try a common DataTables selector as fallback.
+    // Fallback: DataTables often uses table.dataTable
     if (attempt === 2) {
       ({ headers, rows } = await extractTable(page, "table.dataTable"));
       if (rows.length > 0) {
-        tableSelector = "table.dataTable";
+        usedSelector = "table.dataTable";
         break;
       }
     }
@@ -89,7 +83,7 @@ async function scrapeTable(url, tableSelector, name) {
     await page.waitForTimeout(1500);
   }
 
-  // If still empty, capture screenshot to debug in Actions artifacts (committed file)
+  // Screenshot on failure (helps debug in repo)
   if (rows.length === 0) {
     try {
       if (!fs.existsSync("debug")) fs.mkdirSync("debug");
@@ -103,7 +97,7 @@ async function scrapeTable(url, tableSelector, name) {
     name,
     url,
     fetched_at: new Date().toISOString(),
-    table_selector_used: tableSelector,
+    table_selector_used: usedSelector,
     headers,
     rows
   };
@@ -129,7 +123,6 @@ async function main() {
   ];
 
   if (!fs.existsSync("data")) fs.mkdirSync("data");
-  if (!fs.existsSync("debug")) fs.mkdirSync("debug");
 
   for (const o of outputs) {
     const data = await scrapeTable(o.url, o.tableSelector, o.name);
