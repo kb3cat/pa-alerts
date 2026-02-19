@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: scrape511
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scrape:
@@ -31,25 +31,29 @@ jobs:
       - name: Run scraper
         run: node ./scripts/scrape_511.mjs
 
+      # ✅ This makes the dashboard footer show the actual action run time
       - name: Write last run timestamp
         run: |
           mkdir -p data
-          node -e "const fs=require('fs'); fs.writeFileSync('data/last_run.json', JSON.stringify({ ran_at: new Date().toISOString() }, null, 2));"
+          echo "{\"ran_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > data/last_run.json
 
       - name: Commit & push data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Only add what you actually want tracked (keep node_modules out)
+          # Always add JSON outputs
           git add data/*.json
+
+          # Add screenshots only if they exist (don’t fail if none)
           git add debug/*.png 2>/dev/null || true
 
+          # Show what will be committed
           git status --porcelain
 
           # Commit only if there are changes
           git commit -m "Update 511PA data" || exit 0
 
-          # ✅ Avoid push failures when another run pushed first
+          # ✅ Avoid push failures if main changed since checkout
           git pull --rebase origin main
           git push
