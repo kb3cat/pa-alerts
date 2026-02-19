@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PA 511 Traffic Board</title>
+  <title>PA 511 Status Board (POC)</title>
 
   <style>
     :root{
@@ -13,7 +13,7 @@
       --border:#2a2a2d;
       --text:#e9e9ea;
       --muted:#a7a7aa;
-      --accent:#ffb000;
+      --orange:#ffb000;
       --red:#ff2b2b;
       --blue:#00bfff;
       --yellow:#ffe600;
@@ -46,6 +46,9 @@
       color:var(--muted);
       font-size:13px;
       white-space:nowrap;
+      max-width:60vw;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
 
     .grid{
@@ -78,19 +81,15 @@
       margin:0;
       font-size:34px;
       line-height:1.05;
-      font-weight:800;
+      font-weight:900;
       letter-spacing:.2px;
+      color:var(--orange); /* keep ALL titles orange */
     }
     .kpi .count{
       font-size:90px;
       font-weight:900;
       line-height:0.95;
-      margin:6px 0 0;
-    }
-    .kpi .source{
-      margin-top:8px;
-      font-size:14px;
-      color:var(--muted);
+      margin:10px 0 0;
     }
 
     .listpanel{
@@ -114,8 +113,8 @@
     }
     .listpanel .paneltitle .name{
       font-size:22px;
-      font-weight:800;
-      color:var(--accent);
+      font-weight:900;
+      color:var(--orange); /* keep ALL titles orange */
       letter-spacing:.2px;
     }
     .listpanel .paneltitle .hint{
@@ -146,21 +145,6 @@
     .speed .item{ border-left-color: var(--blue); }
     .vehicle .item{ border-left-color: var(--yellow); }
 
-    .pillrow{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-top:8px;
-    }
-    .pill{
-      font-size:12px;
-      padding:4px 8px;
-      border-radius:999px;
-      background:#0f0f10;
-      border:1px solid #2b2b2e;
-      color:var(--muted);
-    }
-
     .footer{
       position:fixed;
       bottom:8px;
@@ -174,12 +158,6 @@
       backdrop-filter: blur(6px);
     }
 
-    /* color accents for KPI titles */
-    .kpi.closures h2{ color:var(--red); }
-    .kpi.speed h2{ color:var(--blue); }
-    .kpi.vehicle h2{ color:var(--yellow); }
-
-    /* Responsive */
     @media (max-width: 900px){
       .row{ grid-template-columns: 1fr; }
       .kpi .count{ font-size:64px; }
@@ -202,11 +180,6 @@
         <div>
           <h2>Closures</h2>
           <div class="count" id="closuresCount">—</div>
-          <div class="source">Source: 511PA public list → scraped JSON</div>
-        </div>
-        <div class="pillrow">
-          <span class="pill">Road / Ramp closures</span>
-          <span class="pill">From road_conditions.json</span>
         </div>
       </div>
 
@@ -225,11 +198,6 @@
         <div>
           <h2>Speed<br/>Restrictions</h2>
           <div class="count" id="speedCount">—</div>
-          <div class="source">Source: 511PA restrictions list → scraped JSON</div>
-        </div>
-        <div class="pillrow">
-          <span class="pill">mph / speed</span>
-          <span class="pill">From restrictions.json</span>
         </div>
       </div>
 
@@ -248,12 +216,6 @@
         <div>
           <h2>Vehicle<br/>Restrictions</h2>
           <div class="count" id="vehicleCount">—</div>
-          <div class="source">Source: 511PA restrictions list → scraped JSON</div>
-        </div>
-        <div class="pillrow">
-          <span class="pill">Tier / vehicle</span>
-          <span class="pill">No permit travel</span>
-          <span class="pill">From restrictions.json</span>
         </div>
       </div>
 
@@ -271,16 +233,43 @@
   <div class="footer" id="updated">Last Updated: —</div>
 
   <script>
-    // ---- Settings you may tweak ----
-    const MAX_ITEMS_PER_ROW = 20;     // keep readable on “video wall”
-    const REFRESH_MS = 60_000;        // refresh UI (reads local JSON)
-    const DATA_ROAD = "data/road_conditions.json";
-    const DATA_RESTR = "data/restrictions.json";
+    // ---- Settings ----
+    const MAX_ITEMS_PER_ROW = 20;
+    const REFRESH_MS = 60_000;
 
-    async function fetchJson(path) {
-      const r = await fetch(path, { cache: "no-store" });
-      if (!r.ok) throw new Error(`Failed to load ${path}: ${r.status}`);
-      return r.json();
+    // Filenames expected in your repo:
+    const ROAD_FILE = "road_conditions.json";
+    const RESTR_FILE = "restrictions.json";
+
+    // Helper: try multiple paths so traffic.html can live anywhere
+    function candidatePaths(filename) {
+      const here = new URL(".", window.location.href);       // folder traffic.html is in
+      const repoBase = `/${location.pathname.split("/")[1]}/`; // e.g. "/pa-alerts/" when hosted as project pages
+
+      return [
+        new URL(`data/${filename}`, here).toString(),         // same folder + /data/
+        new URL(`../data/${filename}`, here).toString(),      // one level up + /data/
+        new URL(`${repoBase}data/${filename}`, window.location.origin).toString() // /<repo>/data/
+      ];
+    }
+
+    async function fetchFirstWorkingJson(filename) {
+      const paths = candidatePaths(filename);
+      let lastErr = null;
+
+      for (const p of paths) {
+        try {
+          const r = await fetch(p, { cache: "no-store" });
+          if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+          const j = await r.json();
+          return { json: j, usedPath: p, tried: paths };
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      const msg = `Failed to load ${filename}. Tried:\n- ${paths.join("\n- ")}\nLast error: ${lastErr}`;
+      throw new Error(msg);
     }
 
     function normalizeRows(rows) {
@@ -291,7 +280,6 @@
     }
 
     function rowToText(row) {
-      // Join with separators so the “card” reads cleanly
       return row.join(" | ");
     }
 
@@ -299,13 +287,13 @@
       document.getElementById(id).textContent = String(n);
     }
 
-    function renderList(elId, items, cssClass) {
+    function renderList(elId, items, kind) {
       const el = document.getElementById(elId);
       el.innerHTML = "";
 
       if (!items.length) {
         const div = document.createElement("div");
-        div.className = `item ${cssClass || ""}`;
+        div.className = `item ${kind || ""}`;
         div.style.borderLeftColor = "var(--green)";
         div.textContent = "None currently reported";
         el.appendChild(div);
@@ -314,7 +302,7 @@
 
       items.slice(0, MAX_ITEMS_PER_ROW).forEach(t => {
         const div = document.createElement("div");
-        div.className = `item ${cssClass || ""}`;
+        div.className = `item ${kind || ""}`;
         div.textContent = t;
         el.appendChild(div);
       });
@@ -325,7 +313,6 @@
     }
 
     function isVehicleRestriction(text) {
-      // “Vehicle restrictions” bucket (exclude speed)
       if (isSpeedRestriction(text)) return false;
       return /(^|\b)(tier|restriction|restricted|no permit|permit travel|vehicle|commercial|truck|trucks|cmv)\b/i.test(text);
     }
@@ -336,22 +323,17 @@
 
     async function loadBoard() {
       try {
-        // Pull both JSON files generated by your GitHub Action
-        const [road, restr] = await Promise.all([
-          fetchJson(DATA_ROAD),
-          fetchJson(DATA_RESTR)
-        ]);
+        const roadRes = await fetchFirstWorkingJson(ROAD_FILE);
+        const restrRes = await fetchFirstWorkingJson(RESTR_FILE);
+
+        const road = roadRes.json;
+        const restr = restrRes.json;
 
         const roadRows = normalizeRows(road.rows).map(rowToText);
         const restrRows = normalizeRows(restr.rows).map(rowToText);
 
-        // Closures: primarily from road conditions
         const closures = roadRows.filter(isClosure);
-
-        // Speed restrictions: from restrictions list
         const speed = restrRows.filter(isSpeedRestriction);
-
-        // Vehicle restrictions: from restrictions list (not speed)
         const vehicle = restrRows.filter(isVehicleRestriction);
 
         setCount("closuresCount", closures.length);
@@ -366,17 +348,22 @@
         document.getElementById("updated").textContent =
           "Last Updated: " + now.toLocaleString();
 
-        // Helpful status line
-        const meta = [];
-        if (road.fetched_at) meta.push(`road_conditions: ${road.fetched_at}`);
-        if (restr.fetched_at) meta.push(`restrictions: ${restr.fetched_at}`);
-        document.getElementById("statusline").textContent =
-          meta.length ? ("Data timestamps • " + meta.join(" • ")) : "Data loaded";
+        // Status line: show which paths were used (useful for debugging, not “sources”)
+        const short = (u) => {
+          try {
+            const x = new URL(u);
+            return x.pathname;
+          } catch { return u; }
+        };
+
+        const msg =
+          `OK • road: ${short(roadRes.usedPath)} • restrictions: ${short(restrRes.usedPath)}`;
+        document.getElementById("statusline").textContent = msg;
 
       } catch (err) {
         console.error(err);
         document.getElementById("statusline").textContent =
-          "ERROR loading data (open DevTools console)";
+          "ERROR loading data — likely missing JSON in /data/ (see console for details)";
       }
     }
 
