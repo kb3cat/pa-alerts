@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>NWS Alerts Map (Starter)</title>
+  <title>PA Alerts — Watches, Warnings, Advisories</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="./style.css" />
@@ -11,35 +11,24 @@
 <body>
   <header class="topbar">
     <div class="title">
-      <div class="h1">NWS Alerts Map</div>
-      <div class="sub">Starter backup map (api.weather.gov)</div>
+      <div class="h1">Current Watches, Warnings, and Advisories</div>
+      <div class="sub">Regional view (PA + surrounding states) • api.weather.gov</div>
     </div>
 
     <div class="controls">
       <label>
-        State
-        <select id="stateSelect">
-          <option value="PA" selected>PA</option>
-          <option value="MD">MD</option>
-          <option value="NJ">NJ</option>
-          <option value="NY">NY</option>
-          <option value="VA">VA</option>
-          <option value="WV">WV</option>
-          <option value="DE">DE</option>
-          <option value="DC">DC</option>
-          <option value="">(All)</option>
+        View
+        <select id="viewSelect">
+          <option value="region" selected>Region (PA + Surrounding)</option>
+          <option value="pa">PA only</option>
+          <option value="all">All US (slower)</option>
         </select>
       </label>
 
-      <label>
-        Type contains
-        <input id="typeFilter" type="text" placeholder="e.g., Warning, Watch, Advisory" />
-      </label>
-
-      <button id="refreshBtn" type="button">Refresh</button>
+      <button id="refreshBtn" type="button" title="Refresh alerts now">Refresh</button>
     </div>
 
-    <div class="status">
+    <div class="status" aria-live="polite">
       <span id="statusText">Ready.</span>
       <span class="dot" id="statusDot" aria-hidden="true"></span>
       <span id="lastUpdated"></span>
