@@ -395,9 +395,11 @@ td{word-break:break-word;}
 .auto-scroll:hover .auto-scroll-inner{animation-play-state:paused;}
 
 @keyframes summaryScroll{
-  0%{transform:translateY(0);}
-  80%{transform:translateY(calc(-1 * var(--scroll-distance)));}
-  100%{transform:translateY(0);}
+  0%   { transform: translateY(0); }
+  10%  { transform: translateY(0); } /* hold at top */
+  80%  { transform: translateY(calc(-1 * var(--scroll-distance))); } /* scroll down */
+  90%  { transform: translateY(calc(-1 * var(--scroll-distance))); } /* hold at bottom */
+  100% { transform: translateY(0); } /* jump back up at the end */
 }
 
 /* Responsive: stack header pieces cleanly */
