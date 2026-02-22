@@ -671,7 +671,7 @@ function setupAutoScroll(){
    ============================== */
 const API_URL = "https://api.weather.gov/alerts/active?area=PA";
 const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-const zoneCache = new Map();
+const zoneCache = new Map(); // url -> {zoneId, name, state} | null
 
 function typePriority(evt){
   const s = (evt || "").toLowerCase();
@@ -728,13 +728,15 @@ function fetchWithTimeout(url, options={}, timeoutMs=12000){
   return fetch(url, {...options, signal: controller.signal}).finally(() => clearTimeout(t));
 }
 
+/* ✅ HAZARDS PAGE CHANGE:
+   Include ALL active PA hazards, excluding only obvious noise.
+   (You can add more excludes if you want later.)
+*/
 function isWantedAlert(p){
   const e = (p.event || "").toLowerCase();
   return (
-    (e.includes("watch") || e.includes("warning") || e.includes("advisory") || e.includes("emergency")) &&
-    !e.includes("statement") &&
-    !e.includes("outlook") &&
-    !e.includes("test")
+    !e.includes("test") &&
+    !e.includes("outlook")
   );
 }
 function isMarineZone(url){
@@ -750,19 +752,41 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
-async function zoneName(url){
+/* ✅ Change: fetch zoneId too (needed for correct de-dupe/precedence) */
+async function fetchZoneInfo(url){
   if(zoneCache.has(url)) return zoneCache.get(url);
   try{
     const r = await fetchWithTimeout(url, {headers:{Accept:"application/geo+json"}}, 10000);
     if(!r.ok) throw new Error("HTTP "+r.status);
     const j = await r.json();
-    const name = (j.properties?.state === "PA") ? (j.properties?.name || null) : null;
-    zoneCache.set(url, name);
-    return name;
+
+    const info = {
+      zoneId: j.properties?.id || j.properties?.zoneId || j.id || url, // e.g. PAZ106
+      name: j.properties?.name || null,
+      state: j.properties?.state || null
+    };
+
+    zoneCache.set(url, info);
+    return info;
   }catch{
     zoneCache.set(url, null);
     return null;
   }
+}
+
+/* ✅ Change: precedence helpers (Emergency > Warning > Watch > Advisory > other) */
+function eventRank(eventName){
+  const e = String(eventName || "").toLowerCase();
+  if (e.includes("emergency")) return 4;
+  if (e.includes("warning"))   return 3;
+  if (e.includes("watch"))     return 2;
+  if (e.includes("advisory"))  return 1;
+  return 0;
+}
+function alertFreshnessMs(p){
+  const cand = p?.sent || p?.effective || p?.onset || p?.updated;
+  const t = Date.parse(cand || "");
+  return isNaN(t) ? 0 : t;
 }
 
 function refreshMap(){
@@ -805,7 +829,7 @@ const RecentChanges = (() => {
   let lastHadChanges = false;
 
   let hasBaselined = false;
-  let hasRefreshedOnce = false;
+  let hasRefreshedOnce = false; // ✅ stays false until AFTER baseline (next successful refresh)
 
   function clsFor(k){
     return (k === "OK") ? "ok" :
@@ -973,14 +997,15 @@ const RecentChanges = (() => {
       history = [];
       lastHadChanges = false;
 
-      // mark that we've completed at least one refresh cycle
-      hasRefreshedOnce = true;
-
-      renderTicker([]); // shows "since open" first, then will say "since refresh" afterward
+      // ✅ do NOT mark refreshed yet; first view should say "since open"
+      renderTicker([]); // "No changes since open"
       renderModal();
       modalSub.textContent = `Since open (${sessionStartStr})`;
       return;
     }
+
+    // ✅ second+ successful update counts as "since refresh"
+    hasRefreshedOnce = true;
 
     const changes = diff(last, cur);
     lastHadChanges = changes.length > 0;
@@ -1002,7 +1027,7 @@ const RecentChanges = (() => {
 })();
 
 /* ==============================
-   fetchAlerts
+   fetchAlerts (with zoneId precedence de-dupe)
    ============================== */
 async function fetchAlerts(){
   const status = document.getElementById("status");
@@ -1021,8 +1046,8 @@ async function fetchAlerts(){
     if(!r.ok) throw new Error("HTTP "+r.status);
     const d = await r.json();
 
-    const grouped = new Map();
-
+    // Build rows (per alert), store zones with IDs
+    const rows = [];
     for(const f of (d.features || [])){
       const p = f?.properties;
       if(!p || !isWantedAlert(p)) continue;
@@ -1030,18 +1055,60 @@ async function fetchAlerts(){
       const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
       if(!zones.length) continue;
 
-      const zoneInfos = await Promise.all(zones.map(z => zoneName(z)));
-      const namesRaw = zoneInfos.filter(Boolean);
-      if(!namesRaw.length) continue;
-
-      const names = namesRaw.map(normalizeSummaryCounty);
-      const expires = p.ends || p.expires || "";
-
-      const key = `${p.event}||${expires}`;
-      if(!grouped.has(key)){
-        grouped.set(key, {event: p.event, expires: expires, names: new Set()});
+      const zoneInfos = await Promise.all(zones.map(z => fetchZoneInfo(z)));
+      const zoneItems = [];
+      for (const info of zoneInfos){
+        if (info && info.state === "PA" && info.name && info.zoneId){
+          zoneItems.push({ zoneId: info.zoneId, zoneName: info.name });
+        }
       }
-      names.forEach(n => grouped.get(key).names.add(n));
+      if(!zoneItems.length) continue;
+
+      const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + (p.areaDesc || ""));
+      rows.push({
+        alertId,
+        event: p.event,
+        expires: p.ends || p.expires || "",
+        zones: zoneItems,
+        _rank: eventRank(p.event),
+        _freshMs: alertFreshnessMs(p)
+      });
+    }
+
+    // ✅ Precedence by identical zoneId (keep highest severity / freshest)
+    const bestByZoneId = new Map(); // zoneId -> {alertId, rank, freshMs}
+    for (const row of rows){
+      for (const z of row.zones){
+        const prev = bestByZoneId.get(z.zoneId);
+        const cur = { alertId: row.alertId, rank: row._rank, freshMs: row._freshMs };
+        if (!prev){
+          bestByZoneId.set(z.zoneId, cur);
+          continue;
+        }
+        if (cur.rank > prev.rank || (cur.rank === prev.rank && cur.freshMs > prev.freshMs)){
+          bestByZoneId.set(z.zoneId, cur);
+        }
+      }
+    }
+
+    // Keep only zones each row "wins"
+    for (const row of rows){
+      row.zones = row.zones.filter(z => bestByZoneId.get(z.zoneId)?.alertId === row.alertId);
+    }
+
+    // Drop rows fully overridden
+    const filteredRows = rows.filter(r => r.zones && r.zones.length);
+
+    // Group for summary by (event||expires), but normalize names for display grouping
+    const grouped = new Map();
+    for (const row of filteredRows){
+      const key = `${row.event}||${row.expires || ""}`;
+      if(!grouped.has(key)){
+        grouped.set(key, {event: row.event, expires: row.expires || "", names: new Set()});
+      }
+      for (const z of row.zones){
+        grouped.get(key).names.add(normalizeSummaryCounty(z.zoneName));
+      }
     }
 
     let arr = [...grouped.values()];
@@ -1052,7 +1119,7 @@ async function fetchAlerts(){
     });
 
     if(!arr.length){
-      container.innerHTML = `<div style="color:var(--muted)">No active watches, warnings, or advisories.</div>`;
+      container.innerHTML = `<div style="color:var(--muted)">No active hazards.</div>`;
       status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
       RecentChanges.update([], nowStr);
       setupAutoScroll();
