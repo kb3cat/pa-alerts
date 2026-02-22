@@ -263,6 +263,7 @@
       100% { transform: scale(1); }
     }
 
+    /* ✅ This is your "flash" class for the Changes button */
     .changes-hot{
       border-color: rgba(59, 130, 246, 0.95) !important;
       box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
@@ -736,12 +737,14 @@
         return;
       }
 
+      // ✅ CHANGE REQUESTED:
+      // Flash whenever there are unacknowledged changes (not only when "new")
+      btn.classList.add("changes-hot");
+
       if (isNew) {
-        btn.classList.add("changes-hot");
         btn.textContent = "New Changes";
         btn.title = "Click to view changes since last acknowledgment";
       } else {
-        btn.classList.remove("changes-hot");
         btn.textContent = "Changes";
         btn.title = "Click to view changes since last acknowledgment";
       }
