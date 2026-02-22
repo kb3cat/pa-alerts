@@ -1,437 +1,504 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>PA Watches & Warnings</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pennsylvania Weather Hazard Overview</title>
 
-  <style>
-    :root{
-      color-scheme: light;
+<style>
+:root{
+  color-scheme: light;
+  --bg:#ffffff;
+  --text:#111111;
+  --muted:#555555;
+  --border:#333333;
+  --borderSoft:#cccccc;
+  --tableHeadBg:#f0f0f0;
+  --btnBg:#ffffff;
+  --btnBgHover:#f3f3f3;
 
-      --bg: #ffffff;
-      --text: #111111;
-      --muted: #555555;
+  --watchBg: rgba(255,165,0,0.5);
+  --warningBg: rgba(220,38,38,0.5);
+  --advBg: rgba(255,235,59,0.55);
 
-      --border: #333333;
-      --borderSoft: #cccccc;
+  --mapFallbackBg:#f6f6f6;
+  --mapFallbackBorder:#999999;
 
-      --tableHeadBg: #f0f0f0;
+  /* Recent changes */
+  --changesBg:#f7fbff;
+  --changesBorder:#b7d5ff;
+  --changesTitle:#0b3d91;
+  --pillBg:#f6f6f6;
 
-      --btnBg: #ffffff;
-      --btnBgHover: #f3f3f3;
-      --btnBorder: #333333;
-      --btnBorderSoft: #555555;
+  --okBg:#f1fff3;
+  --okBorder:#8ad39a;
 
-      --modalBackdrop: rgba(0,0,0,0.55);
-      --modalBg: #ffffff;
-      --modalText: #111111;
-      --modalMeta: #333333;
+  --warnBg:#fff7e6;
+  --warnBorder:#f2c45f;
 
-      --preBg: #f6f6f6;
-      --preBorder: #dddddd;
+  --badBg:#fff1f1;
+  --badBorder:#e08a8a;
 
-      --newInfoBg: rgba(59, 130, 246, 0.28);
-      --newInfoBorder: rgba(59, 130, 246, 0.35);
+  /* ✅ Flash color (light theme) */
+  --changesFlash: #2f5fb8;
+  --changesFlashSoft: rgba(47,95,184,.22);
 
-      --watchBg: rgba(255, 165, 0, 0.5);
-      --warningBg: rgba(220, 38, 38, 0.5);
+  --modalBackdrop:rgba(0,0,0,0.55);
+  --modalBg:#ffffff;
+  --modalText:#111111;
+  --shadow: 0 10px 26px rgba(0,0,0,0.18);
+}
 
-      --shadow: 0 20px 60px rgba(0,0,0,0.4);
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0f1216;
+  --text:#e9eef5;
+  --muted:#a8b2bf;
+  --border:#2b3646;
+  --borderSoft:#2b3646;
+  --tableHeadBg:#1b2330;
+  --btnBg:#171c22;
+  --btnBgHover:#232b36;
 
-      /* Map fallback palette */
-      --mapFallbackBg: #f6f6f6;
-      --mapFallbackBorder: #999999;
+  --watchBg: rgba(255,165,0,0.35);
+  --warningBg: rgba(220,38,38,0.35);
+  --advBg: rgba(255,235,59,0.25);
+
+  --mapFallbackBg:#0f141b;
+  --mapFallbackBorder:#2b3646;
+
+  --changesBg:#101a2c;
+  --changesBorder:#2f5fb8;
+  --changesTitle:#9ec1ff;
+  --pillBg:#111722;
+
+  --okBg:#102016;
+  --okBorder:#2f8a4c;
+
+  --warnBg:#2a200f;
+  --warnBorder:#b98a2d;
+
+  --badBg:#2a1414;
+  --badBorder:#b35a5a;
+
+  /* ✅ Flash color (dark theme) */
+  --changesFlash: #9ec1ff;
+  --changesFlashSoft: rgba(158,193,255,.18);
+
+  --modalBackdrop:rgba(0,0,0,0.7);
+  --modalBg:#141821;
+  --modalText:#e9eef5;
+  --shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+
+html,body{
+  margin:0;
+  height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.wrap{
+  height:100vh;
+  display:grid;
+  grid-template-rows:auto 1fr;
+  gap:8px;
+  padding:10px;
+  box-sizing:border-box;
+}
+
+/* ===== HEADER (grid — removes the “gap” problem) ===== */
+.headerGrid{
+  display:grid;
+  grid-template-columns: auto 1fr auto; /* left: title/controls, center: changes, right: theme */
+  grid-template-rows: auto auto;        /* row1: h1, row2: controls */
+  column-gap:12px;
+  row-gap:2px;                          /* tight */
+  align-items:start;
+}
+
+.headerGrid h1{
+  grid-column:1;
+  grid-row:1;
+  margin:0;
+  font-size:1.35rem;
+  line-height:1.15;
+  white-space:nowrap;
+}
+
+.controls{
+  grid-column:1;
+  grid-row:2;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:.95em;
+  color:var(--muted);
+  flex-wrap:wrap;
+  white-space:nowrap;
+  margin:0;
+  padding:0;
+}
+
+button{
+  padding:6px 12px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--btnBg);
+  color:var(--text);
+  cursor:pointer;
+}
+button:hover{background:var(--btnBgHover);}
+button:disabled{opacity:.6;cursor:not-allowed;}
+
+#themeToggle{
+  grid-column:3;
+  grid-row:1;
+  justify-self:end;
+}
+
+/* Recent changes (center column) */
+.changesBox{
+  grid-column:2;
+  grid-row:1 / span 2;    /* spans both rows so it stays centered vertically vs title+controls */
+  align-self:start;
+  justify-self:center;
+
+  width: min(820px, 100%);
+  max-width: 820px;
+  min-width: 320px;
+
+  border:1px solid var(--changesBorder);
+  background: var(--changesBg);
+  border-radius:10px;
+  padding:8px 10px;
+}
+
+.changesHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+
+.changesTitle{
+  font-weight:700;
+  color: var(--changesTitle);
+  font-size: 0.95rem;
+  letter-spacing: 0.2px;
+}
+
+.changesExpandBtn{
+  padding:4px 10px;
+  font-size: 0.9rem;
+  border-radius: 999px;
+}
+
+/* ✅ Flash animation for Expand button when there are changes */
+@keyframes changesPulse{
+  0%, 100% { box-shadow: 0 0 0 0 var(--changesFlashSoft); transform: translateY(0); }
+  50%      { box-shadow: 0 0 0 6px var(--changesFlashSoft); transform: translateY(-0.5px); }
+}
+.changesExpandBtn.flash{
+  border-color: var(--changesFlash);
+  box-shadow: 0 0 0 0 var(--changesFlashSoft);
+  animation: changesPulse 1.2s ease-in-out infinite;
+}
+.changesExpandBtn.flash:hover,
+.changesExpandBtn.flash:focus-visible{
+  animation-play-state: paused;
+}
+
+.changesTicker{
+  position:relative;
+  height: 40px;
+  overflow:hidden;
+  border:1px solid var(--borderSoft);
+  border-radius:8px;
+  background: var(--pillBg);
+  padding:6px 10px;
+}
+
+.changesTrack{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  will-change: transform;
+}
+
+.changesItem{
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  font-size:0.92rem;
+  line-height:1.1rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow:hidden;
+  text-overflow: ellipsis;
+}
+
+.tag{
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--borderSoft);
+  background: transparent;
+  color: var(--muted);
+  line-height: 1.1rem;
+}
+.tag.ok{ background: rgba(0,0,0,0.05); border-color: var(--borderSoft); color: var(--text); }
+:root[data-theme="dark"] .tag.ok{ background: rgba(255,255,255,0.06); }
+
+.tag.warn{ background: var(--warnBg); border-color: var(--warnBorder); color: var(--text); }
+.tag.bad{ background: var(--badBg); border-color: var(--badBorder); color: var(--text); }
+
+.scrolling{ animation: tickerUp linear infinite; }
+.changesTicker:hover .scrolling{ animation-play-state: paused; }
+
+@keyframes tickerUp{
+  from { transform: translateY(0); }
+  to   { transform: translateY(var(--tickerEnd)); }
+}
+
+/* Modal */
+.modalBackdrop{
+  position:fixed;
+  inset:0;
+  background: var(--modalBackdrop);
+  z-index: 1000;
+}
+.modal{
+  position:fixed;
+  inset:0;
+  z-index: 1001;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+}
+.modalCard{
+  width: min(900px, 96vw);
+  max-height: min(78vh, 700px);
+  background: var(--modalBg);
+  color: var(--modalText);
+  border-radius: 14px;
+  border: 1px solid var(--borderSoft);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.modalHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding: 12px 14px;
+  border-bottom:1px solid var(--borderSoft);
+  background: var(--tableHeadBg);
+}
+.modalTitle{ font-weight: 800; font-size: 1.05rem; }
+.modalSub{ color: var(--muted); font-size: 0.95rem; margin-top:2px; }
+.modalCloseBtn{ border-radius: 10px; padding: 6px 10px; }
+.modalBody{ padding: 12px 14px; overflow:auto; }
+.changesList{
+  margin:0;
+  padding-left: 18px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.footNote{
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+#changesModal[hidden],
+#changesModalBackdrop[hidden]{
+  display:none !important;
+}
+
+/* ===== MAIN GRID ===== */
+.grid{
+  display:grid;
+  grid-template-rows:auto 1fr;
+  gap:10px;
+  min-height:0;
+}
+
+.panel{
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+
+.hdr{
+  padding:8px 10px;
+  background:var(--tableHeadBg);
+  border-bottom:1px solid var(--border);
+  font-weight:700;
+}
+
+.body{
+  padding:8px 10px;
+  min-height:0;
+}
+
+/* MAP + RADAR */
+.visuals{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  align-items:start;
+}
+
+#wwaMap{
+  width:100%;
+  height:auto;
+  border:1px solid var(--borderSoft);
+  visibility:hidden;
+  display:block;
+
+  /* responsive sizing for tablets/phones (no layout changes) */
+  max-height: clamp(320px, 55vh, 720px);
+  object-fit: contain;
+}
+
+.map-fallback{
+  display:none;
+  width:100%;
+  min-height:240px;
+  border:2px dashed var(--mapFallbackBorder);
+  background:var(--mapFallbackBg);
+  border-radius:10px;
+  padding:18px;
+  box-sizing:border-box;
+  text-align:center;
+  align-items:center;
+  justify-content:center;
+}
+.map-fallback .title{font-weight:700;margin-bottom:6px;}
+.map-fallback .text{color:var(--muted);line-height:1.35;max-width:70ch;margin:0 auto;}
+
+.radarFrame{
+  width:100%;
+  border:1px solid var(--borderSoft);
+  overflow:hidden;
+  background:transparent;
+}
+.radarFrame iframe{
+  width:100%;
+  height:100%;
+  border:0;
+  display:block;
+  pointer-events:none;
+}
+
+/* TABLE */
+table{border-collapse:collapse;width:100%;}
+th,td{padding:6px;border:1px solid var(--border);vertical-align:top;}
+th{background:var(--tableHeadBg);text-align:left;}
+td{word-break:break-word;}
+
+.type-cell{font-weight:600;}
+.type-warning{background:var(--warningBg);}
+.type-watch{background:var(--watchBg);}
+.type-adv{background:var(--advBg);}
+
+/* AUTO SCROLL */
+.auto-scroll{overflow:hidden;position:relative;}
+.auto-scroll-inner{will-change:transform;}
+.auto-scroll:hover .auto-scroll-inner{animation-play-state:paused;}
+
+@keyframes summaryScroll{
+  0%{transform:translateY(0);}
+  80%{transform:translateY(calc(-1 * var(--scroll-distance)));}
+  100%{transform:translateY(0);}
+}
+
+/* Responsive: stack header pieces cleanly */
+@media (max-width: 1100px){
+  .headerGrid{
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+  }
+  .headerGrid h1{ grid-column:1 / -1; grid-row:1; white-space:normal; }
+  .controls{ grid-column:1 / -1; grid-row:2; }
+  .changesBox{ grid-column:1 / -1; grid-row:3; width:100%; min-width: 0; justify-self:stretch; }
+  #themeToggle{ grid-column:2; grid-row:1; align-self:start; }
+}
+
+/* Optional: on narrower screens, stack map/radar */
+@media (max-width: 900px){
+  .visuals{ grid-template-columns:1fr; }
+}
+
+/* =========================
+   MOBILE ALERT HEIGHT FIX
+   ========================= */
+@media (max-width: 768px){
+
+  .alert-summary,
+  #alertSummaryContainer {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #alertSummaryContainer {
+    max-height: 60dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @supports not (height: 1dvh) {
+    #alertSummaryContainer {
+      max-height: 60vh;
     }
+  }
+}
+/* =========================
+   MOBILE: STOP ALERT CARD CLIPPING
+   ========================= */
+@media (max-width: 768px){
 
-    :root[data-theme="dark"]{
-      color-scheme: dark;
+  /* These are common “card/panel” wrappers that end up with fixed heights */
+  .card,
+  .panel,
+  .section,
+  .box,
+  .container,
+  .alert-summary,
+  #alertSummary,
+  #alertSummaryContainer {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
 
-      --bg: #0f1216;
-      --text: #e9eef5;
-      --muted: #a8b2bf;
-
-      --border: #2b3646;
-      --borderSoft: #2b3646;
-
-      --tableHeadBg: #1b2330;
-
-      --btnBg: #171c22;
-      --btnBgHover: #232b36;
-      --btnBorder: #2b3646;
-      --btnBorderSoft: #2b3646;
-
-      --modalBackdrop: rgba(0,0,0,0.70);
-      --modalBg: #121820;
-      --modalText: #e9eef5;
-      --modalMeta: #a8b2bf;
-
-      --preBg: #0f141b;
-      --preBorder: #2b3646;
-
-      --newInfoBg: rgba(59, 130, 246, 0.30);
-      --newInfoBorder: rgba(59, 130, 246, 0.40);
-
-      --watchBg: rgba(255, 165, 0, 0.35);
-      --warningBg: rgba(220, 38, 38, 0.35);
-
-      --shadow: 0 20px 60px rgba(0,0,0,0.65);
-
-      /* Map fallback palette */
-      --mapFallbackBg: #0f141b;
-      --mapFallbackBorder: #2b3646;
-    }
-
-    html, body { background: var(--bg); color: var(--text); }
-
-    table { border-collapse: collapse; width: 100%; max-width: 1200px; }
-    th, td { padding: 6px; border: 1px solid var(--border); vertical-align: top; }
-    th { background: var(--tableHeadBg); }
-
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 6px;
-      flex-wrap: wrap;
-      max-width: 1200px;
-    }
-
-    .nav-toggle { font-size: 0.95em; }
-
-    .nav-toggle button,
-    #refreshBtn,
-    #themeToggle,
-    #changesBtn,
-    .ack-inline {
-      margin-left: 8px;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--btnBorder);
-      background: var(--btnBg);
-      cursor: pointer;
-      font: inherit;
-      color: var(--text);
-    }
-    .nav-toggle button:hover,
-    #refreshBtn:hover,
-    #themeToggle:hover,
-    #changesBtn:hover,
-    .ack-inline:hover { background: var(--btnBgHover); }
-
-    #refreshBtn:disabled,
-    #changesBtn:disabled,
-    .ack-inline:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    .refresh-label { font-size: 0.95em; color: var(--muted); }
-
-    .section-title { margin-top: 16px; margin-bottom: 6px; max-width: 1200px; }
-    .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
-
-    .type-cell { font-weight: 600; color: var(--text); }
-    .type-watch   { background-color: var(--watchBg); }
-    .type-warning { background-color: var(--warningBg); }
-
-    .new-info {
-      background: var(--newInfoBg);
-      border: 1px solid var(--newInfoBorder);
-      border-radius: 6px;
-      padding: 0 4px;
-      display: inline-block;
-    }
-
-    button.view-btn {
-      padding: 4px 10px;
-      border: 1px solid var(--btnBorderSoft);
-      background: var(--btnBg);
-      cursor: pointer;
-      border-radius: 4px;
-      font: inherit;
-      color: var(--text);
-    }
-    button.view-btn:hover { background: var(--btnBgHover); }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: var(--modalBackdrop);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 14px;
-      z-index: 9999;
-    }
-    .modal {
-      background: var(--modalBg);
-      color: var(--modalText);
-      width: min(900px, 100%);
-      max-height: 85vh;
-      overflow: auto;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      padding: 14px 16px 16px;
-      box-shadow: var(--shadow);
-    }
-    .modal h3 { margin: 0 0 8px; }
-    .modal .meta { margin: 0 0 10px; color: var(--modalMeta); font-size: 0.95em; }
-    .modal .label { margin-top: 10px; font-weight: 700; }
-    .modal pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 6px 0 0;
-      padding: 10px;
-      background: var(--preBg);
-      border: 1px solid var(--preBorder);
-      border-radius: 6px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      font-size: 0.95em;
-      line-height: 1.35;
-      color: var(--modalText);
-    }
-    .modal .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
-    .modal .actions button {
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid var(--btnBorder);
-      background: var(--btnBg);
-      cursor: pointer;
-      font: inherit;
-      color: var(--text);
-    }
-    .modal .actions button:hover { background: var(--btnBgHover); }
-
-    .embed-wrap {
-      max-width: 1200px;
-      width: 100%;
-      border: 1px solid var(--borderSoft);
-      overflow: hidden;
-    }
-    .embed-wrap iframe {
-      width: 100%;
-      height: 520px;
-      border: 0;
-      display: block;
-    }
-
-    /* MAP: prevent blip by starting hidden until onload */
-    #wwaMap {
-      border: 1px solid var(--borderSoft) !important;
-      visibility: hidden; /* ✅ prevents broken-image flash */
-    }
-
-    .map-wrap{
-      max-width: 1200px;
-      width: 100%;
-    }
-
-    .map-fallback{
-      display: none;
-      width: 100%;
-      min-height: 360px;
-      border: 2px dashed var(--mapFallbackBorder);
-      background: var(--mapFallbackBg);
-      border-radius: 10px;
-      padding: 18px;
-      box-sizing: border-box;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-    }
-    .map-fallback .title{
-      font-weight: 700;
-      font-size: 1.05rem;
-      margin-bottom: 6px;
-    }
-    .map-fallback .text{
-      color: var(--muted);
-      line-height: 1.35;
-      max-width: 70ch;
-    }
-
-    .rws-hot {
-      border-color: rgba(245, 158, 11, 0.95) !important;
-      box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
-      animation: rwsPulse 1.25s ease-in-out infinite;
-    }
-    @keyframes rwsPulse {
-      0%   { transform: scale(1); }
-      50%  { transform: scale(1.04); }
-      100% { transform: scale(1); }
-    }
-
-    .changes-hot{
-      border-color: rgba(59, 130, 246, 0.95) !important;
-      box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
-      animation: changesPulse 1.25s ease-in-out infinite;
-    }
-    @keyframes changesPulse {
-      0%   { transform: scale(1); }
-      50%  { transform: scale(1.04); }
-      100% { transform: scale(1); }
-    }
-
-    .change-panel {
-      border: 1px solid var(--borderSoft);
-      padding: 10px 12px;
-      border-radius: 10px;
-      margin-top: 10px;
-      max-width: 1200px;
-    }
-    .change-panel h3 { margin: 0 0 8px; font-size: 1.05rem; }
-    .change-panel ul { margin: 6px 0 0; padding-left: 18px; }
-    .change-tag {
-      display:inline-block;
-      padding: 0 6px;
-      border-radius: 6px;
-      border: 1px solid var(--borderSoft);
-      font-size: 0.85em;
-      margin-right: 6px;
-    }
-    .change-added { background: rgba(59,130,246,0.18); }
-    .change-removed { background: rgba(220,38,38,0.18); }
-    .change-time { background: rgba(168,85,247,0.18); }
-    .change-type { background: rgba(245,158,11,0.18); }
-    .change-cleared { background: rgba(16,185,129,0.18); }
-
-    .change-panel .panel-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      margin-top: 10px;
-    }
-
-    .title-row{
-      max-width: 1200px;
-      display:flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .title-row h1{ margin: 0; }
-    .title-row .spacer{ flex: 1 1 auto; }
-
-    #status,
-    #changesContainer,
-    #tableContainer,
-    #linksContainer { max-width: 1200px; }
-  </style>
+  /* If your layout uses flex/grid, this prevents flex children from being forced smaller */
+  .card,
+  .panel,
+  .alert-summary {
+    min-height: 0 !important;
+  }
+}
+</style>
 </head>
 
 <body>
-  <div class="title-row">
-    <h1>PA Watches & Warnings</h1>
-    <div class="spacer"></div>
-    <button id="themeToggle" type="button">🌙 Dark</button>
-  </div>
-
-  <div class="controls">
-    <div class="nav-toggle">
-      Want to see advisories as well?
-      <button type="button" onclick="window.location.href='advisories.html'">Click here</button>
-    </div>
-  </div>
-
-  <div class="controls">
-    <div class="nav-toggle">
-      Need the Regional Weather Summary?
-      <button id="rwsBtn" type="button" onclick="window.location.href='rwsctp.html'">Click here</button>
-    </div>
-  </div>
-
-  <div class="controls">
-    <span class="refresh-label">Auto-refresh: every 5 minutes</span>
-    <button id="refreshBtn" type="button">Refresh Now</button>
-
-    <button id="changesBtn" type="button" disabled title="No unacknowledged changes">
-      Changes
-    </button>
-  </div>
-
-  <p id="status">Loading alerts…</p>
-
-  <!-- Hidden until user clicks Changes -->
-  <div id="changesContainer" style="display:none;"></div>
-
-  <h2 class="section-title">Summary</h2>
-  <div class="muted">New information since your last acknowledgment will be highlighted in blue.</div>
-  <div id="tableContainer"></div>
-
-  <h2 class="section-title">Alert Links</h2>
-  <div class="muted">“View Text” opens the full warning text.</div>
-  <div id="linksContainer"></div>
-
-  <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
-
-  <!-- ✅ Map + CSS fallback -->
-  <div class="map-wrap">
-    <img
-      id="wwaMap"
-      src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-      alt="NWS Current Watches, Warnings, and Advisories (PA)"
-      style="max-width: 1200px; width: 100%; height: auto;"
-      onload="handleWwaMapLoad()"
-      onerror="showWwaMapFallback()"
-    />
-
-    <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
-      <div>
-        <div class="title">NWS Alert Map Unavailable</div>
-        <div class="text">
-          The NWS Watches, Warnings, and Advisories map is currently unavailable.<br />
-          Alert data remains valid and is displayed above.
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ✅ Source link BELOW the map/fallback (always visible) -->
-  <p class="muted" id="mapSourceLine">
-    Map source:
-    <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
-      NWS Current Watches, Warnings, and Advisories (PA)
-    </a>
-  </p>
-
-  <h2 style="margin-top: 18px; max-width:1200px;">Live Radar</h2>
-  <div class="embed-wrap">
-    <iframe
-      title="Windy Radar (embedded)"
-      src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&width=1200&height=520&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1"
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"
-      allowfullscreen>
-    </iframe>
-  </div>
-
-  <!-- Modal -->
-  <div id="modalBackdrop" class="modal-backdrop">
-    <div class="modal">
-      <h3 id="modalTitle"></h3>
-      <p id="modalMeta" class="meta"></p>
-
-      <div class="label">Description</div>
-      <pre id="modalDescription"></pre>
-
-      <div class="label">Instructions</div>
-      <pre id="modalInstruction"></pre>
-
-      <div class="actions">
-        <button id="copyBtn">Copy Text</button>
-        <button id="closeBtn">Close</button>
-      </div>
-    </div>
-  </div>
-
+<!-- Force refresh on open (cache-bust once per tab session) -->
 <script>
 (() => {
   const KEY = "paalerts_refreshed_once";
   const pageKey = `${KEY}:${location.pathname}`;
-
   const nav = performance.getEntriesByType?.("navigation")?.[0];
   const wasBFCache = nav?.type === "back_forward";
 
@@ -444,937 +511,759 @@
 })();
 </script>
 
-<script>
-  /* your existing code (theme toggle etc.) */
-</script>
+<div class="wrap">
 
-  
-  <script>
-    /* ==============================
-       THEME TOGGLE (shared across pages)
-       ============================== */
-    (function () {
-      const STORAGE_KEY_THEME = "pa_alerts_theme";
-      const root = document.documentElement;
-      const btn = document.getElementById("themeToggle");
+  <!-- HEADER -->
+  <div class="headerGrid">
+    <h1>Pennsylvania Weather Hazard Overview</h1>
 
-      function systemPrefersDark() {
-        return window.matchMedia &&
-          window.matchMedia("(prefers-color-scheme: dark)").matches;
-      }
+    <div class="controls">
+      <span>Auto-refresh: 5 min</span>
+      <button id="refreshBtn" type="button">Refresh</button>
+      <span id="status">Loading…</span>
+    </div>
 
-      function setTheme(theme) {
-        if (theme === "system") {
-          root.setAttribute("data-theme", systemPrefersDark() ? "dark" : "light");
-        } else {
-          root.setAttribute("data-theme", theme);
-        }
-        if (btn) {
-          const isDark = root.getAttribute("data-theme") === "dark";
-          btn.textContent = isDark ? "☀️ Light" : "🌙 Dark";
-        }
-      }
+    <div class="changesBox" aria-label="Recent changes">
+      <div class="changesHeader">
+        <span class="changesTitle">Recent changes</span>
+        <button id="changesExpandBtn" class="changesExpandBtn" type="button" aria-haspopup="dialog" aria-controls="changesModal">
+          Expand
+        </button>
+      </div>
+      <div class="changesTicker" role="status" aria-live="polite" aria-atomic="true">
+        <div class="changesTrack" id="changesTrack"></div>
+      </div>
+    </div>
 
-      const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
+    <button id="themeToggle" type="button">🌙 Dark</button>
+  </div>
 
-      if (saved === "system" && window.matchMedia) {
-        const mq = window.matchMedia("(prefers-color-scheme: dark)");
-        if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
-        else if (mq.addListener) mq.addListener(() => setTheme("system"));
-      }
-
-      setTheme(saved);
-
-      if (btn) {
-        btn.addEventListener("click", () => {
-          const current = root.getAttribute("data-theme") === "dark" ? "dark" : "light";
-          const next = current === "dark" ? "light" : "dark";
-          localStorage.setItem(STORAGE_KEY_THEME, next);
-          setTheme(next);
-        });
-      }
-    })();
-
-    const API_URL = "https://api.weather.gov/alerts/active?area=PA";
-    const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-
-    // ✅ bumped to v4 to avoid old baselines breaking change logic (dup/precedence changes)
-    const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_index_v4";
-    const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_index_v4";
-
-    /* ==============================
-       MAP FALLBACK (no-blip)
-       ============================== */
-    function showWwaMapFallback() {
-      const img = document.getElementById("wwaMap");
-      const fallback = document.getElementById("wwaMapFallback");
-      if (img) {
-        img.style.display = "none";
-        img.style.visibility = "hidden";
-      }
-      if (fallback) fallback.style.display = "flex";
-    }
-
-    function handleWwaMapLoad() {
-      const img = document.getElementById("wwaMap");
-      const fallback = document.getElementById("wwaMapFallback");
-      if (fallback) fallback.style.display = "none";
-      if (img) {
-        img.style.display = "block";
-        img.style.visibility = "visible";
-      }
-    }
-
-    function refreshMap() {
-      const img = document.getElementById("wwaMap");
-      const fallback = document.getElementById("wwaMapFallback");
-
-      // hide both briefly while we attempt reload (prevents blip)
-      if (fallback) fallback.style.display = "none";
-      if (img) {
-        img.style.display = "block";
-        img.style.visibility = "hidden";
-        img.src = MAP_URL + "?t=" + Date.now();
-      }
-    }
-
-    // Handle cached/instant completion edge cases
-    window.addEventListener("load", () => {
-      const img = document.getElementById("wwaMap");
-      if (!img) return;
-      if (img.complete) {
-        if (img.naturalWidth > 0) handleWwaMapLoad();
-        else showWwaMapFallback();
-      }
-    });
-
-    /* ==============================
-       RWS INDICATOR (CTP ONLY)
-       ============================== */
-    const RWS_LIST_URL = "https://api.weather.gov/products/types/RWS/locations/CTP";
-    const RWS_STORAGE_KEY = "paAlerts_lastSeen_RWS_CTP_shared";
-    let currentRwsMarker = null;
-
-    const zoneCache = new Map();
-    const alertStore = new Map();
-
-    // UI state
-    let changesVisible = false;
-    let lastChangesSignature = "";
-    let latestHasAnyChanges = false;
-    let latestChangesForPanel = {
-      added: [], removed: [], timeChanged: [], typeChanged: [], cleared: []
-    };
-
-    function formatTime(v) {
-      if (!v) return "N/A";
-      const d = new Date(v);
-      return isNaN(d) ? String(v) : d.toLocaleString();
-    }
-
-    function toTimeMs(v) {
-      const t = new Date(v || 0).getTime();
-      return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
-    }
-
-    function isWatchWarningEmergencyOnly(p) {
-      const e = (p.event || "").toLowerCase();
-      const wanted = (e.includes("watch") || e.includes("warning") || e.includes("emergency"));
-      const unwanted = (e.includes("advisory") || e.includes("statement") || e.includes("outlook") || e.includes("test"));
-      return wanted && !unwanted;
-    }
-
-    function isMarineZone(url) {
-      return typeof url === "string" && url.includes("/zones/marine/");
-    }
-
-    function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), timeoutMs);
-      return fetch(url, { ...options, signal: controller.signal })
-        .finally(() => clearTimeout(t));
-    }
-
-    // ==============================
-    // DUP / PRECEDENCE HELPERS (additions only)
-    // ==============================
-    function eventRank(eventName) {
-      const e = String(eventName || "").toLowerCase();
-      if (e.includes("emergency")) return 4;
-      if (e.includes("warning"))   return 3;
-      if (e.includes("watch"))     return 2;
-      return 0;
-    }
-
-    function alertFreshnessMs(p) {
-      const cand = p?.sent || p?.effective || p?.onset || p?.updated;
-      const t = Date.parse(cand || "");
-      return isNaN(t) ? 0 : t;
-    }
-
-    async function fetchZone(url) {
-      if (zoneCache.has(url)) return zoneCache.get(url);
-      try {
-        const r = await fetchWithTimeout(url, { headers: { "Accept": "application/geo+json" } }, 8000);
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-
-        // ✅ include zoneId for precedence
-        const info = {
-          zoneId: d.properties?.id || d.properties?.zoneId || d.id || url, // e.g. "PAZ106"
-          name: d.properties?.name,
-          state: d.properties?.state
-        };
-
-        zoneCache.set(url, info);
-        return info;
-      } catch {
-        return null;
-      }
-    }
-
-    function locationSortKey(name) {
-      return String(name || "")
-        .trim()
-        .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
-        .trim()
-        .toLowerCase();
-    }
-
-    function sortLocations(arr) {
-      return [...arr].sort((a, b) => {
-        const ka = locationSortKey(a);
-        const kb = locationSortKey(b);
-        return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
-      });
-    }
-
-    function normalizeSummaryCounty(name) {
-      let s = String(name || "").trim();
-      s = s.replace(/^(North|South|East|West|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western|Upper|Lower)\s+/i, "");
-      s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
-      s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
-      return s.trim();
-    }
-
-    function typeClass(e) {
-      e = (e || "").toLowerCase();
-      if (e.includes("watch")) return "type-watch";
-      return "type-warning";
-    }
-
-    function cleanText(t) {
-      return t ? t.replace(/\n{3,}/g, "\n\n").trim() : "N/A";
-    }
-
-    function escapeHtml(s) {
-      return String(s)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-    }
-
-    // Snapshots store Summary-derived models (not raw NWS IDs)
-    function loadSnapshot(key) {
-      try {
-        const raw = localStorage.getItem(key);
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
-      }
-    }
-
-    function saveSnapshot(key, payload) {
-      const snap = { ts: Date.now(), ...payload };
-      try { localStorage.setItem(key, JSON.stringify(snap)); } catch {}
-    }
-
-    function setSigFromNames(names) {
-      const sorted = sortLocations([...new Set(names.map(String))]);
-      return sorted.join("|");
-    }
-
-    function diffAdded(curArr, baseArr) {
-      const base = new Set((baseArr || []).map(String));
-      const cur = new Set((curArr || []).map(String));
-      const out = [];
-      for (const x of cur) if (!base.has(x)) out.push(x);
-      return sortLocations(out);
-    }
-
-    function diffRemoved(curArr, baseArr) {
-      const base = new Set((baseArr || []).map(String));
-      const cur = new Set((curArr || []).map(String));
-      const out = [];
-      for (const x of base) if (!cur.has(x)) out.push(x);
-      return sortLocations(out);
-    }
-
-    function renderLocationsWithHighlight(namesSorted, newSet) {
-      return namesSorted.map(n => {
-        const safe = escapeHtml(n);
-        if (newSet && newSet.has(n)) return `<span class="new-info">${safe}</span>`;
-        return safe;
-      }).join("; ");
-    }
-
-    /* ==============================
-       CHANGES BUTTON + PANEL
-       ============================== */
-    function setChangesButtonState({ hasChanges, isNew }) {
-      const btn = document.getElementById("changesBtn");
-      if (!btn) return;
-
-      btn.disabled = !hasChanges;
-
-      if (!hasChanges) {
-        btn.classList.remove("changes-hot");
-        btn.textContent = "Changes";
-        btn.title = "No unacknowledged changes";
-        return;
-      }
-
-      if (isNew) {
-        btn.classList.add("changes-hot");
-        btn.textContent = "New Changes";
-        btn.title = "Click to view changes since last acknowledgment";
-      } else {
-        btn.classList.remove("changes-hot");
-        btn.textContent = "Changes";
-        btn.title = "Click to view changes since last acknowledgment";
-      }
-    }
-
-    function toggleChangesPanel() {
-      const wrap = document.getElementById("changesContainer");
-      if (!wrap) return;
-
-      changesVisible = !changesVisible;
-      wrap.style.display = changesVisible ? "block" : "none";
-
-      if (changesVisible && latestHasAnyChanges) {
-        setChangesButtonState({ hasChanges: true, isNew: false });
-      }
-    }
-
-    function buildChangesSignature(ch) {
-      const parts = [];
-      for (const x of ch.added)       parts.push("A|" + x.event + "|" + x.names.join(","));
-      for (const x of ch.removed)     parts.push("R|" + x.event + "|" + x.names.join(","));
-      for (const x of ch.timeChanged) parts.push("T|" + x.event + "|" + x.from + "->" + x.to + "|" + x.names.join(","));
-      for (const x of ch.typeChanged) parts.push("Y|" + x.from + "->" + x.to + "|" + x.names.join(","));
-      for (const x of ch.cleared)     parts.push("C|" + x.event + "|" + x.names.join(","));
-      return parts.join("||");
-    }
-
-    function renderChangesPanel(changes, canAck) {
-      const wrap = document.getElementById("changesContainer");
-      if (!wrap) return;
-
-      const hasAny =
-        changes.added.length || changes.removed.length ||
-        changes.timeChanged.length || changes.typeChanged.length ||
-        changes.cleared.length;
-
-      if (!hasAny) {
-        wrap.innerHTML = "";
-        wrap.style.display = "none";
-        changesVisible = false;
-        return;
-      }
-
-      const list = (items, fmt) => `<ul>${items.map(fmt).join("")}</ul>`;
-
-      wrap.innerHTML = `
-        <div class="change-panel">
-          <h3>Changes since last acknowledgment (Summary)</h3>
-
-          ${changes.typeChanged.length ? `
-            <div>
-              <span class="change-tag change-type">Type changed</span>
-              ${list(changes.typeChanged, x => `
-                <li><b>${escapeHtml(x.from)} → ${escapeHtml(x.to)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `)}
+  <!-- MAIN -->
+  <div class="grid">
+    <div class="panel">
+      <div class="hdr">PA Alert Map & Radar</div>
+      <div class="body">
+        <div class="visuals">
+          <div>
+            <img id="wwaMap"
+              src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+              alt="NWS Watches, Warnings, and Advisories map for Pennsylvania"
+              onload="mapLoaded()"
+              onerror="mapError()"
+            />
+            <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+              <div>
+                <div class="title">NWS Alert Map Unavailable</div>
+                <div class="text">The NWS Watches, Warnings, and Advisories map is currently unavailable.</div>
+              </div>
             </div>
-          ` : ""}
-
-          ${changes.timeChanged.length ? `
-            <div style="margin-top:10px;">
-              <span class="change-tag change-time">Expiration updated</span>
-              ${list(changes.timeChanged, x => `
-                <li><b>${escapeHtml(x.event)}</b> (${escapeHtml(x.from)} → ${escapeHtml(x.to)}): ${x.names.map(escapeHtml).join("; ")}</li>
-              `)}
-            </div>
-          ` : ""}
-
-          ${changes.added.length ? `
-            <div style="margin-top:10px;">
-              <span class="change-tag change-added">County added</span>
-              ${list(changes.added, x => `
-                <li><b>${escapeHtml(x.event)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `)}
-            </div>
-          ` : ""}
-
-          ${changes.removed.length ? `
-            <div style="margin-top:10px;">
-              <span class="change-tag change-removed">County removed</span>
-              ${list(changes.removed, x => `
-                <li><b>${escapeHtml(x.event)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `)}
-            </div>
-          ` : ""}
-
-          ${changes.cleared.length ? `
-            <div style="margin-top:10px;">
-              <span class="change-tag change-cleared">Cleared</span>
-              ${list(changes.cleared, x => `
-                <li><b>${escapeHtml(x.event)}</b>: ${x.names.map(escapeHtml).join("; ")}</li>
-              `)}
-            </div>
-          ` : ""}
-
-          <div class="panel-actions">
-            <button id="ackInlineBtn" class="ack-inline" type="button" ${canAck ? "" : "disabled"}>
-              Acknowledge Changes
-            </button>
-            <button id="closeChangesBtn" class="ack-inline" type="button">
-              Close
-            </button>
           </div>
-          <div class="muted" style="margin-top:8px;">
-            Acknowledge sets the current Summary state as your new baseline for highlights and change tracking.
+
+          <div class="radarFrame" id="radarFrame" aria-label="Locked radar">
+            <iframe
+              id="radarIframe"
+              title="Radar (locked)"
+              src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1&play=1"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              allowfullscreen>
+            </iframe>
           </div>
         </div>
-      `;
+      </div>
+    </div>
 
-      const ackInline = document.getElementById("ackInlineBtn");
-      if (ackInline) ackInline.addEventListener("click", acknowledgeChangesNow);
+    <div class="panel">
+      <div class="hdr">Alert Summary</div>
+      <div class="body auto-scroll">
+        <div id="tableContainer" class="auto-scroll-inner"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-      const closeBtn = document.getElementById("closeChangesBtn");
-      if (closeBtn) closeBtn.addEventListener("click", () => {
-        changesVisible = false;
-        wrap.style.display = "none";
-      });
+<!-- Modal -->
+<div class="modalBackdrop" id="changesModalBackdrop" hidden></div>
+<div class="modal" id="changesModal" role="dialog" aria-modal="true" aria-labelledby="changesModalTitle" hidden>
+  <div class="modalCard">
+    <div class="modalHeader">
+      <div>
+        <div id="changesModalTitle" class="modalTitle">Recent changes</div>
+        <div class="modalSub" id="changesModalSub">Since open</div>
+      </div>
+      <button class="modalCloseBtn" id="changesCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modalBody">
+      <ul class="changesList" id="changesModalList"></ul>
+      <div class="footNote" id="changesFootNote"></div>
+    </div>
+  </div>
+</div>
 
-      wrap.style.display = changesVisible ? "block" : "none";
+<script>
+/* ==============================
+   THEME
+   ============================== */
+(() => {
+  const root = document.documentElement;
+  const btn = document.getElementById("themeToggle");
+  const key = "pa_alerts_theme";
+  const saved = localStorage.getItem(key) || "system";
+
+  function apply(t){
+    if(t === "system"){
+      root.dataset.theme = matchMedia("(prefers-color-scheme:dark)").matches ? "dark" : "light";
+    } else {
+      root.dataset.theme = t;
+    }
+    btn.textContent = root.dataset.theme === "dark" ? "☀️ Light" : "🌙 Dark";
+  }
+
+  apply(saved);
+
+  if (saved === "system" && window.matchMedia) {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => apply("system");
+    if (mq.addEventListener) mq.addEventListener("change", handler);
+    else if (mq.addListener) mq.addListener(handler);
+  }
+
+  btn.addEventListener("click", () => {
+    const next = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem(key, next);
+    apply(next);
+  });
+})();
+
+/* ==============================
+   MAP/RADAR SYNC
+   ============================== */
+function syncRadarToMap(){
+  const map = document.getElementById("wwaMap");
+  const radar = document.getElementById("radarFrame");
+  if(!map || !radar) return;
+  const h = Math.round(map.getBoundingClientRect().height);
+  if(h > 100) radar.style.height = h + "px";
+}
+
+function mapLoaded(){
+  const map = document.getElementById("wwaMap");
+  const fb = document.getElementById("wwaMapFallback");
+  if(fb) fb.style.display = "none";
+  map.style.display = "block";
+  map.style.visibility = "visible";
+  requestAnimationFrame(syncRadarToMap);
+}
+
+function mapError(){
+  const map = document.getElementById("wwaMap");
+  const fb = document.getElementById("wwaMapFallback");
+  const radar = document.getElementById("radarFrame");
+  if(map){
+    map.style.display = "none";
+    map.style.visibility = "hidden";
+  }
+  if(fb) fb.style.display = "flex";
+  if(radar) radar.style.height = "520px";
+}
+
+window.addEventListener("resize", () => {
+  clearTimeout(window.__syncTimer);
+  window.__syncTimer = setTimeout(syncRadarToMap, 150);
+});
+
+/* ==============================
+   AUTO-SCROLL (only when overflow)
+   ============================== */
+function setupAutoScroll(){
+  const outer = document.querySelector(".auto-scroll");
+  const inner = document.querySelector(".auto-scroll-inner");
+  if(!outer || !inner) return;
+
+  inner.style.animation = "none";
+  const overflow = inner.scrollHeight - outer.clientHeight;
+  if(overflow <= 0) return;
+
+  inner.style.setProperty("--scroll-distance", overflow + "px");
+  const duration = Math.max(20, overflow / 18);
+  inner.style.animation = `summaryScroll ${duration}s linear infinite`;
+}
+
+/* ==============================
+   ALERT FETCH
+   ============================== */
+const API_URL = "https://api.weather.gov/alerts/active?area=PA";
+const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
+const zoneCache = new Map(); // url -> {zoneId, name, state} | null
+
+function typePriority(evt){
+  const s = (evt || "").toLowerCase();
+  if (s.includes("warning") || s.includes("emergency")) return 0;
+  if (s.includes("watch")) return 1;
+  return 2;
+}
+function typeClass(evt){
+  const s = (evt || "").toLowerCase();
+  if (s.includes("warning") || s.includes("emergency")) return "type-warning";
+  if (s.includes("watch")) return "type-watch";
+  return "type-adv";
+}
+
+function fmtTime(v){
+  if(!v) return "N/A";
+  const d = new Date(v);
+  return isNaN(d) ? String(v) : d.toLocaleString([],{
+    month:"2-digit", day:"2-digit", year:"2-digit",
+    hour:"2-digit", minute:"2-digit"
+  });
+}
+function toTimeMs(v){
+  const t = new Date(v || 0).getTime();
+  return isNaN(t) ? Number.MAX_SAFE_INTEGER : t;
+}
+
+function normalizeSummaryCounty(name){
+  let s = String(name || "").trim();
+  s = s.replace(/^(Higher\s+Elevations\s+of|Elevations\s+of)\s+/i, "");
+  s = s.replace(/^(Upper|Lower|North|South|East|West|NE|NW|SE|SW|Northeast|Northwest|Southeast|Southwest|Northern|Southern|Eastern|Western)\b\.?\s+/i, "");
+  s = s.replace(/\s+(Ridges?|Ridge|Higher\s+Elevations?)$/i, "");
+  return s.trim();
+}
+
+function locationSortKey(name){
+  return String(name || "")
+    .trim()
+    .replace(/^(n|s|e|w|ne|nw|se|sw|north|south|east|west|upper|lower|higher elevations?|northern|southern|eastern|western|northeastern|northwestern|southeastern|southwestern)\b\.?\s+/i, "")
+    .trim()
+    .toLowerCase();
+}
+function sortLocations(arr){
+  return [...arr].sort((a,b)=>{
+    const ka = locationSortKey(a);
+    const kb = locationSortKey(b);
+    return ka === kb ? String(a).localeCompare(String(b)) : ka.localeCompare(kb);
+  });
+}
+
+function fetchWithTimeout(url, options={}, timeoutMs=12000){
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, {...options, signal: controller.signal}).finally(() => clearTimeout(t));
+}
+
+/* ✅ HAZARDS PAGE CHANGE:
+   Include ALL active PA hazards, excluding only obvious noise.
+   (You can add more excludes if you want later.)
+*/
+function isWantedAlert(p){
+  const e = (p.event || "").toLowerCase();
+  return (
+    !e.includes("test") &&
+    !e.includes("outlook")
+  );
+}
+function isMarineZone(url){
+  return typeof url === "string" && url.includes("/zones/marine/");
+}
+
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+/* ✅ Change: fetch zoneId too (needed for correct de-dupe/precedence) */
+async function fetchZoneInfo(url){
+  if(zoneCache.has(url)) return zoneCache.get(url);
+  try{
+    const r = await fetchWithTimeout(url, {headers:{Accept:"application/geo+json"}}, 10000);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const j = await r.json();
+
+    const info = {
+      zoneId: j.properties?.id || j.properties?.zoneId || j.id || url, // e.g. PAZ106
+      name: j.properties?.name || null,
+      state: j.properties?.state || null
+    };
+
+    zoneCache.set(url, info);
+    return info;
+  }catch{
+    zoneCache.set(url, null);
+    return null;
+  }
+}
+
+/* ✅ Change: precedence helpers (Emergency > Warning > Watch > Advisory > other) */
+function eventRank(eventName){
+  const e = String(eventName || "").toLowerCase();
+  if (e.includes("emergency")) return 4;
+  if (e.includes("warning"))   return 3;
+  if (e.includes("watch"))     return 2;
+  if (e.includes("advisory"))  return 1;
+  return 0;
+}
+function alertFreshnessMs(p){
+  const cand = p?.sent || p?.effective || p?.onset || p?.updated;
+  const t = Date.parse(cand || "");
+  return isNaN(t) ? 0 : t;
+}
+
+function refreshMap(){
+  const img = document.getElementById("wwaMap");
+  const fb = document.getElementById("wwaMapFallback");
+  if (fb) fb.style.display = "none";
+  if (img){
+    img.style.display = "block";
+    img.style.visibility = "hidden";
+    img.src = MAP_URL + "?t=" + Date.now();
+  }
+}
+
+/* ==============================
+   Recent Changes (adds/drops/time)
+   Baseline on first successful fetch (so it starts empty per open)
+   "No changes since open" then "No changes since refresh"
+   ✅ Expand button flashes when changes exist
+   ============================== */
+const RecentChanges = (() => {
+  const MAX_TICKER_ITEMS = 6;
+  const MAX_HISTORY_LINES = 80;
+
+  const track = document.getElementById("changesTrack");
+  const expandBtn = document.getElementById("changesExpandBtn");
+  const modalBackdrop = document.getElementById("changesModalBackdrop");
+  const modal = document.getElementById("changesModal");
+  const modalList = document.getElementById("changesModalList");
+  const modalSub = document.getElementById("changesModalSub");
+  const modalClose = document.getElementById("changesCloseBtn");
+  const foot = document.getElementById("changesFootNote");
+
+  const sessionStart = new Date();
+  const sessionStartStr = sessionStart.toLocaleString([],{
+    month:"2-digit", day:"2-digit", year:"2-digit",
+    hour:"2-digit", minute:"2-digit", second:"2-digit"
+  });
+
+  let last = {};
+  let history = [];
+  let lastHadChanges = false;
+
+  let hasBaselined = false;
+  let hasRefreshedOnce = false; // ✅ stays false until AFTER baseline (next successful refresh)
+
+  /* ✅ Flash toggle */
+  function setFlash(on){
+    expandBtn.classList.toggle("flash", !!on);
+  }
+
+  function clsFor(k){
+    return (k === "OK") ? "ok" :
+      (k === "NEW" || k === "TIME" || k === "+") ? "warn" :
+      (k === "CLR" || k === "-" || k === "ERR") ? "bad" : "";
+  }
+
+  function renderTicker(lines){
+    track.classList.remove("scrolling");
+    track.style.removeProperty("--tickerEnd");
+    track.innerHTML = "";
+
+    const use = (lines || []).slice(0, MAX_TICKER_ITEMS);
+
+    if (!use.length){
+      const div = document.createElement("div");
+      div.className = "changesItem";
+
+      const msg = hasRefreshedOnce
+        ? "No changes since refresh"
+        : "No changes since open";
+
+      div.innerHTML = `<span class="tag ok">OK</span><span>${msg}</span>`;
+      track.appendChild(div);
+      return;
     }
 
-    function acknowledgeChangesNow() {
-      const current = loadSnapshot(STORAGE_KEY_CURRENT);
-      if (!current) return;
-
-      try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
-
-      // close panel
-      changesVisible = false;
-      const wrap = document.getElementById("changesContainer");
-      if (wrap) wrap.style.display = "none";
-
-      // reset "new" indicator
-      lastChangesSignature = "";
-      latestHasAnyChanges = false;
-      setChangesButtonState({ hasChanges: false, isNew: false });
-
-      // rerender (clears highlights)
-      fetchAlerts();
+    for (const ln of use){
+      const div = document.createElement("div");
+      div.className = "changesItem";
+      div.title = ln.text;
+      div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+      track.appendChild(div);
     }
 
-    /* ------------------------------
-       RWS indicator helpers
-       ------------------------------ */
-    function normalizeListingProducts(listing) {
-      if (!listing) return [];
-      if (Array.isArray(listing.products)) return listing.products;
-      if (Array.isArray(listing["@graph"])) return listing["@graph"];
-      if (Array.isArray(listing.items)) return listing.items;
-      if (Array.isArray(listing.features)) return listing.features;
-      return [];
-    }
-
-    function productIdFromAny(p) {
-      return p?.productId || p?.id || p?.["@id"] || p?.url || null;
-    }
-
-    function issuanceTimeFromAny(p) {
-      return p?.issuanceTime || p?.issueTime || p?.created || p?.validTime || "";
-    }
-
-    function pickLatestProductRobust(items) {
-      if (!Array.isArray(items) || items.length === 0) return null;
-
-      const mapped = items
-        .map(p => {
-          const pid = productIdFromAny(p);
-          const t = Date.parse(issuanceTimeFromAny(p));
-          return { p, pid, t: isNaN(t) ? -1 : t };
-        })
-        .filter(x => x.pid);
-
-      if (!mapped.length) return null;
-
-      mapped.sort((a, b) => {
-        if (a.t !== b.t) return b.t - a.t;
-        return String(b.pid).localeCompare(String(b.pid));
-      });
-
-      return mapped[0].p;
-    }
-
-    function markerForLatest(latest) {
-      const pid = productIdFromAny(latest) || "";
-      const issued = issuanceTimeFromAny(latest) || "";
-      const url = String(pid).startsWith("http") ? pid : `https://api.weather.gov/products/${pid}`;
-      return `${url}||${issued}`;
-    }
-
-    function setRwsButtonNewState(isNew) {
-      const btn = document.getElementById("rwsBtn");
-      if (!btn) return;
-
-      if (!btn.dataset.originalText) {
-        btn.dataset.originalText = (btn.textContent || "").trim() || "Click here";
+    if (use.length > 1){
+      for (const ln of use){
+        const div = document.createElement("div");
+        div.className = "changesItem";
+        div.title = ln.text;
+        div.innerHTML = `<span class="tag ${clsFor(ln.kind)}">${ln.kind}</span><span>${escapeHtml(ln.text)}</span>`;
+        track.appendChild(div);
       }
 
-      if (isNew) {
-        btn.classList.add("rws-hot");
-        btn.textContent = "New Summary";
-      } else {
-        btn.classList.remove("rws-hot");
-        btn.textContent = btn.dataset.originalText || "Click here";
+      requestAnimationFrame(() => {
+        const half = Math.floor(track.scrollHeight / 2);
+        track.style.setProperty("--tickerEnd", `-${half}px`);
+        const seconds = Math.max(10, use.length * 2.5);
+        track.style.animationDuration = `${seconds}s`;
+        track.classList.add("scrolling");
+      });
+    }
+  }
+
+  function renderModal(){
+    modalList.innerHTML = "";
+    if (!history.length){
+      const li = document.createElement("li");
+      li.textContent = "No changes logged yet (this session).";
+      modalList.appendChild(li);
+    } else {
+      for (const line of history){
+        const li = document.createElement("li");
+        li.textContent = line;
+        modalList.appendChild(li);
+      }
+    }
+    foot.textContent = lastHadChanges
+      ? "Tip: Hover the ticker to pause the scroll."
+      : "No changes detected on the most recent refresh.";
+  }
+
+  function openModal(){
+    modalBackdrop.hidden = false;
+    modal.hidden = false;
+    modalClose.focus();
+    document.addEventListener("keydown", onKey, { passive:true });
+  }
+  function closeModal(){
+    modalBackdrop.hidden = true;
+    modal.hidden = true;
+    document.removeEventListener("keydown", onKey);
+  }
+  function onKey(e){ if(e.key === "Escape") closeModal(); }
+
+  expandBtn.addEventListener("click", () => { renderModal(); openModal(); });
+  modalClose.addEventListener("click", closeModal);
+  modalBackdrop.addEventListener("click", closeModal);
+
+  function diff(prev, cur){
+    const changes = [];
+
+    const curEventLoc = new Map();
+    const prevEventLoc = new Map();
+    for (const [id, v] of Object.entries(cur)) curEventLoc.set(`${v.event}||${v.locSig}`, id);
+    for (const [id, v] of Object.entries(prev)) prevEventLoc.set(`${v.event}||${v.locSig}`, id);
+
+    const matchedPrev = new Set();
+    const matchedCur = new Set();
+
+    // TIME: same event+same locations; expires changed
+    for (const [key, cid] of curEventLoc.entries()){
+      const pid = prevEventLoc.get(key);
+      if (!pid) continue;
+      matchedPrev.add(pid);
+      matchedCur.add(cid);
+      const pv = prev[pid], cv = cur[cid];
+      if ((pv.expiresStr || "") !== (cv.expiresStr || "")){
+        changes.push({ kind:"TIME", text:`${cv.event} – expires ${pv.expiresStr} → ${cv.expiresStr}` });
       }
     }
 
-    async function checkRWSIndicator() {
-      const btn = document.getElementById("rwsBtn");
-      if (!btn) return;
+    // +/-: same exact group (event||expires)
+    for (const [cid, cv] of Object.entries(cur)){
+      if (matchedCur.has(cid)) continue;
+      const pv = prev[cid];
+      if (!pv) continue;
 
-      try {
-        const r = await fetchWithTimeout(RWS_LIST_URL, { cache: "no-store" }, 8000);
-        if (!r.ok) return;
+      const added = [];
+      const removed = [];
+      for (const x of cv.locSet) if (!pv.locSet.has(x)) added.push(x);
+      for (const x of pv.locSet) if (!cv.locSet.has(x)) removed.push(x);
 
-        const listing = await r.json();
-        const products = normalizeListingProducts(listing);
-        const latest = pickLatestProductRobust(products);
-        if (!latest) return;
+      const show = (arr) => arr.slice(0,4).join("; ") + (arr.length>4 ? ` (+${arr.length-4} more)` : "");
+      if (added.length) changes.push({ kind:"+", text:`${cv.event} – added ${added.length}: ${show(added)}` });
+      if (removed.length) changes.push({ kind:"-", text:`${cv.event} – removed ${removed.length}: ${show(removed)}` });
 
-        currentRwsMarker = markerForLatest(latest);
+      matchedPrev.add(cid);
+      matchedCur.add(cid);
+    }
 
-        const lastSeen = localStorage.getItem(RWS_STORAGE_KEY);
+    // NEW
+    for (const [cid, cv] of Object.entries(cur)){
+      if (prev[cid] || matchedCur.has(cid)) continue;
+      changes.push({ kind:"NEW", text:`${cv.event} – ${cv.locSig || "Locations updated"}` });
+    }
 
-        if (!lastSeen) {
-          localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker);
-          setRwsButtonNewState(false);
-          return;
+    // CLR
+    for (const [pid, pv] of Object.entries(prev)){
+      if (cur[pid] || matchedPrev.has(pid)) continue;
+      changes.push({ kind:"CLR", text:`${pv.event} – cleared` });
+    }
+
+    return changes;
+  }
+
+  function update(groups, nowStr){
+    const cur = {};
+    for (const g of (groups || [])){
+      const id = `${g.event}||${g.expires || ""}`;
+      const locArr = g.locationsArr || [];
+      cur[id] = {
+        event: g.event,
+        expires: g.expires || "",
+        expiresStr: g.expiresStr || "N/A",
+        locSet: new Set(locArr),
+        locSig: locArr.join(";")
+      };
+    }
+
+    // baseline first successful update (starts empty per open)
+    if (!hasBaselined){
+      hasBaselined = true;
+      last = cur;
+      history = [];
+      lastHadChanges = false;
+
+      // ✅ do NOT mark refreshed yet; first view should say "since open"
+      setFlash(false);
+      renderTicker([]); // "No changes since open"
+      renderModal();
+      modalSub.textContent = `Since open (${sessionStartStr})`;
+      return;
+    }
+
+    // ✅ second+ successful update counts as "since refresh"
+    hasRefreshedOnce = true;
+
+    const changes = diff(last, cur);
+    lastHadChanges = changes.length > 0;
+    last = cur;
+
+    /* ✅ flash when there are changes */
+    setFlash(lastHadChanges);
+
+    if (changes.length){
+      const lines = changes.map(c => `[${nowStr}] ${c.kind}: ${c.text}`);
+      history = [...lines, ...history].slice(0, MAX_HISTORY_LINES);
+    }
+
+    renderTicker(changes);
+    renderModal();
+    modalSub.textContent = `Since open (${sessionStartStr})`;
+  }
+
+  setFlash(false);
+  renderTicker([]);
+  modalSub.textContent = `Since open (${sessionStartStr})`;
+  return { update };
+})();
+
+/* ==============================
+   fetchAlerts (with zoneId precedence de-dupe)
+   ============================== */
+async function fetchAlerts(){
+  const status = document.getElementById("status");
+  const btn = document.getElementById("refreshBtn");
+  const container = document.getElementById("tableContainer");
+
+  btn.disabled = true;
+  status.textContent = "Loading…";
+
+  try{
+    const r = await fetchWithTimeout(
+      API_URL,
+      {headers:{Accept:"application/geo+json"}, cache:"no-store"},
+      12000
+    );
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d = await r.json();
+
+    // Build rows (per alert), store zones with IDs
+    const rows = [];
+    for(const f of (d.features || [])){
+      const p = f?.properties;
+      if(!p || !isWantedAlert(p)) continue;
+
+      const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
+      if(!zones.length) continue;
+
+      const zoneInfos = await Promise.all(zones.map(z => fetchZoneInfo(z)));
+      const zoneItems = [];
+      for (const info of zoneInfos){
+        if (info && info.state === "PA" && info.name && info.zoneId){
+          zoneItems.push({ zoneId: info.zoneId, zoneName: info.name });
         }
+      }
+      if(!zoneItems.length) continue;
 
-        setRwsButtonNewState(currentRwsMarker !== lastSeen);
-      } catch {
-        // silent
+      const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + (p.areaDesc || ""));
+      rows.push({
+        alertId,
+        event: p.event,
+        expires: p.ends || p.expires || "",
+        zones: zoneItems,
+        _rank: eventRank(p.event),
+        _freshMs: alertFreshnessMs(p)
+      });
+    }
+
+    // ✅ Precedence by identical zoneId (keep highest severity / freshest)
+    const bestByZoneId = new Map(); // zoneId -> {alertId, rank, freshMs}
+    for (const row of rows){
+      for (const z of row.zones){
+        const prev = bestByZoneId.get(z.zoneId);
+        const cur = { alertId: row.alertId, rank: row._rank, freshMs: row._freshMs };
+        if (!prev){
+          bestByZoneId.set(z.zoneId, cur);
+          continue;
+        }
+        if (cur.rank > prev.rank || (cur.rank === prev.rank && cur.freshMs > prev.freshMs)){
+          bestByZoneId.set(z.zoneId, cur);
+        }
       }
     }
 
-    function acknowledgeRwsNow() {
-      if (!currentRwsMarker) return;
-      try { localStorage.setItem(RWS_STORAGE_KEY, currentRwsMarker); } catch {}
-      setRwsButtonNewState(false);
+    // Keep only zones each row "wins"
+    for (const row of rows){
+      row.zones = row.zones.filter(z => bestByZoneId.get(z.zoneId)?.alertId === row.alertId);
     }
 
-    (function wireRwsAcknowledge() {
-      const btn = document.getElementById("rwsBtn");
-      if (!btn) return;
+    // Drop rows fully overridden
+    const filteredRows = rows.filter(r => r.zones && r.zones.length);
 
-      btn.addEventListener("pointerdown", acknowledgeRwsNow, { passive: true });
-      btn.addEventListener("auxclick", acknowledgeRwsNow);
-      btn.addEventListener("contextmenu", acknowledgeRwsNow);
-      btn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") acknowledgeRwsNow();
-      });
-      btn.addEventListener("click", acknowledgeRwsNow);
-    })();
+    // Group for summary by (event||expires), but normalize names for display grouping
+    const grouped = new Map();
+    for (const row of filteredRows){
+      const key = `${row.event}||${row.expires || ""}`;
+      if(!grouped.has(key)){
+        grouped.set(key, {event: row.event, expires: row.expires || "", names: new Set()});
+      }
+      for (const z of row.zones){
+        grouped.get(key).names.add(normalizeSummaryCounty(z.zoneName));
+      }
+    }
 
-    window.addEventListener("storage", (e) => {
-      if (e.key !== RWS_STORAGE_KEY) return;
-      if (currentRwsMarker) setRwsButtonNewState(currentRwsMarker !== (e.newValue || ""));
-      else checkRWSIndicator();
+    let arr = [...grouped.values()];
+
+    const nowStr = new Date().toLocaleString([],{
+      month:"2-digit", day:"2-digit", year:"2-digit",
+      hour:"2-digit", minute:"2-digit", second:"2-digit"
     });
 
-    async function fetchAlerts() {
-      const status = document.getElementById("status");
-      const refreshBtn = document.getElementById("refreshBtn");
-
-      refreshBtn.disabled = true;
-      status.textContent = "Loading alerts…";
-
-      try {
-        // baseline (if missing/invalid, we init later)
-        let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
-
-        const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        const d = await r.json();
-
-        const rows = [];
-        const features = Array.isArray(d.features) ? d.features : [];
-
-        for (const f of features) {
-          const p = f?.properties;
-          if (!p || !isWatchWarningEmergencyOnly(p)) continue;
-
-          const zones = (p.affectedZones || []).filter(z => !isMarineZone(z));
-          if (!zones.length) continue;
-
-          const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
-
-          // ✅ store zones with IDs so we can de-dupe correctly
-          const zoneItems = [];
-          for (const info of zoneInfos) {
-            if (info && info.state === "PA" && info.name && info.zoneId) {
-              zoneItems.push({ zoneId: info.zoneId, zoneName: info.name });
-            }
-          }
-
-          if (zoneItems.length) {
-            const alertId = f.id || p.id || p["@id"] || (p.event + "|" + (p.ends || p.expires || "") + "|" + p.areaDesc);
-            rows.push({
-              alertId,
-              event: p.event,
-              expires: p.ends || p.expires,
-              zones: zoneItems,
-              description: p.description,
-              instruction: p.instruction,
-
-              // ✅ for precedence / tie-break
-              _rank: eventRank(p.event),
-              _freshMs: alertFreshnessMs(p)
-            });
-          }
-        }
-
-        // ✅ Precedence by identical zoneId.
-        // Same zoneId: keep highest severity (Emergency > Warning > Watch).
-        // Different zoneIds (Northern/Southern/Higher Elevations): keep both.
-        const bestByZoneId = new Map(); // zoneId -> {alertId, rank, freshMs}
-
-        for (const row of rows) {
-          for (const z of row.zones) {
-            const prev = bestByZoneId.get(z.zoneId);
-            const cur = { alertId: row.alertId, rank: row._rank, freshMs: row._freshMs };
-
-            if (!prev) { bestByZoneId.set(z.zoneId, cur); continue; }
-            if (cur.rank > prev.rank || (cur.rank === prev.rank && cur.freshMs > prev.freshMs)) {
-              bestByZoneId.set(z.zoneId, cur);
-            }
-          }
-        }
-
-        // Keep only the zones each row "wins"
-        for (const row of rows) {
-          row.zones = row.zones.filter(z => bestByZoneId.get(z.zoneId)?.alertId === row.alertId);
-        }
-
-        // Drop rows fully overridden
-        const filteredRows = rows.filter(r => r.zones && r.zones.length);
-
-        status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${filteredRows.length}`;
-        refreshMap();
-
-        // ===== BUILD SUMMARY GROUPS (the source of truth for changes) =====
-        const grouped = new Map(); // key: event||expires -> {event, expires, names:Set}
-        for (const row of filteredRows) {
-          const k = `${row.event}||${row.expires || ""}`;
-          if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
-
-          // NOTE: leaving your existing normalization intact (no other changes requested)
-          row.zones.forEach(z => grouped.get(k).names.add(normalizeSummaryCounty(z.zoneName)));
-        }
-
-        // summary snapshot map (for blue highlights)
-        const currentSummarySnap = {};
-        for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
-
-        // alert links snapshot kept for completeness
-        const currentAlertsSnap = {};
-        for (const row of filteredRows) {
-          currentAlertsSnap[row.alertId] = sortLocations(row.zones.map(z => z.zoneName));
-        }
-
-        // rollupByEvent: event -> all counties in any Summary group
-        const rollupByEvent = {};
-        for (const g of grouped.values()) {
-          if (!rollupByEvent[g.event]) rollupByEvent[g.event] = new Set();
-          for (const n of g.names) rollupByEvent[g.event].add(n);
-        }
-        const currentRollup = {};
-        for (const [event, set] of Object.entries(rollupByEvent)) {
-          currentRollup[event] = sortLocations([...set]);
-        }
-
-        // expiresByEventAndSet: (event + countiesSig) -> expires
-        const currentExpiresByEventSet = {};
-        // eventsByCountySet: countiesSig -> Set(events)  (for type change)
-        const countySetToEvents = new Map();
-
-        for (const g of grouped.values()) {
-          const counties = sortLocations([...g.names]);
-          const countiesSig = setSigFromNames(counties);
-
-          const eventSetKey = `${g.event}||${countiesSig}`;
-          currentExpiresByEventSet[eventSetKey] = g.expires || "";
-
-          if (!countySetToEvents.has(countiesSig)) countySetToEvents.set(countiesSig, new Set());
-          countySetToEvents.get(countiesSig).add(g.event);
-        }
-
-        const currentEventsByCountySet = {};
-        for (const [sig, set] of countySetToEvents.entries()) {
-          currentEventsByCountySet[sig] = Array.from(set).sort((a,b)=>String(a).localeCompare(String(b)));
-        }
-
-        // store CURRENT snapshot every refresh
-        saveSnapshot(STORAGE_KEY_CURRENT, {
-          summary: currentSummarySnap,
-          alerts: currentAlertsSnap,
-          rollup: currentRollup,
-          expiresByEventSet: currentExpiresByEventSet,
-          eventsByCountySet: currentEventsByCountySet
-        });
-
-        // init baseline if missing or incompatible
-        const baselineOk =
-          baselineSnap &&
-          baselineSnap.summary && baselineSnap.rollup &&
-          baselineSnap.expiresByEventSet && baselineSnap.eventsByCountySet;
-
-        if (!baselineOk) {
-          saveSnapshot(STORAGE_KEY_BASELINE, {
-            summary: currentSummarySnap,
-            alerts: currentAlertsSnap,
-            rollup: currentRollup,
-            expiresByEventSet: currentExpiresByEventSet,
-            eventsByCountySet: currentEventsByCountySet
-          });
-          baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
-        }
-
-        // ===== COMPUTE CHANGES (FROM SUMMARY MODELS) =====
-        const changes = { added: [], removed: [], timeChanged: [], typeChanged: [], cleared: [] };
-
-        const baseRollup = baselineSnap.rollup || {};
-        const baseExpiresByEventSet = baselineSnap.expiresByEventSet || {};
-        const baseEventsByCountySet = baselineSnap.eventsByCountySet || {};
-
-        // 1) added/removed counties (per event)
-        for (const event of Object.keys(currentRollup)) {
-          const cur = currentRollup[event] || [];
-          const base = baseRollup[event] || [];
-          const add = diffAdded(cur, base);
-          const rem = diffRemoved(cur, base);
-          if (add.length) changes.added.push({ event, names: add });
-          if (rem.length) changes.removed.push({ event, names: rem });
-        }
-
-        // 2) cleared events (event existed in baseline but not current)
-        for (const event of Object.keys(baseRollup)) {
-          if (!(event in currentRollup)) {
-            const names = Array.isArray(baseRollup[event]) ? baseRollup[event] : [];
-            changes.cleared.push({ event, names: sortLocations(names) });
-          }
-        }
-
-        // 3) expiration updated (same event + same countiesSig, different expires)
-        for (const eventSetKey of Object.keys(currentExpiresByEventSet)) {
-          if (!(eventSetKey in baseExpiresByEventSet)) continue;
-          const curExp = currentExpiresByEventSet[eventSetKey] || "";
-          const baseExp = baseExpiresByEventSet[eventSetKey] || "";
-          if (String(curExp) !== String(baseExp)) {
-            const [event, countiesSig] = eventSetKey.split("||");
-            const names = countiesSig ? countiesSig.split("|").filter(Boolean) : [];
-            changes.timeChanged.push({
-              event,
-              from: formatTime(baseExp),
-              to: formatTime(curExp),
-              names: sortLocations(names)
-            });
-          }
-        }
-
-        // 4) type changed (same countiesSig exists in both, but event sets differ)
-        for (const countiesSig of Object.keys(currentEventsByCountySet)) {
-          if (!(countiesSig in baseEventsByCountySet)) continue;
-
-          const curEvents = new Set((currentEventsByCountySet[countiesSig] || []).map(String));
-          const baseEvents = new Set((baseEventsByCountySet[countiesSig] || []).map(String));
-
-          const gained = [];
-          const lost = [];
-          for (const e of curEvents) if (!baseEvents.has(e)) gained.push(e);
-          for (const e of baseEvents) if (!curEvents.has(e)) lost.push(e);
-
-          if (gained.length || lost.length) {
-            const names = countiesSig.split("|").filter(Boolean);
-            if (lost.length === 1 && gained.length === 1) {
-              changes.typeChanged.push({
-                from: lost[0],
-                to: gained[0],
-                names: sortLocations(names)
-              });
-            } else {
-              changes.typeChanged.push({
-                from: (lost.length ? lost.join(", ") : "—"),
-                to: (gained.length ? gained.join(", ") : "—"),
-                names: sortLocations(names)
-              });
-            }
-          }
-        }
-
-        // sort change groups for stability
-        changes.added.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
-        changes.removed.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
-        changes.cleared.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
-        changes.timeChanged.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
-        changes.typeChanged.sort((a,b)=>String(a.from).localeCompare(String(b.from)));
-
-        latestChangesForPanel = changes;
-
-        const signature = buildChangesSignature(changes);
-        latestHasAnyChanges = !!signature;
-
-        renderChangesPanel(latestChangesForPanel, latestHasAnyChanges);
-
-        const isNewChanges = latestHasAnyChanges && signature !== lastChangesSignature;
-        if (isNewChanges) lastChangesSignature = signature;
-
-        setChangesButtonState({
-          hasChanges: latestHasAnyChanges,
-          isNew: (!changesVisible && isNewChanges)
-        });
-
-        // ===== SUMMARY HIGHLIGHTS (baseline vs current per group key) =====
-        const groupedArr = [...grouped.values()].sort((a, b) => {
-          const ae = toTimeMs(a.expires);
-          const be = toTimeMs(b.expires);
-          return ae - be || String(a.event).localeCompare(String(b.event));
-        });
-
-        function diffNewNames(currentArr, prevArr) {
-          const prev = new Set((prevArr || []).map(String));
-          const now = new Set((currentArr || []).map(String));
-          const added = new Set();
-          for (const n of now) if (!prev.has(n)) added.add(n);
-          return added;
-        }
-
-        document.getElementById("tableContainer").innerHTML = `
-          <table>
-            <colgroup>
-              <col style="width: 22%;">
-              <col style="width: 63%;">
-              <col style="width: 15%;">
-            </colgroup>
-            <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
-            ${groupedArr.map(g => {
-              const key = `${g.event}||${g.expires || ""}`;
-              const namesSorted = sortLocations([...g.names]);
-              const prevNames = baselineSnap?.summary?.[key];
-              const newSet = baselineSnap ? diffNewNames(namesSorted, prevNames) : new Set();
-
-              return `
-                <tr>
-                  <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
-                  <td>${renderLocationsWithHighlight(namesSorted, newSet)}</td>
-                  <td>${escapeHtml(formatTime(g.expires))}</td>
-                </tr>
-              `;
-            }).join("")}
-          </table>
-        `;
-
-        // ===== ALERT LINKS (same display; now uses filteredRows + zone names) =====
-        filteredRows.sort((a, b) => {
-          const ae = toTimeMs(a.expires);
-          const be = toTimeMs(b.expires);
-          if (ae !== be) return ae - be;
-          const et = String(a.event).localeCompare(String(b.event));
-          if (et !== 0) return et;
-          const an = sortLocations(a.zones.map(z => z.zoneName))[0] || "";
-          const bn = sortLocations(b.zones.map(z => z.zoneName))[0] || "";
-          return an.localeCompare(bn);
-        });
-
-        alertStore.clear();
-        filteredRows.forEach((r, i) => alertStore.set(i, r));
-
-        document.getElementById("linksContainer").innerHTML = `
-          <table>
-            <colgroup>
-              <col style="width: 22%;">
-              <col style="width: 63%;">
-              <col style="width: 15%;">
-            </colgroup>
-            <tr><th>Type</th><th>Locations</th><th>Text</th></tr>
-            ${filteredRows.map((row, i) => {
-              const namesSorted = sortLocations(row.zones.map(z => z.zoneName));
-              return `
-                <tr>
-                  <td class="type-cell ${typeClass(row.event)}">${escapeHtml(row.event)}</td>
-                  <td>${namesSorted.map(escapeHtml).join("; ")}</td>
-                  <td><button class="view-btn" onclick="openModal(${i})">View Text</button></td>
-                </tr>
-              `;
-            }).join("")}
-          </table>
-        `;
-
-        checkRWSIndicator();
-      } catch (err) {
-        console.error(err);
-        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
-      } finally {
-        document.getElementById("refreshBtn").disabled = false;
-      }
+    if(!arr.length){
+      container.innerHTML = `<div style="color:var(--muted)">No active hazards.</div>`;
+      status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
+      RecentChanges.update([], nowStr);
+      setupAutoScroll();
+      requestAnimationFrame(syncRadarToMap);
+      return;
     }
 
-    document.getElementById("changesBtn").onclick = () => {
-      toggleChangesPanel();
-      if (changesVisible && latestHasAnyChanges) {
-        setChangesButtonState({ hasChanges: true, isNew: false });
-      }
-    };
+    arr.sort((a,b)=>{
+      const tp = typePriority(a.event) - typePriority(b.event);
+      if(tp !== 0) return tp;
+      const te = toTimeMs(a.expires) - toTimeMs(b.expires);
+      if(te !== 0) return te;
+      return String(a.event).localeCompare(String(b.event));
+    });
 
-    function openModal(i) {
-      const a = alertStore.get(i);
-      if (!a) return;
-      document.getElementById("modalTitle").textContent = a.event;
-      document.getElementById("modalMeta").textContent =
-        `Locations: ${sortLocations(a.zones.map(z => z.zoneName)).join("; ")} | Expires: ${formatTime(a.expires)}`;
-      document.getElementById("modalDescription").textContent = cleanText(a.description);
-      document.getElementById("modalInstruction").textContent = cleanText(a.instruction);
-      document.getElementById("modalBackdrop").style.display = "flex";
+    status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
+
+    const changeGroups = arr.map(g => {
+      const namesSorted = sortLocations([...g.names]);
+      return {
+        event: g.event,
+        expires: g.expires || "",
+        expiresStr: g.expires ? fmtTime(g.expires) : "N/A",
+        locationsArr: namesSorted
+      };
+    });
+
+    RecentChanges.update(changeGroups, nowStr);
+
+    container.innerHTML = `
+      <table>
+        <colgroup>
+          <col style="width:22%;">
+          <col style="width:63%;">
+          <col style="width:15%;">
+        </colgroup>
+        <tr><th>Type</th><th>Locations</th><th>Expires</th></tr>
+        ${arr.map(g=>{
+          const namesSorted = sortLocations([...g.names]);
+          return `
+            <tr>
+              <td class="type-cell ${typeClass(g.event)}">${escapeHtml(g.event)}</td>
+              <td>${namesSorted.map(escapeHtml).join("; ")}</td>
+              <td>${escapeHtml(fmtTime(g.expires))}</td>
+            </tr>
+          `;
+        }).join("")}
+      </table>
+    `;
+
+    requestAnimationFrame(() => {
+      setupAutoScroll();
+      syncRadarToMap();
+    });
+
+  }catch(err){
+    console.error(err);
+    container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
+    status.textContent = "Error: " + (err?.message || String(err));
+
+    const track = document.getElementById("changesTrack");
+    if (track) {
+      track.classList.remove("scrolling");
+      track.style.removeProperty("--tickerEnd");
+      track.innerHTML = `<div class="changesItem"><span class="tag bad">ERR</span><span>Unable to load alerts (see status)</span></div>`;
     }
 
-    document.getElementById("closeBtn").onclick = () =>
-      document.getElementById("modalBackdrop").style.display = "none";
+    /* also ensure flash is off on error */
+    const expandBtn = document.getElementById("changesExpandBtn");
+    if (expandBtn) expandBtn.classList.remove("flash");
 
-    document.getElementById("copyBtn").onclick = () => {
-      const title = document.getElementById("modalTitle").textContent || "";
-      const meta  = document.getElementById("modalMeta").textContent || "";
-      const desc  = document.getElementById("modalDescription").textContent || "";
-      const inst  = document.getElementById("modalInstruction").textContent || "";
-      navigator.clipboard.writeText(`${title}\n${meta}\n\nDESCRIPTION:\n${desc}\n\nINSTRUCTIONS:\n${inst}`);
-    };
+    setupAutoScroll();
+  }finally{
+    btn.disabled = false;
+  }
+}
 
-    document.getElementById("refreshBtn").onclick = fetchAlerts;
+function refreshAll(){
+  refreshMap();
+  fetchAlerts();
+}
 
-    fetchAlerts();
-    setInterval(fetchAlerts, 5 * 60 * 1000);
-    setInterval(checkRWSIndicator, 5 * 60 * 1000);
-    if (location.search.includes("_ts=")) {
-      history.replaceState(null, "", location.pathname);
-    }
-  </script>
+document.getElementById("refreshBtn").addEventListener("click", refreshAll);
+
+/* Phone radar: zoom out to show all of PA */
+function setRadarZoom(){
+  const iframe = document.getElementById("radarIframe");
+  if(!iframe) return;
+
+  const isPhone = window.matchMedia("(max-width: 600px)").matches;
+  const zoom = isPhone ? 5 : 7;
+
+  const url = new URL(iframe.src);
+  url.searchParams.set("zoom", String(zoom));
+
+  if (iframe.src !== url.toString()) iframe.src = url.toString();
+}
+
+setRadarZoom();
+window.addEventListener("resize", () => {
+  clearTimeout(window.__radarZoomTimer);
+  window.__radarZoomTimer = setTimeout(setRadarZoom, 200);
+});
+
+refreshAll();
+setInterval(refreshAll, 5 * 60 * 1000);
+
+if (location.search.includes("_ts=")) {
+  history.replaceState(null, "", location.pathname);
+}
+</script>
 </body>
 </html>
