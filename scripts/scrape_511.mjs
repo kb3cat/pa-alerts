@@ -1,134 +1,207 @@
 import { chromium } from "playwright";
 import fs from "fs";
 
-async function dismissPopups(page) {
-  // 511PA sometimes shows a guided modal. Try a few cycles.
-  const selectors = [
+async function scrapeTable(url, tableSelector = "table") {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+
+  await page.goto(url, { waitUntil: "networkidle" });
+
+  // Some 511PA pages have popups; try to dismiss if present
+  for (const sel of [
     'button:has-text("Done")',
     'button:has-text("Next")',
-    'button:has-text("Close")',
-    'button[aria-label="Close"]',
-    'button[title="Close"]',
-    '.modal button:has-text("Done")',
-    '.modal button:has-text("Next")',
-    '.modal button:has-text("Close")'
-  ];
-
-  for (let i = 0; i < 6; i++) {
-    let clicked = false;
-    for (const sel of selectors) {
-      try {
-        await page.click(sel, { timeout: 800 });
-        clicked = true;
-      } catch {}
-    }
-    if (!clicked) break;
-    await page.waitForTimeout(400);
+    'button[aria-label="Close"]'
+  ]) {
+    try { await page.click(sel, { timeout: 1500 }); } catch {}
   }
 
-  // Escape sometimes closes overlays
-  for (let i = 0; i < 2; i++) {
-    try { await page.keyboard.press("Escape"); } catch {}
-    await page.waitForTimeout(200);
-  }
-}
+  await page.waitForTimeout(1500);
 
-async function extractTable(page, tableSelector) {
   const headers = await page.$$eval(`${tableSelector} thead th`, ths =>
-    ths.map(th => th.innerText.trim()).filter(Boolean)
-  ).catch(() => []);
+    ths.map(th => th.innerText.trim())
+  );
 
   const rows = await page.$$eval(`${tableSelector} tbody tr`, trs =>
     trs.map(tr => Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim()))
-      .filter(r => r.some(cell => cell && cell.length))
-  ).catch(() => []);
-
-  return { headers, rows };
-}
-
-async function scrapeTable(url, tableSelector, name) {
-  const browser = await chromium.launch();
-  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
-
-  page.setDefaultTimeout(30000);
-
-  await page.goto(url, { waitUntil: "domcontentloaded" });
-  await dismissPopups(page);
-
-  await page.waitForSelector(tableSelector, { timeout: 20000 }).catch(() => {});
-
-  let headers = [];
-  let rows = [];
-  let usedSelector = tableSelector;
-
-  for (let attempt = 0; attempt < 6; attempt++) {
-    await dismissPopups(page);
-
-    try {
-      await page.waitForSelector(`${usedSelector} tbody tr`, { timeout: 4000 });
-    } catch {}
-
-    ({ headers, rows } = await extractTable(page, usedSelector));
-    if (rows.length > 0) break;
-
-    // Fallback: DataTables often uses table.dataTable
-    if (attempt === 2) {
-      ({ headers, rows } = await extractTable(page, "table.dataTable"));
-      if (rows.length > 0) {
-        usedSelector = "table.dataTable";
-        break;
-      }
-    }
-
-    await page.waitForTimeout(1500);
-  }
-
-  // Screenshot on failure (helps debug in repo)
-  if (rows.length === 0) {
-    try {
-      if (!fs.existsSync("debug")) fs.mkdirSync("debug");
-      await page.screenshot({ path: `debug/${name}.png`, fullPage: true });
-    } catch {}
-  }
+  );
 
   await browser.close();
 
+  return { url, fetched_at: new Date().toISOString(), headers, rows };
+}
+
+function idx(headers, name) {
+  const i = headers.findIndex(h => h.trim().toLowerCase() === name.trim().toLowerCase());
+  return i >= 0 ? i : null;
+}
+
+function norm(s) {
+  return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+function parseRoute(desc) {
+  // tries to find I-##, US-##, PA-##
+  const m = desc.match(/\b(I|US|PA)\s*[- ]\s*(\d{1,3})\b/i);
+  if (!m) return null;
+  return `${m[1].toUpperCase()}-${m[2]}`;
+}
+
+function parseDirection(desc) {
+  // prefer explicit NB/SB/EB/WB
+  const m1 = desc.match(/\b(NB|SB|EB|WB)\b/i);
+  if (m1) return m1[1].toUpperCase();
+
+  // fallback: NORTH/SOUTH/EAST/WEST (or “NORTHBOUND”)
+  const m2 = desc.match(/\b(NORTH|SOUTH|EAST|WEST)(BOUND)?\b/i);
+  if (!m2) return null;
+  const dir = m2[1].toUpperCase();
+  return dir; // return "NORTH", etc.
+}
+
+function parseBetweenExits(desc) {
+  // handles patterns like:
+  // "between Exit 100: PA 443 - PINE GROVE and Exit 138: PA 309 - MCADOO/TAMAQUA"
+  // also: "between Exit: abc (##) to xyz (##)" (numbers in parens)
+  const d = desc;
+
+  // Pattern A: Exit 100: NAME ... and Exit 138: NAME ...
+  const mA = d.match(/between\s+Exit\s+(\d+)\s*:\s*([^]+?)\s+(?:and|to)\s+Exit\s+(\d+)\s*:\s*([^]+?)(?:\.|$)/i);
+  if (mA) {
+    return {
+      from: `Exit ${mA[1]}: ${norm(mA[2])}`,
+      to: `Exit ${mA[3]}: ${norm(mA[4])}`
+    };
+  }
+
+  // Pattern B: between Exit: abc (##) to xyz (##)
+  const mB = d.match(/between\s+Exit\s*:?\s*([^()]+?)\s*\((\d+)\)\s*(?:and|to)\s*([^()]+?)\s*\((\d+)\)/i);
+  if (mB) {
+    return {
+      from: `${norm(mB[1])} (${mB[2]})`,
+      to: `${norm(mB[3])} (${mB[4]})`
+    };
+  }
+
+  return null;
+}
+
+function isConstructionRelated(desc) {
+  // be aggressive — you asked to ignore roadwork/construction closures
+  return /(roadwork|construction|work zone|lane closure for work|paving|bridge|maintenance|utility work|shoulder work)/i.test(desc);
+}
+
+function isAllLanesClosed(desc) {
+  return /\ball lanes closed\b/i.test(desc);
+}
+
+function isAllLanesOpen(desc) {
+  return /\ball lanes open\b/i.test(desc);
+}
+
+function buildMajorRouteClosures(trafficTable) {
+  const headers = trafficTable.headers || [];
+  const rows = trafficTable.rows || [];
+
+  // Try to find columns by name (best case)
+  const typeI = idx(headers, "Type");
+  const descI = idx(headers, "Description");
+  const endI  = idx(headers, "Anticipated End Time");
+
+  // If 511 changes header names slightly, fallback by fuzzy includes
+  const typeIdx = typeI ?? headers.findIndex(h => /type/i.test(h));
+  const descIdx = descI ?? headers.findIndex(h => /description/i.test(h));
+  const endIdx  = endI  ?? headers.findIndex(h => /(anticipated|end time)/i.test(h));
+
+  const items = [];
+
+  for (const r of rows) {
+    const type = norm(r[typeIdx]);
+    const desc = norm(r[descIdx]);
+    const end  = norm(r[endIdx]);
+
+    if (!type || !desc) continue;
+
+    // must be Major Route
+    if (!/^major route$/i.test(type)) continue;
+
+    // ignore roadwork/construction-related
+    if (isConstructionRelated(desc)) continue;
+
+    // if it explicitly says all lanes open, do not include
+    if (isAllLanesOpen(desc)) continue;
+
+    // only include all lanes closed
+    if (!isAllLanesClosed(desc)) continue;
+
+    const route = parseRoute(desc) || "ROUTE";
+    const dir = parseDirection(desc) || "DIRECTION";
+    const between = parseBetweenExits(desc);
+
+    // format exactly how you asked (as a plain text line; dashboard can render as-is)
+    const betweenText = between
+      ? `between ${between.from} to ${between.to}`
+      : `between (unknown exits)`;
+
+    const etaText = end ? end : "Unknown";
+
+    const line = `${route} ${dir} CLOSED ${betweenText}. Estimated time to reopen: ${etaText}.`;
+
+    items.push({
+      route,
+      direction: dir,
+      between,
+      anticipated_end_time: etaText,
+      description: desc,
+      formatted: line
+    });
+  }
+
   return {
-    name,
-    url,
-    fetched_at: new Date().toISOString(),
-    table_selector_used: usedSelector,
-    headers,
-    rows
+    name: "major_route_closures",
+    fetched_at: trafficTable.fetched_at,
+    source_url: trafficTable.url,
+    count: items.length,
+    items
   };
 }
 
 async function main() {
-  const outputs = [
-    {
-      name: "road_conditions",
-      url: "https://www.511pa.com/list/roadcondition",
-      tableSelector: "table"
-    },
-    {
-      name: "travel_delays",
-      url: "https://www.511pa.com/list/events/traffic",
-      tableSelector: "table"
-    },
-    {
-      name: "restrictions",
-      url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc",
-      tableSelector: "table"
-    }
-  ];
+  const outputs = [];
+
+  outputs.push({
+    name: "road_conditions",
+    url: "https://www.511pa.com/list/roadcondition",
+    tableSelector: "table"
+  });
+
+  outputs.push({
+    name: "travel_delays",
+    url: "https://www.511pa.com/list/events/traffic",
+    tableSelector: "table"
+  });
+
+  outputs.push({
+    name: "restrictions",
+    url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc",
+    tableSelector: "table"
+  });
 
   if (!fs.existsSync("data")) fs.mkdirSync("data");
 
+  const resultsByName = {};
+
   for (const o of outputs) {
-    const data = await scrapeTable(o.url, o.tableSelector, o.name);
+    const data = await scrapeTable(o.url, o.tableSelector);
+    resultsByName[o.name] = data;
     fs.writeFileSync(`data/${o.name}.json`, JSON.stringify(data, null, 2));
     console.log(`Wrote data/${o.name}.json (${data.rows.length} rows)`);
   }
+
+  // Derived file: major-route, non-construction, all-lanes-closed
+  const major = buildMajorRouteClosures(resultsByName.travel_delays);
+  fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(major, null, 2));
+  console.log(`Wrote data/major_route_closures.json (${major.count} items)`);
 }
 
 main().catch(err => {
