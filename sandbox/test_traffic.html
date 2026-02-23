@@ -108,7 +108,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   word-break:break-word;
 }
 .speed .item{ border-left-color: var(--blue); }
-.rightlane .item{ border-left-color: var(--blue); }
 .vehicle .item{ border-left-color: var(--yellow); }
 
 /* Vehicle grouping headers */
@@ -175,14 +174,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
       <div class="count" id="speedCount">—</div>
     </div>
     <div class="items" id="speedList"></div>
-  </div>
-
-  <div class="row rightlane">
-    <div class="paneltitle">
-      <div class="name">45 MPH - No CMV Right Lane</div>
-      <div class="count" id="rightLaneCount">—</div>
-    </div>
-    <div class="items" id="rightLaneList"></div>
   </div>
 
   <div class="row vehicle">
@@ -292,6 +283,10 @@ function isFakeHeaderRow(s) {
   if (t === "restrictions") return true;
 
   const hasRoadHint = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(s);
+
+  // Allow tier header rows through so we can apply context
+  if (/^tier\s*[1-5]\b/i.test(s)) return false;
+
   if (!hasRoadHint && t.length <= 25) return true;
 
   const hasDigit = /\d/.test(s);
@@ -335,21 +330,19 @@ function isTierRestriction(text) {
   return hasRoad && (tierish || permit || commercial);
 }
 
-/* 45 MPH - No CMV Right Lane */
-function is45NoCmvRightLane(text){
+/* 45 MPH - CMV Right Lane Only (displayed under Vehicle Restrictions after tiers) */
+function is45CmvRightLaneOnly(text){
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
   if (!hasRoad) return false;
 
   const mph45 = /\b45\s*mph\b/i.test(text);
   const rightLaneOnly = /\bright\s*lane\s*only\b/i.test(text) || /\brt\.?\s*lane\s*only\b/i.test(text);
 
-  // Covers phrasing like:
-  // "Commercial Vehicles Right Lane Only" and any "No CMV ... right lane" variants.
   const cmvRightLane =
     /\bcommercial\s*vehicles?\s*right\s*lane\s*only\b/i.test(text) ||
     /\bcmv\s*right\s*lane\s*only\b/i.test(text) ||
-    /\bno\s*cmv\b/i.test(text) ||
-    /\bno\s*commercial\s*vehicles?\b/i.test(text);
+    (/\bcommercial\s*vehicles?\b/i.test(text) && rightLaneOnly) ||
+    (/\bcmv\b/i.test(text) && rightLaneOnly);
 
   return mph45 && rightLaneOnly && cmvRightLane;
 }
@@ -365,9 +358,8 @@ function extractTierHeader(s){
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
   if (m) return Number(m[1]);
 
-  // Sometimes the site shows "Tier 4" without punctuation; keep it permissive
   const m2 = t.match(/^tier\s*([1-5])\b/i);
-  if (m2 && t.length <= 40) return Number(m2[1]);
+  if (m2 && t.length <= 60) return Number(m2[1]);
 
   return null;
 }
@@ -389,14 +381,10 @@ function applyTierContext(rows){
 function getTierFromText(text){
   const t = (text || "").toLowerCase();
 
-  // Explicit tier references
   const m = t.match(/\btier\s*([1-5])\b/);
   if (m) return Number(m[1]);
 
-  // Tier 4 is often described as "complete CMV restriction"
   if (t.includes("complete cmv restriction")) return 4;
-
-  // Tier 5 is often "all passenger vehicles"
   if (t.includes("all passenger vehicles")) return 5;
 
   return null;
@@ -436,19 +424,24 @@ function renderVehicleGrouped(elId, items){
     return;
   }
 
-  // Build tier buckets
   const buckets = new Map([
     [5, []],
     [4, []],
     [3, []],
     [2, []],
     [1, []],
+    ["rl45", []],
     ["other", []]
   ]);
 
   for (const it of items) {
     const text = it?.text ?? String(it ?? "");
     const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
+
+    if (is45CmvRightLaneOnly(text)) {
+      buckets.get("rl45").push(text);
+      continue;
+    }
 
     if (tier && buckets.has(tier)) buckets.get(tier).push(text);
     else buckets.get("other").push(text);
@@ -460,11 +453,11 @@ function renderVehicleGrouped(elId, items){
     3: "Tier 3",
     2: "Tier 2",
     1: "Tier 1",
+    rl45: "45 MPH — CMV Right Lane Only",
     other: "Other / Unclassified vehicle restrictions"
   };
 
-  // Render in severity order
-  const order = [5,4,3,2,1,"other"];
+  const order = [5,4,3,2,1,"rl45","other"];
 
   for (const key of order) {
     const arr = buckets.get(key);
@@ -565,28 +558,29 @@ async function loadBoard(){
 
   const withTiers = applyTierContext(restrRows);
 
-  const rightLane45 = withTiers.filter(r => is45NoCmvRightLane(r.text)).map(r => r.text);
-
-  // Keep speed list from duplicating the special category
   const speed = withTiers
     .map(r => r.text)
     .filter(isSpeedRestriction)
-    .filter(s => !is45NoCmvRightLane(s));
+    .filter(s => !is45CmvRightLaneOnly(s));
 
-  const vehicle = withTiers
-    .filter(r => !is45NoCmvRightLane(r.text))
-    .filter(r => vehiclePanelCandidate(r.text));
+  // Vehicle list includes:
+  // - anything under a Tier header (tier context applies), even if the row doesn't say CMV
+  // - plus other vehicle restriction rows that match keywords
+  // - plus the 45 MPH CMV right-lane-only rows (grouped after tiers)
+  const vehicle = withTiers.filter(r =>
+    is45CmvRightLaneOnly(r.text) ||
+    (r.tier != null) ||
+    vehiclePanelCandidate(r.text)
+  );
 
   // Render counts
   document.getElementById("closuresCount").textContent = String(closures.length);
   document.getElementById("speedCount").textContent = String(speed.length);
-  document.getElementById("rightLaneCount").textContent = String(rightLane45.length);
   document.getElementById("vehicleCount").textContent = String(vehicle.length);
 
   // Render lists
   renderList("closuresList", closures, "");
   renderList("speedList", speed, "speed");
-  renderList("rightLaneList", rightLane45, "rightlane");
   renderVehicleGrouped("vehicleList", vehicle);
 
   // Status pill: OK if no warnings, ORANGE if warnings
