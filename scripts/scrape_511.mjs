@@ -99,6 +99,81 @@ function isAllLanesOpen(desc) {
   return /\ball lanes open\b/i.test(desc);
 }
 
+function parseCountyFromDesc(desc) {
+  const parts = String(desc || "")
+    .split("|")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const pIdx = parts.findIndex(p => /^pennsylvania$/i.test(p));
+  if (pIdx >= 0 && parts[pIdx + 1]) return parts[pIdx + 1];
+
+  // fallback: try "X County"
+  const m = String(desc || "").match(/\b([A-Za-z .'-]+)\s+County\b/i);
+  if (m) return norm(m[1]);
+
+  return null;
+}
+
+function extractNarrativeFromDesc(desc) {
+  const raw = String(desc || "");
+  if (!raw.includes("|")) return norm(raw);
+
+  const parts = raw
+    .split("|")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  // Remove timestamp-like tokens (e.g., "2/23/26, 12:55 AM")
+  const nonTime = parts.filter(p => !/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*,\s*\d{1,2}:\d{2}\s*(AM|PM)$/i.test(p));
+
+  // Remove leading metadata tokens commonly present in 511 pipe-strings
+  // Examples: "Closure - Major Route", "I-80", "Pennsylvania", "Monroe"
+  const cleaned = nonTime.filter(p => {
+    if (/^closure\b/i.test(p)) return false;
+    if (/^restriction\b/i.test(p)) return false;
+    if (/^event\b/i.test(p)) return false;
+    if (/^major route$/i.test(p)) return false;
+    if (/^pennsylvania$/i.test(p)) return false;
+    if (parseRoute(p)) return false; // route token like "I-80"
+    return true;
+  });
+
+  // After stripping, the first remaining token is typically the narrative sentence
+  return norm(cleaned[0] || raw);
+}
+
+function parseReopenToMMDDYY_HHMM(endRaw) {
+  const s = norm(endRaw);
+  if (!s) return "TBD";
+
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*,\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return "TBD";
+
+  const mo = String(parseInt(m[1], 10));
+  const da = String(parseInt(m[2], 10));
+  const yy = String(m[3]).slice(-2);
+
+  let hh = parseInt(m[4], 10);
+  const mm = String(m[5]).padStart(2, "0");
+  const ap = m[6].toUpperCase();
+
+  if (ap === "AM") {
+    if (hh === 12) hh = 0;
+  } else {
+    if (hh !== 12) hh += 12;
+  }
+
+  const hh2 = String(hh).padStart(2, "0");
+  return `${mo}/${da}/${yy} - ${hh2}${mm}`;
+}
+
+function normalizeNarrativeText(s) {
+  return String(s || "")
+    .replace(/\bMulti\s+vehicle\b/gi, "Multi-vehicle")
+    .replace(/\bAll\s+lanes\s+closed\b/gi, "All lanes Closed");
+}
+
 function buildMajorRouteClosures(trafficTable) {
   const headers = trafficTable.headers || [];
   const rows = trafficTable.rows || [];
@@ -138,14 +213,12 @@ function buildMajorRouteClosures(trafficTable) {
     const dir = parseDirection(desc) || "DIRECTION";
     const between = parseBetweenExits(desc);
 
-    // format exactly how you asked (as a plain text line; dashboard can render as-is)
-    const betweenText = between
-      ? `between ${between.from} to ${between.to}`
-      : `between (unknown exits)`;
+    const etaText = end ? end : "TBD";
+    const county = parseCountyFromDesc(desc) || "Unknown";
+    const narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
+    const reopenFmt = parseReopenToMMDDYY_HHMM(end);
 
-    const etaText = end ? end : "Unknown";
-
-    const line = `${route} ${dir} CLOSED ${betweenText}. Estimated time to reopen: ${etaText}.`;
+    const line = `${route} (${county} County) | ${narrative} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
       route,
