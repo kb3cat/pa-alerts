@@ -322,7 +322,7 @@ function isFakeHeaderRow(s) {
   if (t === "vehicle restrictions") return true;
   if (t === "restrictions") return true;
 
-  const hasRoadHint = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(s);
+  const hasRoadHint = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(s);
 
   // Allow tier header rows through so we can apply context
   if (/^tier\s*[1-5]\b/i.test(s)) return false;
@@ -360,14 +360,23 @@ function renderList(elId, items, kind) {
 
 /* Speed restrictions */
 function isSpeedRestriction(text) {
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   const hasSpeed = /\b(mph|speed)\b/i.test(text);
   return hasSpeed && hasRoad;
 }
 
+/* Major Route Closure (fallback from restrictions.json) */
+function isMajorRouteClosure(text){
+  const t = String(text || "");
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
+  const isMajor = /\bmajor\s*route(s)?\b/i.test(t);
+  const isClosure = /\b(closure|closed|road\s*closed|closed\s*between|closed\s*at)\b/i.test(t);
+  return hasRoad && isMajor && isClosure;
+}
+
 /* 45 MPH - CMV Right Lane Only (under Vehicle Restrictions after tiers) */
 function is45CmvRightLaneOnly(text){
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   if (!hasRoad) return false;
 
   const mph45 = /\b45\s*mph\b/i.test(text);
@@ -426,7 +435,7 @@ function getTierFromText(text){
 }
 
 function vehiclePanelCandidate(text){
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   if (!hasRoad) return false;
 
   return (
@@ -449,12 +458,20 @@ function vehiclePanelCandidate(text){
 /* Numeric sort helper */
 function routeKey(text){
   const s = String(text || "");
-  const m = s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i);
+  const m =
+    s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/\binterstate\s*(\d{1,4})\b/i);
+
   if (!m) return { grp: 9, num: 99999 };
 
-  const type = m[1].toUpperCase();
-  const num = parseInt(m[2], 10);
+  // If it matched "Interstate 80"
+  if (/interstate/i.test(m[0])) {
+    const num = parseInt(m[1], 10);
+    return { grp: 1, num: isNaN(num) ? 99999 : num };
+  }
 
+  const type = String(m[1]).toUpperCase();
+  const num = parseInt(m[2], 10);
   const grp = (type === "I") ? 1 : (type === "US") ? 2 : 3;
   return { grp, num: isNaN(num) ? 99999 : num };
 }
@@ -506,12 +523,8 @@ function renderVehicleGrouped(elId, items){
     else buckets.get("other").push(text);
   }
 
-  // Sort each bucket numerically by route
-  for (const [k, arr] of buckets.entries()) {
-    arr.sort(sortByRoute);
-  }
+  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
 
-  // Update the summary next to the "Vehicle Restrictions" title
   const t1 = buckets.get(1).length;
   const t2 = buckets.get(2).length;
   const t3 = buckets.get(3).length;
@@ -550,7 +563,6 @@ function renderVehicleGrouped(elId, items){
     other: ""
   };
 
-  // Order: Tier 1–5, then 45 MPH CMV Right Lane Only, then other
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -628,15 +640,14 @@ async function loadBoard(){
     // 2) Load the data files (failures are ORANGE)
     let closuresJson = null, restr = null;
 
-    // ✅ Closures derived file
+    // Closures derived file
     try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; }
     catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
 
-    // Restrictions file (speed + tier)
+    // Restrictions file
     try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; }
     catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
 
-    // Validate expected shapes
     if (closuresJson && !Array.isArray(closuresJson.items)) {
       warnings.push(`data/${CLOSURES_FILE} loaded but missing expected "items" array.`);
     }
@@ -644,16 +655,29 @@ async function loadBoard(){
       warnings.push(`data/${RESTR_FILE} loaded but missing expected "rows" array.`);
     }
 
-    // Build display lists
-    const closures = (closuresJson?.items || [])
-      .map(it => it?.formatted || "")
-      .map(s => String(s).trim())
-      .filter(Boolean);
-
     const restrRows = normalizeRows(restr?.rows)
       .map(cleanLine)
       .filter(s => !isFakeHeaderRow(s));
 
+    // Build closures:
+    // - primary: major_route_closures.json if it has items
+    // - fallback/add: any restrictions rows tagged "Major Route" and indicating closure/closed
+    const closuresFromFile = (closuresJson?.items || [])
+      .map(it => it?.formatted || "")
+      .map(s => String(s).trim())
+      .filter(Boolean);
+
+    const majorRouteClosuresFromRestrictions = restrRows
+      .filter(isMajorRouteClosure)
+      .map(cleanLine)
+      .filter(Boolean);
+
+    const closuresMerged = Array.from(new Set([
+      ...closuresFromFile,
+      ...majorRouteClosuresFromRestrictions
+    ])).sort(sortByRoute);
+
+    // Speed list (unchanged)
     const withTiers = applyTierContext(restrRows);
 
     const speed = withTiers
@@ -672,16 +696,16 @@ async function loadBoard(){
     const cc = document.getElementById("closuresCount");
     const sc = document.getElementById("speedCount");
     const vc = document.getElementById("vehicleCount");
-    if (cc) cc.textContent = String(closures.length);
+    if (cc) cc.textContent = String(closuresMerged.length);
     if (sc) sc.textContent = String(speed.length);
     if (vc) vc.textContent = String(vehicle.length);
 
     // Render lists
-    renderList("closuresList", closures, "");
+    renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
     renderVehicleGrouped("vehicleList", vehicle);
 
-    // Status pill: OK if no warnings, ORANGE if warnings
+    // Status pill
     if (warnings.length) {
       setStatus(
         "attn",
