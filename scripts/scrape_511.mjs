@@ -102,12 +102,22 @@ function parseCountyFromDesc(desc) {
     .map(s => s.trim())
     .filter(Boolean);
 
-  const pIdx = parts.findIndex(p => /^pennsylvania$/i.test(p));
-  if (pIdx >= 0 && parts[pIdx + 1]) return parts[pIdx + 1];
+  // Primary method: Pennsylvania | County pattern
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (/^pennsylvania$/i.test(parts[i])) {
+      return parts[i + 1].replace(/\s*county$/i, "").trim();
+    }
+  }
 
-  // fallback: try "X County"
-  const m = String(desc || "").match(/\b([A-Za-z .'-]+)\s+County\b/i);
-  if (m) return norm(m[1]);
+  // Backup: explicit "X County"
+  const m = String(desc).match(/\b([A-Za-z .'-]+)\s+County\b/i);
+  if (m) return m[1].trim();
+
+  // Backup #2: common 511 pipe layout:
+  // Closure - Major Route | I-80 | Pennsylvania | Monroe | Crash...
+  if (parts.length >= 4 && /^closure\b/i.test(parts[0]) && parseRoute(parts[1]) && /^pennsylvania$/i.test(parts[2])) {
+    return parts[3].replace(/\s*county$/i, "").trim();
+  }
 
   return null;
 }
