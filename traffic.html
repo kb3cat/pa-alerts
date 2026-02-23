@@ -29,20 +29,13 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap:14px;
+  gap: 14px;
 }
 .title{ font-size:22px; font-weight:700; }
-.subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
+.subtitle{ color:var(--muted); font-size:13px; margin-top: 2px; }
 .header-left{ display:flex; flex-direction:column; }
 
-/* UPDATED POSITION (moved from footer) */
-.header-updated{
-  font-size:12px;
-  color:var(--muted);
-  margin-top:4px;
-}
-
-/* Status pill */
+/* Status pill (upper right) */
 .status-pill{
   display:inline-flex;
   align-items:center;
@@ -61,22 +54,22 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border-radius:999px;
   background: currentColor;
   opacity:.95;
-  box-shadow:0 0 0 3px rgba(255,255,255,.06);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.06);
 }
 .status-ok{
-  background:rgba(41,211,106,.18);
-  color:#c9ffcf;
-  border-color:rgba(41,211,106,.35);
+  background: rgba(41, 211, 106, .18);
+  color: #c9ffcf;
+  border-color: rgba(41, 211, 106, .35);
 }
 .status-attn{
-  background:rgba(255,176,0,.18);
-  color:#ffe6b8;
-  border-color:rgba(255,176,0,.35);
+  background: rgba(255, 176, 0, .18);
+  color: #ffe6b8;
+  border-color: rgba(255, 176, 0, .35);
 }
 .status-err{
-  background:rgba(255,43,43,.18);
-  color:#ffd0d0;
-  border-color:rgba(255,43,43,.35);
+  background: rgba(255, 43, 43, .18);
+  color: #ffd0d0;
+  border-color: rgba(255, 43, 43, .35);
 }
 
 /* ROWS */
@@ -101,6 +94,20 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
 .paneltitle .count{ font-size:18px; color:var(--muted); }
 
+/* Vehicle summary next to panel title */
+.veh-summary{
+  font-size:12px;
+  font-weight:400;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.veh-summary .t1{ color:#a855f7; }
+.veh-summary .t2{ color:#f59e0b; }
+.veh-summary .t3{ color:#3b82f6; }
+.veh-summary .t4{ color:#ef4444; }
+.veh-summary .t5{ color:#ec4899; }
+.veh-summary .rl45{ color:#3b82f6; }
+
 /* ITEMS */
 .items{ max-height:45vh; overflow:auto; }
 .item{
@@ -114,8 +121,59 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   line-height:1.25;
   word-break:break-word;
 }
-.speed .item{ border-left-color:var(--blue); }
-.vehicle .item{ border-left-color:var(--yellow); }
+.speed .item{ border-left-color: var(--blue); }
+.vehicle .item{ border-left-color: var(--yellow); }
+
+/* Vehicle grouping headers */
+.grouphead{
+  padding:8px 10px;
+  margin:10px 0 6px;
+  border-radius:6px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  color: var(--text);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: .02em;
+}
+.grouphead small{
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+/* Tier header font colors */
+.grouphead.tier1{ color:#a855f7; }
+.grouphead.tier2{ color:#f59e0b; }
+.grouphead.tier3{ color:#3b82f6; }
+.grouphead.tier4{ color:#ef4444; }
+.grouphead.tier5{ color:#ec4899; }
+.grouphead.rl45{ color:#3b82f6; }
+
+/* FOOTER (original styling kept for reuse, but we’re moving it into the header) */
+.footer{
+  position:fixed;
+  bottom:8px;
+  right:12px;
+  color:var(--muted);
+  font-size:12px;
+  background:rgba(0,0,0,.25);
+  padding:6px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+}
+
+/* ✅ New: when footer is used in the header, undo fixed positioning + box */
+.header-updated{
+  position: static;
+  bottom: auto;
+  right: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 4px;
+  border-radius: 0;
+}
 </style>
 </head>
 
@@ -125,7 +183,8 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="header-left">
     <div class="title">Pennsylvania 511 Roadway Status Board</div>
     <div class="subtitle">Requested every 5 minutes via GitHub Actions; execution timing may vary.</div>
-    <div class="header-updated" id="updated">Data Last Updated: —</div>
+    <!-- ✅ Moved here -->
+    <div class="footer header-updated" id="updated">Data Last Updated: —</div>
   </div>
 
   <div id="statuspill" class="status-pill status-err" title="Loading…">
@@ -155,15 +214,517 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="row vehicle">
     <div class="paneltitle">
       <div class="name">Vehicle Restrictions</div>
-      <div class="count" id="vehicleCount">—</div>
+      <div class="count" id="vehicleCount">
+        <span class="veh-summary" id="vehSummary">T1=0 / T2=0 / T3=0 / T4=0 / T5=0 / 45=0</span>
+      </div>
     </div>
     <div class="items" id="vehicleList"></div>
   </div>
 
 </div>
 
+<!-- ✅ Removed from here:
+<div class="footer" id="updated">Data Last Updated: —</div>
+-->
+
 <script>
-/* Your existing JS remains completely unchanged */
+const REFRESH_MS = 60000;
+
+const CLOSURES_FILE = "major_route_closures.json";
+const RESTR_FILE = "restrictions.json";
+const ROADCONDS_FILE = "road_conditions.json";
+const TRAVELDELAYS_FILE = "travel_delays.json";
+
+const LAST_RUN_FILE = "last_run.json";
+const STALE_MINUTES = 25;
+
+function candidatePaths(filename) {
+  const here = new URL(".", window.location.href);
+  const parts = location.pathname.split("/").filter(Boolean);
+  const repoBase = parts.length ? `/${parts[0]}/` : "/";
+
+  return [
+    new URL(`data/${filename}`, here).toString(),
+    new URL(`../data/${filename}`, here).toString(),
+    new URL(`${repoBase}data/${filename}`, window.location.origin).toString()
+  ];
+}
+
+async function fetchFirstWorkingJson(filename) {
+  let lastErr = null;
+
+  for (const p of candidatePaths(filename)) {
+    try {
+      const r = await fetch(p + (p.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache:"no-store" });
+      if (!r.ok) { lastErr = new Error(`${r.status} ${r.statusText}`); continue; }
+      const json = await r.json();
+      return { json, sourceUrl: p };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw new Error(`JSON not found: ${filename}` + (lastErr ? ` (last error: ${lastErr})` : ""));
+}
+
+function minutesAgo(dt) {
+  return (Date.now() - dt.getTime()) / 60000;
+}
+
+function setStatus(state, text, hover) {
+  const pill = document.getElementById("statuspill");
+  const line = document.getElementById("statusline");
+  if (!pill || !line) return;
+
+  pill.classList.remove("status-ok","status-attn","status-err");
+  if (state === "ok") pill.classList.add("status-ok");
+  if (state === "attn") pill.classList.add("status-attn");
+  if (state === "err") pill.classList.add("status-err");
+
+  line.textContent = text;
+  pill.title = hover || "";
+}
+
+/* --- show JS errors instead of getting stuck on LOADING --- */
+window.addEventListener("error", (e) => {
+  try { setStatus("err","JS ERROR", e?.message || "Unknown error"); } catch {}
+});
+window.addEventListener("unhandledrejection", (e) => {
+  try {
+    const r = e && e.reason;
+    setStatus("err","JS ERROR", r ? (r.stack || r.message || String(r)) : "Unhandled rejection");
+  } catch {}
+});
+
+function normalizeRows(rows) {
+  return (rows || [])
+    .map(r => Array.isArray(r) ? r.join(" | ") : String(r || ""))
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function cleanLine(s) {
+  let t = s;
+
+  t = t.replace(/^Row Details\s*\|\s*/i, "");
+  t = t.replace(/\bOther incident on\b\s*/i, "");
+
+  t = t.replace(/\s*\|\s*I-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*US-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*PA-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*View on map\s*$/i, "");
+
+  t = t.replace(/\s*\|\s*\|\s*/g, " | ");
+  t = t.replace(/\s{2,}/g, " ");
+
+  return t.trim();
+}
+
+function isFakeHeaderRow(s) {
+  const t = s.trim().toLowerCase();
+  if (t === "speed restrictions") return true;
+  if (t === "vehicle restrictions") return true;
+  if (t === "restrictions") return true;
+  return false;
+}
+
+function renderList(elId, items, kind) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = `item ${kind || ""}`;
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+    return;
+  }
+
+  items.forEach(text => {
+    const div = document.createElement("div");
+    div.className = `item ${kind || ""}`;
+    div.textContent = text;
+    el.appendChild(div);
+  });
+}
+
+function isSpeedRestriction(text) {
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  const hasSpeed = /\b(mph|speed)\b/i.test(text);
+  return hasSpeed && hasRoad;
+}
+
+/* Major Route (good-enough): Interstate/Turnpike OR says "Major Route" */
+function isMajorRouteText(text){
+  const t = String(text || "");
+  return (
+    /\bmajor\s*route(s)?\b/i.test(t) ||
+    /\b(i-\d+|interstate\s*\d+)\b/i.test(t) ||
+    /\bturnpike\b/i.test(t)
+  );
+}
+
+/* Closure-ish wording */
+function isClosureish(text){
+  const t = String(text || "").toLowerCase();
+
+  // Exclude partial closures first
+  if (
+    t.includes("ramp") ||
+    t.includes("shoulder") ||
+    t.includes("lane restriction") ||
+    t.includes("right lane closed") ||
+    t.includes("left lane closed") ||
+    t.includes("single lane") ||
+    t.includes("partial closure")
+  ) return false;
+
+  // Include only full roadway closures
+  return (
+    t.includes("all lanes closed") ||
+    t.includes("all lanes blocked") ||
+    t.includes("closed in both directions") ||
+    t.includes("closed both directions") ||
+    t.includes("full closure") ||
+    t.includes("road closed") ||
+    t.includes("traffic stopped") ||
+    t.includes("impassable")
+  );
+}
+
+/* 45 MPH - CMV Right Lane Only */
+function is45CmvRightLaneOnly(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  if (!hasRoad) return false;
+
+  const mph45 = /\b45\s*mph\b/i.test(text);
+  const rightLaneOnly = /\bright\s*lane\s*only\b/i.test(text) || /\brt\.?\s*lane\s*only\b/i.test(text);
+
+  const cmvRightLane =
+    /\bcommercial\s*vehicles?\s*right\s*lane\s*only\b/i.test(text) ||
+    /\bcmv\s*right\s*lane\s*only\b/i.test(text) ||
+    (/\bcommercial\s*vehicles?\b/i.test(text) && rightLaneOnly) ||
+    (/\bcmv\b/i.test(text) && rightLaneOnly);
+
+  return mph45 && rightLaneOnly && cmvRightLane;
+}
+
+function formatDataLastUpdated(dt) {
+  if (!dt) return "Data Last Updated: —";
+  return "Data Last Updated: " + dt.toLocaleString();
+}
+
+function extractTextLines(anyJson){
+  if (!anyJson) return [];
+
+  // Common shapes we’ve seen in your repo:
+  // - { items: [ { formatted }, ... ] }
+  // - { rows: [ ... ] }
+  // - { items: [ { description }, ... ] }
+  // - fallback: array itself
+  if (Array.isArray(anyJson)) return anyJson.map(x => String(x || "")).filter(Boolean);
+
+  if (Array.isArray(anyJson.items)) {
+    return anyJson.items
+      .map(it =>
+        it?.formatted ||
+        it?.description ||
+        it?.title ||
+        it?.message ||
+        it?.text ||
+        ""
+      )
+      .map(s => String(s || "").trim())
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(anyJson.rows)) {
+    return normalizeRows(anyJson.rows).map(cleanLine).filter(Boolean);
+  }
+
+  return [];
+}
+
+/* Numeric-ish sort */
+function routeKey(text){
+  const s = String(text || "");
+  const m =
+    s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/\binterstate\s*(\d{1,4})\b/i);
+
+  if (!m) return { grp: 9, num: 99999 };
+
+  if (/interstate/i.test(m[0])) {
+    const num = parseInt(m[1], 10);
+    return { grp: 1, num: isNaN(num) ? 99999 : num };
+  }
+
+  const type = String(m[1]).toUpperCase();
+  const num = parseInt(m[2], 10);
+  const grp = (type === "I") ? 1 : (type === "US") ? 2 : 3;
+  return { grp, num: isNaN(num) ? 99999 : num };
+}
+function sortByRoute(a,b){
+  const ka = routeKey(a), kb = routeKey(b);
+  if (ka.grp !== kb.grp) return ka.grp - kb.grp;
+  if (ka.num !== kb.num) return ka.num - kb.num;
+  return String(a).localeCompare(String(b));
+}
+
+/* Tier grouping (unchanged logic from your last version) */
+function extractTierHeader(s){
+  const t = (s || "").trim();
+  const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
+  if (m) return Number(m[1]);
+  const m2 = t.match(/^tier\s*([1-5])\b/i);
+  if (m2 && t.length <= 60) return Number(m2[1]);
+  return null;
+}
+function applyTierContext(rows){
+  let currentTier = null;
+  const out = [];
+  for (const text of (rows || [])) {
+    const hdr = extractTierHeader(text);
+    if (hdr) { currentTier = hdr; continue; }
+    out.push({ text, tier: currentTier });
+  }
+  return out;
+}
+function getTierFromText(text){
+  const t = (text || "").toLowerCase();
+  const m = t.match(/\btier\s*([1-5])\b/);
+  if (m) return Number(m[1]);
+  if (t.includes("complete cmv restriction")) return 4;
+  if (t.includes("all passenger vehicles")) return 5;
+  return null;
+}
+function vehiclePanelCandidate(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  if (!hasRoad) return false;
+  return (
+    /\btier\s*[1-5]\b/i.test(text) ||
+    /\bcomplete cmv restriction\b/i.test(text) ||
+    /\ball passenger vehicles\b/i.test(text) ||
+    /\bcmv\b/i.test(text) ||
+    /\bcommercial\b/i.test(text) ||
+    /\btruck(s)?\b/i.test(text) ||
+    /\bpermit\b/i.test(text) ||
+    /\bno permit travel\b/i.test(text) ||
+    /\btrailer\b/i.test(text) ||
+    /\btowing\b/i.test(text) ||
+    /\bmotor coach|motorcoach|school bus|commercial bus|motorcycle\b/i.test(text) ||
+    /\bchains?\b/i.test(text) ||
+    /\batd\b/i.test(text)
+  );
+}
+
+function renderVehicleGrouped(elId, items){
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "item vehicle";
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+
+    const summaryEl = document.getElementById("vehSummary");
+    if (summaryEl) summaryEl.textContent = "T1=0 / T2=0 / T3=0 / T4=0 / T5=0 / 45=0";
+    return;
+  }
+
+  const buckets = new Map([
+    [1, []],
+    [2, []],
+    [3, []],
+    [4, []],
+    [5, []],
+    ["rl45", []],
+    ["other", []]
+  ]);
+
+  for (const it of items) {
+    const text = it?.text ?? String(it ?? "");
+    const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
+
+    if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
+    if (tier && buckets.has(tier)) buckets.get(tier).push(text);
+    else buckets.get("other").push(text);
+  }
+
+  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
+
+  const t1 = buckets.get(1).length;
+  const t2 = buckets.get(2).length;
+  const t3 = buckets.get(3).length;
+  const t4 = buckets.get(4).length;
+  const t5 = buckets.get(5).length;
+  const r45 = buckets.get("rl45").length;
+
+  const summaryEl = document.getElementById("vehSummary");
+  if (summaryEl) {
+    summaryEl.innerHTML =
+      `<span class="t1">T1=${t1}</span> / ` +
+      `<span class="t2">T2=${t2}</span> / ` +
+      `<span class="t3">T3=${t3}</span> / ` +
+      `<span class="t4">T4=${t4}</span> / ` +
+      `<span class="t5">T5=${t5}</span> / ` +
+      `<span class="rl45">45=${r45}</span>`;
+  }
+
+  const tierLabels = {
+    1: "Tier 1",
+    2: "Tier 2",
+    3: "Tier 3",
+    4: "Tier 4",
+    5: "Tier 5",
+    rl45: "45 MPH — CMV Right Lane Only",
+    other: "Other / Unclassified vehicle restrictions"
+  };
+
+  const headClass = {
+    1: "tier1",
+    2: "tier2",
+    3: "tier3",
+    4: "tier4",
+    5: "tier5",
+    rl45: "rl45",
+    other: ""
+  };
+
+  const order = [1,2,3,4,5,"rl45","other"];
+
+  for (const key of order) {
+    const arr = buckets.get(key);
+    if (!arr || !arr.length) continue;
+
+    const head = document.createElement("div");
+    head.className = `grouphead ${headClass[key] || ""}`.trim();
+    head.innerHTML = `${tierLabels[key]} <small>(${arr.length})</small>`;
+    el.appendChild(head);
+
+    for (const text of arr) {
+      const div = document.createElement("div");
+      div.className = "item vehicle";
+      div.textContent = text;
+      el.appendChild(div);
+    }
+  }
+}
+
+/* NEW: closures de-dupe key */
+function closureDedupeKey(s){
+  return String(s || "")
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .replace(/\bestimated reopen:\s*tbd\b/g, "estimated reopen:tbd")
+    .replace(/\bestimated reopen:\s*/g, "estimated reopen:")
+    .replace(/[|]/g,"|")
+    .trim();
+}
+
+async function loadBoard(){
+  try {
+    let lastRunDt = null;
+    let warnings = [];
+
+    // last_run.json
+    try {
+      const lastRunRes = await fetchFirstWorkingJson(LAST_RUN_FILE);
+      const raw =
+        lastRunRes.json?.ran_at ||
+        lastRunRes.json?.updated ||
+        lastRunRes.json?.timestamp ||
+        null;
+
+      if (!raw) warnings.push(`data/${LAST_RUN_FILE} missing timestamp (expected ran_at/updated/timestamp).`);
+      else {
+        const parsed = new Date(raw);
+        if (isNaN(parsed.getTime())) warnings.push(`data/${LAST_RUN_FILE} timestamp invalid: ${raw}`);
+        else lastRunDt = parsed;
+      }
+    } catch {
+      warnings.push(`Could not load data/${LAST_RUN_FILE}.`);
+    }
+
+    document.getElementById("updated").textContent = lastRunDt
+      ? formatDataLastUpdated(lastRunDt)
+      : "Data Last Updated: Unknown";
+
+    if (!lastRunDt) {
+      setStatus("err","NOT UPDATING",`Dashboard can't determine last run time.\nFix: ensure the workflow writes data/${LAST_RUN_FILE}.`);
+      return;
+    }
+
+    const ageMin = minutesAgo(lastRunDt);
+    if (ageMin > STALE_MINUTES) {
+      setStatus("err","NOT UPDATING",`Last successful run was ${ageMin.toFixed(1)} minutes ago.\nThreshold is ${STALE_MINUTES} minutes.\nFix: check GitHub Actions runs/logs.`);
+      return;
+    }
+
+    // Load all data feeds we care about
+    let closuresJson=null, restr=null;
+
+    try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
+    try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
+
+    // Closures: ONLY from major_route_closures.json + de-dupe
+    const closuresPrimaryRaw = extractTextLines(closuresJson).map(cleanLine).filter(Boolean);
+    const seen = new Set();
+    const closuresMerged = [];
+    for (const s of closuresPrimaryRaw) {
+      const k = closureDedupeKey(s);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      closuresMerged.push(s);
+    }
+    closuresMerged.sort(sortByRoute);
+
+    // Speed/Vehicle (same as your last working version)
+    const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
+    const withTiers = applyTierContext(restrRows);
+
+    const speed = withTiers
+      .map(r => r.text)
+      .filter(isSpeedRestriction)
+      .filter(s => !is45CmvRightLaneOnly(s))
+      .sort(sortByRoute);
+
+    const vehicle = withTiers.filter(r =>
+      is45CmvRightLaneOnly(r.text) ||
+      (r.tier != null) ||
+      vehiclePanelCandidate(r.text)
+    );
+
+    // Counts
+    document.getElementById("closuresCount").textContent = String(closuresMerged.length);
+    document.getElementById("speedCount").textContent = String(speed.length);
+    document.getElementById("vehicleCount").textContent = String(vehicle.length);
+
+    // Render
+    renderList("closuresList", closuresMerged, "");
+    renderList("speedList", speed, "speed");
+    renderVehicleGrouped("vehicleList", vehicle);
+
+    if (warnings.length) {
+      setStatus("attn","NEEDS ATTENTION",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
+    } else {
+      setStatus("ok","OK",`Workflow ran ${ageMin.toFixed(1)} minutes ago.\nData files loaded successfully.\nNo action needed.`);
+    }
+  } catch (e) {
+    setStatus("err","JS ERROR", e?.stack || e?.message || String(e));
+  }
+}
+
+loadBoard();
+setInterval(loadBoard, REFRESH_MS);
 </script>
 
 </body>
