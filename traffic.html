@@ -110,6 +110,32 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .speed .item{ border-left-color: var(--blue); }
 .vehicle .item{ border-left-color: var(--yellow); }
 
+/* Vehicle grouping headers */
+.grouphead{
+  padding:8px 10px;
+  margin:10px 0 6px;
+  border-radius:6px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  color: var(--text);
+  font-weight: 400;         /* not bold */
+  font-size: 15px;          /* slightly larger than before */
+  letter-spacing: .02em;
+}
+.grouphead small{
+  color: var(--muted);
+  font-weight: 400;         /* not bold */
+  margin-left: 6px;
+}
+
+/* Tier header font colors (to match 511 legend style) */
+.grouphead.tier1{ color:#a855f7; }  /* purple */
+.grouphead.tier2{ color:#f59e0b; }  /* orange */
+.grouphead.tier3{ color:#3b82f6; }  /* blue */
+.grouphead.tier4{ color:#ef4444; }  /* red */
+.grouphead.tier5{ color:#ec4899; }  /* pink */
+.grouphead.rl45{ color:#3b82f6; }   /* blue (speed/CMV style) */
+
 /* FOOTER */
 .footer{
   position:fixed;
@@ -265,6 +291,10 @@ function isFakeHeaderRow(s) {
   if (t === "restrictions") return true;
 
   const hasRoadHint = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(s);
+
+  // Allow tier header rows through so we can apply context
+  if (/^tier\s*[1-5]\b/i.test(s)) return false;
+
   if (!hasRoadHint && t.length <= 25) return true;
 
   const hasDigit = /\d/.test(s);
@@ -308,9 +338,161 @@ function isTierRestriction(text) {
   return hasRoad && (tierish || permit || commercial);
 }
 
+/* 45 MPH - CMV Right Lane Only (displayed under Vehicle Restrictions after tiers) */
+function is45CmvRightLaneOnly(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+  if (!hasRoad) return false;
+
+  const mph45 = /\b45\s*mph\b/i.test(text);
+  const rightLaneOnly = /\bright\s*lane\s*only\b/i.test(text) || /\brt\.?\s*lane\s*only\b/i.test(text);
+
+  const cmvRightLane =
+    /\bcommercial\s*vehicles?\s*right\s*lane\s*only\b/i.test(text) ||
+    /\bcmv\s*right\s*lane\s*only\b/i.test(text) ||
+    (/\bcommercial\s*vehicles?\b/i.test(text) && rightLaneOnly) ||
+    (/\bcmv\b/i.test(text) && rightLaneOnly);
+
+  return mph45 && rightLaneOnly && cmvRightLane;
+}
+
 function formatDataLastUpdated(dt) {
   if (!dt) return "Data Last Updated: —";
   return "Data Last Updated: " + dt.toLocaleString();
+}
+
+/* Tier context parsing (tier header applies to rows that follow) */
+function extractTierHeader(s){
+  const t = (s || "").trim();
+  const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
+  if (m) return Number(m[1]);
+
+  const m2 = t.match(/^tier\s*([1-5])\b/i);
+  if (m2 && t.length <= 60) return Number(m2[1]);
+
+  return null;
+}
+
+function applyTierContext(rows){
+  let currentTier = null;
+  const out = [];
+
+  for (const text of (rows || [])) {
+    const hdr = extractTierHeader(text);
+    if (hdr) { currentTier = hdr; continue; } // do not include the header itself
+    out.push({ text, tier: currentTier });
+  }
+
+  return out;
+}
+
+/* Vehicle grouping helpers */
+function getTierFromText(text){
+  const t = (text || "").toLowerCase();
+
+  const m = t.match(/\btier\s*([1-5])\b/);
+  if (m) return Number(m[1]);
+
+  if (t.includes("complete cmv restriction")) return 4;
+  if (t.includes("all passenger vehicles")) return 5;
+
+  return null;
+}
+
+function vehiclePanelCandidate(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
+  if (!hasRoad) return false;
+
+  return (
+    /\btier\s*[1-5]\b/i.test(text) ||
+    /\bcomplete cmv restriction\b/i.test(text) ||
+    /\ball passenger vehicles\b/i.test(text) ||
+    /\bcmv\b/i.test(text) ||
+    /\bcommercial\b/i.test(text) ||
+    /\btruck(s)?\b/i.test(text) ||
+    /\bpermit\b/i.test(text) ||
+    /\bno permit travel\b/i.test(text) ||
+    /\btrailer\b/i.test(text) ||
+    /\btowing\b/i.test(text) ||
+    /\bmotor coach|motorcoach|school bus|commercial bus|motorcycle\b/i.test(text) ||
+    /\bchains?\b/i.test(text) ||
+    /\batd\b/i.test(text)
+  );
+}
+
+function renderVehicleGrouped(elId, items){
+  const el = document.getElementById(elId);
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "item vehicle";
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+    return;
+  }
+
+  const buckets = new Map([
+    [1, []],
+    [2, []],
+    [3, []],
+    [4, []],
+    [5, []],
+    ["rl45", []],
+    ["other", []]
+  ]);
+
+  for (const it of items) {
+    const text = it?.text ?? String(it ?? "");
+    const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
+
+    if (is45CmvRightLaneOnly(text)) {
+      buckets.get("rl45").push(text);
+      continue;
+    }
+
+    if (tier && buckets.has(tier)) buckets.get(tier).push(text);
+    else buckets.get("other").push(text);
+  }
+
+  const tierLabels = {
+    1: "Tier 1",
+    2: "Tier 2",
+    3: "Tier 3",
+    4: "Tier 4",
+    5: "Tier 5",
+    rl45: "45 MPH — CMV Right Lane Only",
+    other: "Other / Unclassified vehicle restrictions"
+  };
+
+  const headClass = {
+    1: "tier1",
+    2: "tier2",
+    3: "tier3",
+    4: "tier4",
+    5: "tier5",
+    rl45: "rl45",
+    other: ""
+  };
+
+  const order = [1,2,3,4,5,"rl45","other"];
+
+  for (const key of order) {
+    const arr = buckets.get(key);
+    if (!arr || !arr.length) continue;
+
+    const head = document.createElement("div");
+    head.className = `grouphead ${headClass[key] || ""}`.trim();
+    head.innerHTML = `${tierLabels[key]} <small>(${arr.length})</small>`;
+    el.appendChild(head);
+
+    for (const text of arr) {
+      const div = document.createElement("div");
+      div.className = "item vehicle";
+      div.textContent = text;
+      el.appendChild(div);
+    }
+  }
 }
 
 async function loadBoard(){
@@ -392,8 +574,18 @@ async function loadBoard(){
     .map(cleanLine)
     .filter(s => !isFakeHeaderRow(s));
 
-  const speed = restrRows.filter(isSpeedRestriction);
-  const vehicle = restrRows.filter(isTierRestriction);
+  const withTiers = applyTierContext(restrRows);
+
+  const speed = withTiers
+    .map(r => r.text)
+    .filter(isSpeedRestriction)
+    .filter(s => !is45CmvRightLaneOnly(s));
+
+  const vehicle = withTiers.filter(r =>
+    is45CmvRightLaneOnly(r.text) ||
+    (r.tier != null) ||
+    vehiclePanelCandidate(r.text)
+  );
 
   // Render counts
   document.getElementById("closuresCount").textContent = String(closures.length);
@@ -403,7 +595,7 @@ async function loadBoard(){
   // Render lists
   renderList("closuresList", closures, "");
   renderList("speedList", speed, "speed");
-  renderList("vehicleList", vehicle, "vehicle");
+  renderVehicleGrouped("vehicleList", vehicle);
 
   // Status pill: OK if no warnings, ORANGE if warnings
   if (warnings.length) {
