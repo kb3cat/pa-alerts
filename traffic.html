@@ -355,15 +355,28 @@ function isMajorRouteText(text){
 /* Closure-ish wording */
 function isClosureish(text){
   const t = String(text || "").toLowerCase();
+
+  // Exclude partial closures first
+  if (
+    t.includes("ramp") ||
+    t.includes("shoulder") ||
+    t.includes("lane restriction") ||
+    t.includes("right lane closed") ||
+    t.includes("left lane closed") ||
+    t.includes("single lane") ||
+    t.includes("partial closure")
+  ) return false;
+
+  // Include only full roadway closures
   return (
-    /\bclosed\b/.test(t) ||
-    /\bclosure\b/.test(t) ||
-    /\broad\s*closed\b/.test(t) ||
-    /\bclosed\s*between\b/.test(t) ||
-    /\bclosed\s*at\b/.test(t) ||
-    /\bshutdown\b/.test(t) ||
-    /\bblocked\b/.test(t) ||
-    /\bimpassable\b/.test(t)
+    t.includes("all lanes closed") ||
+    t.includes("all lanes blocked") ||
+    t.includes("closed in both directions") ||
+    t.includes("closed both directions") ||
+    t.includes("full closure") ||
+    t.includes("road closed") ||
+    t.includes("traffic stopped") ||
+    t.includes("impassable")
   );
 }
 
