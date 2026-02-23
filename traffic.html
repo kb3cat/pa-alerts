@@ -94,6 +94,20 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
 .paneltitle .count{ font-size:18px; color:var(--muted); }
 
+/* Vehicle summary next to panel title */
+.veh-summary{
+  font-size:12px;
+  font-weight:400;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.veh-summary .t1{ color:#a855f7; }
+.veh-summary .t2{ color:#f59e0b; }
+.veh-summary .t3{ color:#3b82f6; }
+.veh-summary .t4{ color:#ef4444; }
+.veh-summary .t5{ color:#ec4899; }
+.veh-summary .rl45{ color:#3b82f6; }
+
 /* ITEMS */
 .items{ max-height:45vh; overflow:auto; }
 .item{
@@ -187,7 +201,9 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="row vehicle">
     <div class="paneltitle">
       <div class="name">Vehicle Restrictions</div>
-      <div class="count" id="vehicleCount">—</div>
+      <div class="count">
+        <span class="veh-summary" id="vehSummary">T1=0 / T2=0 / T3=0 / T4=0 / T5=0 / 45=0</span>
+      </div>
     </div>
     <div class="items" id="vehicleList"></div>
   </div>
@@ -330,13 +346,6 @@ function isSpeedRestriction(text) {
   const hasSpeed = /\b(mph|speed)\b/i.test(text);
   return hasSpeed && hasRoad;
 }
-function isTierRestriction(text) {
-  const tierish = /\btier\s*[1-3]\b/i.test(text);
-  const permit = /\b(no permit travel|permit travel)\b/i.test(text);
-  const commercial = /\b(commercial vehicles?|cmv|trucks?)\b/i.test(text);
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit)/i.test(text);
-  return hasRoad && (tierish || permit || commercial);
-}
 
 /* 45 MPH - CMV Right Lane Only (displayed under Vehicle Restrictions after tiers) */
 function is45CmvRightLaneOnly(text){
@@ -419,6 +428,25 @@ function vehiclePanelCandidate(text){
   );
 }
 
+/* Numeric sort helper (keeps "I-81", "I-276", "US-22", "PA 33" in sensible order) */
+function routeKey(text){
+  const s = String(text || "");
+  const m = s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i);
+  if (!m) return { grp: 9, num: 99999 };
+
+  const type = m[1].toUpperCase();
+  const num = parseInt(m[2], 10);
+
+  const grp = (type === "I") ? 1 : (type === "US") ? 2 : 3;
+  return { grp, num: isNaN(num) ? 99999 : num };
+}
+function sortByRoute(a,b){
+  const ka = routeKey(a), kb = routeKey(b);
+  if (ka.grp !== kb.grp) return ka.grp - kb.grp;
+  if (ka.num !== kb.num) return ka.num - kb.num;
+  return String(a).localeCompare(String(b));
+}
+
 function renderVehicleGrouped(elId, items){
   const el = document.getElementById(elId);
   el.innerHTML = "";
@@ -453,6 +481,30 @@ function renderVehicleGrouped(elId, items){
 
     if (tier && buckets.has(tier)) buckets.get(tier).push(text);
     else buckets.get("other").push(text);
+  }
+
+  // Sort each bucket numerically by route
+  for (const [k, arr] of buckets.entries()) {
+    arr.sort(sortByRoute);
+  }
+
+  // Update the summary next to the "Vehicle Restrictions" title
+  const t1 = buckets.get(1).length;
+  const t2 = buckets.get(2).length;
+  const t3 = buckets.get(3).length;
+  const t4 = buckets.get(4).length;
+  const t5 = buckets.get(5).length;
+  const r45 = buckets.get("rl45").length;
+
+  const summaryEl = document.getElementById("vehSummary");
+  if (summaryEl) {
+    summaryEl.innerHTML =
+      `<span class="t1">T1=${t1}</span> / ` +
+      `<span class="t2">T2=${t2}</span> / ` +
+      `<span class="t3">T3=${t3}</span> / ` +
+      `<span class="t4">T4=${t4}</span> / ` +
+      `<span class="t5">T5=${t5}</span> / ` +
+      `<span class="rl45">45=${r45}</span>`;
   }
 
   const tierLabels = {
