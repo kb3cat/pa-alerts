@@ -169,7 +169,7 @@ function parseReopenToMMDDYY_HHMM(endRaw) {
   }
 
   const hh2 = String(hh).padStart(2, "0");
-  return `${mo}/${da}/${yy} - ${hh2}${mm}`;
+  return `${mo}/${da}/${yy} - ${hh2}:${mm}`;
 }
 
 function normalizeNarrativeText(s) {
