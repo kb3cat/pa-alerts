@@ -128,6 +128,14 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   margin-left: 6px;
 }
 
+/* Tier header font colors (to match 511 legend style) */
+.grouphead.tier1{ color:#a855f7; }  /* purple */
+.grouphead.tier2{ color:#f59e0b; }  /* orange */
+.grouphead.tier3{ color:#3b82f6; }  /* blue */
+.grouphead.tier4{ color:#ef4444; }  /* red */
+.grouphead.tier5{ color:#ec4899; }  /* pink */
+.grouphead.rl45{ color:#3b82f6; }   /* blue (speed/CMV style) */
+
 /* FOOTER */
 .footer{
   position:fixed;
@@ -425,11 +433,11 @@ function renderVehicleGrouped(elId, items){
   }
 
   const buckets = new Map([
-    [5, []],
-    [4, []],
-    [3, []],
-    [2, []],
     [1, []],
+    [2, []],
+    [3, []],
+    [4, []],
+    [5, []],
     ["rl45", []],
     ["other", []]
   ]);
@@ -448,23 +456,34 @@ function renderVehicleGrouped(elId, items){
   }
 
   const tierLabels = {
-    5: "Tier 5 — All passenger vehicles",
-    4: "Tier 4 — Complete CMV restriction (all CMVs)",
-    3: "Tier 3",
-    2: "Tier 2",
     1: "Tier 1",
+    2: "Tier 2",
+    3: "Tier 3",
+    4: "Tier 4",
+    5: "Tier 5",
     rl45: "45 MPH — CMV Right Lane Only",
     other: "Other / Unclassified vehicle restrictions"
   };
 
-  const order = [5,4,3,2,1,"rl45","other"];
+  const headClass = {
+    1: "tier1",
+    2: "tier2",
+    3: "tier3",
+    4: "tier4",
+    5: "tier5",
+    rl45: "rl45",
+    other: ""
+  };
+
+  // Order: Tier 1–5, then Speed/CMV (45 mph right-lane), then other
+  const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
     const arr = buckets.get(key);
     if (!arr || !arr.length) continue;
 
     const head = document.createElement("div");
-    head.className = "grouphead";
+    head.className = `grouphead ${headClass[key] || ""}`.trim();
     head.innerHTML = `${tierLabels[key]} <small>(${arr.length})</small>`;
     el.appendChild(head);
 
@@ -563,10 +582,6 @@ async function loadBoard(){
     .filter(isSpeedRestriction)
     .filter(s => !is45CmvRightLaneOnly(s));
 
-  // Vehicle list includes:
-  // - anything under a Tier header (tier context applies), even if the row doesn't say CMV
-  // - plus other vehicle restriction rows that match keywords
-  // - plus the 45 MPH CMV right-lane-only rows (grouped after tiers)
   const vehicle = withTiers.filter(r =>
     is45CmvRightLaneOnly(r.text) ||
     (r.tier != null) ||
