@@ -42,28 +42,24 @@ function norm(s) {
 
 function parseRoute(desc) {
   // tries to find I-##, US-##, PA-##
-  const m = desc.match(/\b(I|US|PA)\s*[- ]\s*(\d{1,3})\b/i);
+  const m = String(desc || "").match(/\b(I|US|PA)\s*[- ]\s*(\d{1,3})\b/i);
   if (!m) return null;
   return `${m[1].toUpperCase()}-${m[2]}`;
 }
 
 function parseDirection(desc) {
   // prefer explicit NB/SB/EB/WB
-  const m1 = desc.match(/\b(NB|SB|EB|WB)\b/i);
+  const m1 = String(desc || "").match(/\b(NB|SB|EB|WB)\b/i);
   if (m1) return m1[1].toUpperCase();
 
   // fallback: NORTH/SOUTH/EAST/WEST (or “NORTHBOUND”)
-  const m2 = desc.match(/\b(NORTH|SOUTH|EAST|WEST)(BOUND)?\b/i);
+  const m2 = String(desc || "").match(/\b(NORTH|SOUTH|EAST|WEST)(BOUND)?\b/i);
   if (!m2) return null;
-  const dir = m2[1].toUpperCase();
-  return dir; // return "NORTH", etc.
+  return m2[1].toUpperCase(); // "NORTH", etc.
 }
 
 function parseBetweenExits(desc) {
-  // handles patterns like:
-  // "between Exit 100: PA 443 - PINE GROVE and Exit 138: PA 309 - MCADOO/TAMAQUA"
-  // also: "between Exit: abc (##) to xyz (##)" (numbers in parens)
-  const d = desc;
+  const d = String(desc || "");
 
   // Pattern A: Exit 100: NAME ... and Exit 138: NAME ...
   const mA = d.match(/between\s+Exit\s+(\d+)\s*:\s*([^]+?)\s+(?:and|to)\s+Exit\s+(\d+)\s*:\s*([^]+?)(?:\.|$)/i);
@@ -87,12 +83,13 @@ function parseBetweenExits(desc) {
 }
 
 function isConstructionRelated(desc) {
-  // be aggressive — you asked to ignore roadwork/construction closures
+  // aggressive — ignore roadwork/construction closures
   return /(roadwork|construction|work zone|lane closure for work|paving|bridge|maintenance|utility work|shoulder work)/i.test(desc);
 }
 
-function isAllLanesClosed(desc) {
-  return /\ball lanes closed\b/i.test(desc);
+function isAllLanesClosedOrBlocked(desc) {
+  // You asked for: "All lanes closed" OR "All lanes blocked"
+  return /\ball lanes (closed|blocked)\b/i.test(desc);
 }
 
 function isAllLanesOpen(desc) {
@@ -127,15 +124,26 @@ function extractNarrativeFromDesc(desc) {
   // Remove timestamp-like tokens (e.g., "2/23/26, 12:55 AM")
   const nonTime = parts.filter(p => !/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*,\s*\d{1,2}:\d{2}\s*(AM|PM)$/i.test(p));
 
-  // Remove leading metadata tokens commonly present in 511 pipe-strings
-  // Examples: "Closure - Major Route", "I-80", "Pennsylvania", "Monroe"
+  // Identify county position (typically right after "Pennsylvania")
+  const paIdx = nonTime.findIndex(p => /^pennsylvania$/i.test(p));
+  const countyToken = (paIdx >= 0 && nonTime[paIdx + 1]) ? nonTime[paIdx + 1] : null;
+
+  // Strip common metadata tokens
   const cleaned = nonTime.filter(p => {
-    if (/^closure\b/i.test(p)) return false;
-    if (/^restriction\b/i.test(p)) return false;
-    if (/^event\b/i.test(p)) return false;
-    if (/^major route$/i.test(p)) return false;
-    if (/^pennsylvania$/i.test(p)) return false;
-    if (parseRoute(p)) return false; // route token like "I-80"
+    const t = p.trim();
+
+    if (/^closure\b/i.test(t)) return false;
+    if (/^restriction\b/i.test(t)) return false;
+    if (/^event\b/i.test(t)) return false;
+    if (/^major route$/i.test(t)) return false;
+    if (/^pennsylvania$/i.test(t)) return false;
+
+    // Remove the county token too (prevents returning "Northumberland")
+    if (countyToken && t.toLowerCase() === countyToken.toLowerCase()) return false;
+
+    // Remove route token like "I-80" or "I - 180"
+    if (parseRoute(t)) return false;
+
     return true;
   });
 
@@ -169,9 +177,13 @@ function parseReopenToMMDDYY_HHMM(endRaw) {
 }
 
 function normalizeNarrativeText(s) {
-  return String(s || "")
+  let t = String(s || "")
     .replace(/\bMulti\s+vehicle\b/gi, "Multi-vehicle")
-    .replace(/\bAll\s+lanes\s+closed\b/gi, "All lanes Closed");
+    .replace(/\ball lanes (closed|blocked)\b/gi, (m, w) => `All lanes ${w[0].toUpperCase()}${w.slice(1).toLowerCase()}`);
+
+  // Add trailing period if it looks like a sentence and doesn't already have one
+  if (t && !/[.!?]$/.test(t)) t += ".";
+  return t;
 }
 
 function buildMajorRouteClosures(trafficTable) {
@@ -183,10 +195,10 @@ function buildMajorRouteClosures(trafficTable) {
   const descI = idx(headers, "Description");
   const endI  = idx(headers, "Anticipated End Time");
 
-  // If 511 changes header names slightly, fallback by fuzzy includes
-  const typeIdx = typeI ?? headers.findIndex(h => /type/i.test(h));
-  const descIdx = descI ?? headers.findIndex(h => /description/i.test(h));
-  const endIdx  = endI  ?? headers.findIndex(h => /(anticipated|end time)/i.test(h));
+  // Fallbacks by fuzzy match
+  const typeIdx = (typeI ?? headers.findIndex(h => /type/i.test(h)));
+  const descIdx = (descI ?? headers.findIndex(h => /description/i.test(h)));
+  const endIdx  = (endI  ?? headers.findIndex(h => /(anticipated|end)/i.test(h)));
 
   const items = [];
 
@@ -195,36 +207,52 @@ function buildMajorRouteClosures(trafficTable) {
     const desc = norm(r[descIdx]);
     const end  = norm(r[endIdx]);
 
-    if (!type || !desc) continue;
+    if (!desc) continue;
 
-    // must be Major Route
-    if (!/^major route$/i.test(type)) continue;
+    // Major Route can appear in Type OR in the pipe-string Description
+    const isMajorRoute =
+      /major route/i.test(type) ||
+      /major route/i.test(desc);
 
-    // ignore roadwork/construction-related
+    if (!isMajorRoute) continue;
+
+    // Must be a closure-ish row (helps avoid weird non-closure rows)
+    const isClosure =
+      /\bclosure\b/i.test(type) ||
+      /\bclosure\b/i.test(desc);
+
+    if (!isClosure) continue;
+
+    // Ignore roadwork/construction-related
     if (isConstructionRelated(desc)) continue;
 
-    // if it explicitly says all lanes open, do not include
+    // If it explicitly says all lanes open, do not include
     if (isAllLanesOpen(desc)) continue;
 
-    // only include all lanes closed
-    if (!isAllLanesClosed(desc)) continue;
+    // Only include all lanes closed/blocked
+    if (!isAllLanesClosedOrBlocked(desc)) continue;
 
     const route = parseRoute(desc) || "ROUTE";
     const dir = parseDirection(desc) || "DIRECTION";
     const between = parseBetweenExits(desc);
 
-    const etaText = end ? end : "TBD";
     const county = parseCountyFromDesc(desc) || "Unknown";
     const narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
     const reopenFmt = parseReopenToMMDDYY_HHMM(end);
 
-    const line = `${route} (${county} County) | ${narrative} Estimated Reopen: ${reopenFmt}`;
+    // Avoid duplicating "between Exit ..." if it's already in narrative
+    const narrativeHasBetween = /\bbetween\s+Exit\b/i.test(narrative);
+    const betweenText = (!narrativeHasBetween && between)
+      ? ` between ${between.from} and ${between.to}.`
+      : "";
+
+    const line = `${route} (${county} County) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
       route,
       direction: dir,
       between,
-      anticipated_end_time: etaText,
+      anticipated_end_time: end ? end : "",
       description: desc,
       formatted: line
     });
@@ -271,7 +299,7 @@ async function main() {
     console.log(`Wrote data/${o.name}.json (${data.rows.length} rows)`);
   }
 
-  // Derived file: major-route, non-construction, all-lanes-closed
+  // Derived file: major-route, non-construction, all-lanes-closed/blocked
   const major = buildMajorRouteClosures(resultsByName.travel_delays);
   fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(major, null, 2));
   console.log(`Wrote data/major_route_closures.json (${major.count} items)`);
