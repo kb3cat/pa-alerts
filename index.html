@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PennAlerts — Index</title>
+
+  <style>
+    :root{
+      --bg:#0f0f10;
+      --panel:#171719;
+      --panel2:#1d1d1f;
+      --border:#2a2a2d;
+      --text:#e9e9ea;
+      --muted:#a7a7aa;
+
+      --accent:#00bfff;
+      --good:#29d36a;
+      --warn:#ffb000;
+      --bad:#ff2b2b;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .topbar{
+      background:#222;
+      border-bottom:2px solid var(--border);
+      padding:14px 16px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+
+    .titleWrap{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+
+    .title{
+      font-size:20px;
+      font-weight:700;
+      letter-spacing:0.3px;
+      line-height:1.1;
+    }
+
+    .subtitle{
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .statusPill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border:1px solid var(--border);
+      background:var(--panel2);
+      border-radius:999px;
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:var(--good);
+      box-shadow:0 0 0 2px rgba(41,211,106,0.15);
+    }
+
+    main{
+      padding:16px;
+      max-width:1100px;
+      margin:0 auto;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat( auto-fit, minmax(240px, 1fr) );
+      gap:12px;
+      margin-top:14px;
+    }
+
+    a.card{
+      display:block;
+      text-decoration:none;
+      color:inherit;
+      border:1px solid var(--border);
+      background:linear-gradient(180deg, var(--panel), var(--panel2));
+      border-radius:12px;
+      padding:14px;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      position:relative;
+      overflow:hidden;
+    }
+
+    a.card:hover{
+      transform: translateY(-2px);
+      border-color: rgba(0,191,255,0.45);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.28);
+    }
+
+    .cardTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:10px;
+    }
+
+    .cardTitle{
+      font-size:16px;
+      font-weight:700;
+    }
+
+    .tag{
+      font-size:11px;
+      color:var(--muted);
+      border:1px solid var(--border);
+      padding:4px 8px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.03);
+      white-space:nowrap;
+    }
+
+    .cardDesc{
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      margin:0;
+    }
+
+    .footer{
+      margin-top:16px;
+      color:var(--muted);
+      font-size:12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      border-top:1px solid var(--border);
+      padding-top:12px;
+    }
+
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.03);
+      padding:2px 6px;
+      border-radius:6px;
+      color:var(--text);
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="titleWrap">
+      <div class="title">PennAlerts</div>
+      <div class="subtitle">Quick links to active boards</div>
+    </div>
+
+    <div class="statusPill" title="Static index page">
+      <span class="dot"></span>
+      Index Ready
+    </div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <a class="card" href="alerts.html">
+        <div class="cardTop">
+          <div class="cardTitle">Alerts</div>
+          <div class="tag">alerts.html</div>
+        </div>
+        <p class="cardDesc">Primary alerts board (watch/warning/advisory workflow + details modal).</p>
+      </a>
+
+      <a class="card" href="advisories.html">
+        <div class="cardTop">
+          <div class="cardTitle">Advisories</div>
+          <div class="tag">advisories.html</div>
+        </div>
+        <p class="cardDesc">Advisory-focused view for quick scanning and status changes.</p>
+      </a>
+
+      <a class="card" href="hazards.html">
+        <div class="cardTop">
+          <div class="cardTitle">Hazards</div>
+          <div class="tag">hazards.html</div>
+        </div>
+        <p class="cardDesc">Hazard overview board (clean list + map/summary depending on your build).</p>
+      </a>
+
+      <a class="card" href="traffic.html">
+        <div class="cardTop">
+          <div class="cardTitle">Traffic</div>
+          <div class="tag">traffic.html</div>
+        </div>
+        <p class="cardDesc">511PA roadway status board (closures, restrictions, and major route focus).</p>
+      </a>
+    </div>
+
+    <div class="footer">
+      <div>
+        Tip: open links in a new tab with <span class="kbd">Ctrl</span> + click (or <span class="kbd">Cmd</span> + click).
+      </div>
+      <div>
+        Excluded: <span class="kbd">rail.html</span>, <span class="kbd">rwsctp.html</span>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
