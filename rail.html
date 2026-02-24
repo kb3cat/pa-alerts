@@ -16,11 +16,15 @@
     --text:#e9e9ea;
     --muted:#a7a7aa;
     --accent:#00bfff;
+
     --danger:#ff2b2b;
     --warn:#ffb000;
-    --ok:#29d36a;
 
     --splitter: 8px;
+
+    --modalBackdrop: rgba(0,0,0,0.65);
+    --modalBg:#121214;
+    --modalBorder:#2a2a2d;
   }
   *{ box-sizing:border-box; }
   body{
@@ -123,6 +127,7 @@
     background:#141418;
   }
   .muted{ color:var(--muted); }
+
   .pill{
     display:inline-block;
     padding:2px 8px;
@@ -137,11 +142,16 @@
   .pill.disruption{ border-color:var(--warn); color:#ffe0a6; }
   .pill.notice{ border-color:#666; color:#ddd; }
 
-  /* --- Map --- */
-  #map{
-    height:100%;
-    width:100%;
+  .rowTitle{ font-weight:700; }
+  .rowSnippet{
+    margin-top:4px;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.25;
   }
+
+  /* --- Map --- */
+  #map{ height:100%; width:100%; }
   .mapTopbar{
     padding:10px 12px;
     border-bottom:1px solid var(--border);
@@ -165,6 +175,61 @@
     flex:1;
     min-height:260px;
   }
+
+  /* --- Modal --- */
+  .modalBackdrop{
+    position:fixed;
+    inset:0;
+    background:var(--modalBackdrop);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    z-index:1000;
+  }
+  .modal{
+    width:min(920px, 96vw);
+    max-height:86vh;
+    overflow:auto;
+    background:var(--modalBg);
+    border:1px solid var(--modalBorder);
+    border-radius:16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modalHeader{
+    padding:14px 16px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .modalHeader .title{
+    font-weight:800;
+    font-size:14px;
+    flex:1;
+  }
+  .modalBody{
+    padding:14px 16px 16px;
+    font-size:13px;
+    line-height:1.35;
+  }
+  .kv{
+    display:grid;
+    grid-template-columns: 140px 1fr;
+    gap:8px 12px;
+    margin-bottom:12px;
+  }
+  .k{ color:var(--muted); }
+  .v{ color:var(--text); }
+  .detailsBox{
+    border:1px solid var(--border);
+    background:#0f0f12;
+    border-radius:12px;
+    padding:12px;
+    white-space:pre-wrap;
+  }
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
 
   /* Small screens: stack */
   @media (max-width: 920px){
@@ -210,9 +275,30 @@
     <div class="mapWrap">
       <div class="mapTopbar">
         <div class="title">Map</div>
-        <span class="muted" id="mapHint">Click a row to zoom</span>
+        <span class="muted" id="mapHint">Click a row to zoom + view details</span>
       </div>
       <div class="mapCanvas" id="map"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modalBackdrop" id="modalBackdrop" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modalHeader">
+      <div class="title" id="modalTitle">Alert Details</div>
+      <button class="btn" id="closeModalBtn">Close</button>
+    </div>
+    <div class="modalBody">
+      <div class="kv">
+        <div class="k">Railroad</div><div class="v" id="mRailroad">—</div>
+        <div class="k">Report Type</div><div class="v" id="mType">—</div>
+        <div class="k">Location</div><div class="v" id="mLocation">—</div>
+        <div class="k">ETR</div><div class="v" id="mETR">—</div>
+        <div class="k">Source</div><div class="v" id="mSource">—</div>
+      </div>
+      <div class="k" style="margin-bottom:6px;">Details</div>
+      <div class="detailsBox" id="mDetails">—</div>
     </div>
   </div>
 </div>
@@ -231,9 +317,7 @@
 
   const markersLayer = L.layerGroup().addTo(map);
 
-  function recenterMap(){
-    map.setView(PA_CENTER, PA_ZOOM);
-  }
+  function recenterMap(){ map.setView(PA_CENTER, PA_ZOOM); }
   document.getElementById('recenterBtn').addEventListener('click', recenterMap);
 
   // --- Splitter (desktop: horizontal; mobile: vertical) ---
@@ -241,7 +325,6 @@
   const leftPane = document.getElementById('leftPane');
   const rightPane = document.getElementById('rightPane');
   const splitter = document.getElementById('splitter');
-
   let isDragging = false;
 
   splitter.addEventListener('mousedown', () => { isDragging = true; document.body.style.userSelect='none'; });
@@ -259,7 +342,6 @@
       rightPane.style.width = (100 - leftPct) + '%';
       map.invalidateSize();
     }else{
-      // stacked: resize height between panes
       const rect = wrap.getBoundingClientRect();
       const y = Math.min(Math.max(e.clientY - rect.top, 220), rect.height - 220);
       leftPane.style.height = y + 'px';
@@ -270,23 +352,53 @@
 
   // --- Swap map/table ---
   document.getElementById('swapBtn').addEventListener('click', () => {
-    const children = Array.from(wrap.children);
-    // order is: leftPane, splitter, rightPane
-    // swap left and right panes
     wrap.insertBefore(rightPane, splitter);
     wrap.appendChild(leftPane);
     map.invalidateSize();
   });
 
-  // --- Data render ---
+  // --- Modal helpers ---
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const closeModalBtn = document.getElementById('closeModalBtn');
+
   function escapeHtml(s){
     return (s ?? '').toString()
       .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
       .replaceAll('"','&quot;').replaceAll("'","&#039;");
   }
 
-  function clearMarkers(){ markersLayer.clearLayers(); }
+  function openModal(item){
+    document.getElementById('mRailroad').textContent = item.railroad || '—';
+    document.getElementById('mType').textContent = item.report_type || '—';
+    document.getElementById('mLocation').textContent = item.location || '—';
+    document.getElementById('mETR').textContent = item.etr || '—';
 
+    const src = item.source_url ? item.source_url : '';
+    document.getElementById('mSource').innerHTML = src
+      ? `<a href="${escapeHtml(src)}" target="_blank" rel="noopener">Open source</a>`
+      : '—';
+
+    document.getElementById('mDetails').textContent = item.details || '—';
+
+    modalBackdrop.style.display = 'flex';
+    modalBackdrop.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(){
+    modalBackdrop.style.display = 'none';
+    modalBackdrop.setAttribute('aria-hidden', 'true');
+  }
+
+  closeModalBtn.addEventListener('click', closeModal);
+  modalBackdrop.addEventListener('click', (e) => {
+    if(e.target === modalBackdrop) closeModal();
+  });
+  window.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape') closeModal();
+  });
+
+  // --- Map markers ---
+  function clearMarkers(){ markersLayer.clearLayers(); }
   function addMarker(item){
     if(!item?.lat || !item?.lon) return null;
     const m = L.marker([item.lat, item.lon]).addTo(markersLayer);
@@ -307,19 +419,23 @@
     return `<span class="pill ${cls}">${escapeHtml(text)}</span>`;
   }
 
+  function truncate(s, n){
+    const t = (s ?? '').toString().replace(/\s+/g,' ').trim();
+    if(!t) return '';
+    return t.length > n ? t.slice(0, n-1) + '…' : t;
+  }
+
   function render(items){
     const tbody = document.getElementById('rows');
     tbody.innerHTML = '';
-
     clearMarkers();
-    const markerRefs = [];
 
     if(!items || items.length === 0){
       tbody.innerHTML = `<tr><td colspan="4" class="muted">No active passenger rail alerts found.</td></tr>`;
       return;
     }
 
-    items.forEach((it, idx) => {
+    items.forEach((it) => {
       const railPill = it.railroad === 'SEPTA'
         ? makePill('SEPTA','septa')
         : makePill('Amtrak','amtrak');
@@ -328,21 +444,27 @@
       const typePill = makePill(it.report_type || 'Alert', rtCls);
 
       const tr = document.createElement('tr');
-      tr.style.cursor = (it.lat && it.lon) ? 'pointer' : 'default';
+      tr.style.cursor = 'pointer';
+
+      const snippet = truncate(it.details, 90);
+
       tr.innerHTML = `
         <td>${railPill}</td>
         <td>${typePill}</td>
         <td>
-          <div>${escapeHtml(it.location || '—')}</div>
-          ${it.details ? `<div class="muted" style="margin-top:4px;">${escapeHtml(it.details)}</div>` : ''}
+          <div class="rowTitle">${escapeHtml(it.location || '—')}</div>
+          ${snippet ? `<div class="rowSnippet">${escapeHtml(snippet)}</div>` : ``}
         </td>
         <td>${escapeHtml(it.etr || '—')}</td>
       `;
 
       const m = addMarker(it);
-      markerRefs[idx] = m;
 
       tr.addEventListener('click', () => {
+        // Open modal with full details
+        openModal(it);
+
+        // Zoom map if we have coords
         if(it.lat && it.lon){
           map.setView([it.lat, it.lon], Math.max(map.getZoom(), 10));
           if(m){ m.openPopup(); }
