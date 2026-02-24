@@ -2,13 +2,15 @@ name: scrape
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: scrape511
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   scrape:
@@ -16,6 +18,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -36,6 +40,13 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-chromium
+
+      # ✅ Make sure we're always building on the latest main
+      - name: Sync to latest main
+        run: |
+          git fetch origin main
+          git checkout main
+          git reset --hard origin/main
 
       # Install Playwright
       - name: Install Playwright (Chromium)
@@ -64,7 +75,10 @@ jobs:
 
           git status --porcelain
 
-          git commit -m "Update 511PA data" || exit 0
+          # If nothing changed, don't create empty commits
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
 
-          git pull --rebase origin main
-          git push
+          git commit -m "Update 511PA data"
+
+          # ✅ No rebase/merge. Just push the new generated outputs.
+          git push origin main
