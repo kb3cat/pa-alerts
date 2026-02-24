@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PA Rail Disruption Board</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+  :root{
+    --bg:#0f0f10;
+    --panel:#151517;
+    --panel2:#1d1d1f;
+    --border:#2a2a2d;
+    --text:#e9e9ea;
+    --muted:#a7a7aa;
+    --accent:#00bfff;
+    --danger:#ff2b2b;
+    --warn:#ffb000;
+    --ok:#29d36a;
+
+    --splitter: 8px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  header{
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg, #17171a, #101013);
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  header h1{
+    margin:0;
+    font-size:18px;
+    letter-spacing:.2px;
+    flex:1;
+  }
+  .meta{
+    font-size:12px;
+    color:var(--muted);
+    display:flex;
+    gap:12px;
+    align-items:center;
+    white-space:nowrap;
+  }
+  .btn{
+    background:transparent;
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:8px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:12px;
+  }
+  .btn:hover{ border-color:#3a3a3f; }
+
+  /* --- Split layout --- */
+  .wrap{
+    height: calc(100vh - 54px);
+    display:flex;
+    width:100%;
+    overflow:hidden;
+  }
+  .pane{
+    height:100%;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    min-width:240px;
+  }
+  .leftPane{
+    width: 46%;
+    background:var(--panel);
+    border-right:1px solid var(--border);
+  }
+  .rightPane{
+    width: 54%;
+    background:var(--panel2);
+  }
+  .splitter{
+    width: var(--splitter);
+    background: #0b0b0c;
+    cursor: col-resize;
+    border-left:1px solid var(--border);
+    border-right:1px solid var(--border);
+  }
+
+  /* --- Table --- */
+  .tableWrap{
+    padding:10px 12px 14px;
+    overflow:auto;
+    height:100%;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  thead th{
+    text-align:left;
+    padding:10px 10px;
+    position:sticky;
+    top:0;
+    background:#111114;
+    border-bottom:1px solid var(--border);
+    z-index:2;
+  }
+  tbody td{
+    padding:10px 10px;
+    border-bottom:1px solid #222227;
+    vertical-align:top;
+  }
+  tbody tr:hover{
+    background:#141418;
+  }
+  .muted{ color:var(--muted); }
+  .pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    font-size:12px;
+    line-height:18px;
+    white-space:nowrap;
+  }
+  .pill.septa{ border-color:#2f7cff; color:#b8d4ff; }
+  .pill.amtrak{ border-color:#ff3b3b; color:#ffd1d1; }
+  .pill.disruption{ border-color:var(--warn); color:#ffe0a6; }
+  .pill.notice{ border-color:#666; color:#ddd; }
+
+  /* --- Map --- */
+  #map{
+    height:100%;
+    width:100%;
+  }
+  .mapTopbar{
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:#16161a;
+  }
+  .mapTopbar .title{
+    font-weight:700;
+    font-size:13px;
+    color:var(--muted);
+    flex:1;
+  }
+  .mapWrap{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+  }
+  .mapCanvas{
+    flex:1;
+    min-height:260px;
+  }
+
+  /* Small screens: stack */
+  @media (max-width: 920px){
+    .wrap{ flex-direction:column; }
+    .leftPane,.rightPane{ width:100% !important; }
+    .splitter{ height: var(--splitter); width:100%; cursor: row-resize; }
+  }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>PA Rail Disruption Board</h1>
+  <div class="meta">
+    <span id="lastUpdated" class="muted">Last updated: —</span>
+    <button class="btn" id="swapBtn">Swap map ↔ table</button>
+    <button class="btn" id="recenterBtn">Re-center map</button>
+  </div>
+</header>
+
+<div class="wrap" id="wrap">
+  <div class="pane leftPane" id="leftPane">
+    <div class="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:130px;">Railroad</th>
+            <th style="width:140px;">Report Type</th>
+            <th>Location</th>
+            <th style="width:120px;">ETR</th>
+          </tr>
+        </thead>
+        <tbody id="rows">
+          <tr><td colspan="4" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="splitter" id="splitter" title="Drag to resize"></div>
+
+  <div class="pane rightPane" id="rightPane">
+    <div class="mapWrap">
+      <div class="mapTopbar">
+        <div class="title">Map</div>
+        <span class="muted" id="mapHint">Click a row to zoom</span>
+      </div>
+      <div class="mapCanvas" id="map"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  // --- Map init ---
+  const PA_CENTER = [40.95, -77.75];
+  const PA_ZOOM = 7;
+
+  const map = L.map('map', { zoomControl: true }).setView(PA_CENTER, PA_ZOOM);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  const markersLayer = L.layerGroup().addTo(map);
+
+  function recenterMap(){
+    map.setView(PA_CENTER, PA_ZOOM);
+  }
+  document.getElementById('recenterBtn').addEventListener('click', recenterMap);
+
+  // --- Splitter (desktop: horizontal; mobile: vertical) ---
+  const wrap = document.getElementById('wrap');
+  const leftPane = document.getElementById('leftPane');
+  const rightPane = document.getElementById('rightPane');
+  const splitter = document.getElementById('splitter');
+
+  let isDragging = false;
+
+  splitter.addEventListener('mousedown', () => { isDragging = true; document.body.style.userSelect='none'; });
+  window.addEventListener('mouseup', () => { isDragging = false; document.body.style.userSelect=''; });
+  window.addEventListener('mousemove', (e) => {
+    if(!isDragging) return;
+
+    const isStacked = window.matchMedia('(max-width: 920px)').matches;
+
+    if(!isStacked){
+      const rect = wrap.getBoundingClientRect();
+      const x = Math.min(Math.max(e.clientX - rect.left, 260), rect.width - 260);
+      const leftPct = (x / rect.width) * 100;
+      leftPane.style.width = leftPct + '%';
+      rightPane.style.width = (100 - leftPct) + '%';
+      map.invalidateSize();
+    }else{
+      // stacked: resize height between panes
+      const rect = wrap.getBoundingClientRect();
+      const y = Math.min(Math.max(e.clientY - rect.top, 220), rect.height - 220);
+      leftPane.style.height = y + 'px';
+      rightPane.style.height = (rect.height - y) + 'px';
+      map.invalidateSize();
+    }
+  });
+
+  // --- Swap map/table ---
+  document.getElementById('swapBtn').addEventListener('click', () => {
+    const children = Array.from(wrap.children);
+    // order is: leftPane, splitter, rightPane
+    // swap left and right panes
+    wrap.insertBefore(rightPane, splitter);
+    wrap.appendChild(leftPane);
+    map.invalidateSize();
+  });
+
+  // --- Data render ---
+  function escapeHtml(s){
+    return (s ?? '').toString()
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+      .replaceAll('"','&quot;').replaceAll("'","&#039;");
+  }
+
+  function clearMarkers(){ markersLayer.clearLayers(); }
+
+  function addMarker(item){
+    if(!item?.lat || !item?.lon) return null;
+    const m = L.marker([item.lat, item.lon]).addTo(markersLayer);
+    const html =
+      `<b>${escapeHtml(item.railroad)}</b><br>` +
+      `${escapeHtml(item.report_type)}<br>` +
+      `<span class="muted">${escapeHtml(item.location || '')}</span>` +
+      (item.etr ? `<br><b>ETR:</b> ${escapeHtml(item.etr)}` : '');
+    m.bindPopup(html);
+    return m;
+  }
+
+  function setUpdated(ts){
+    document.getElementById('lastUpdated').textContent = 'Last updated: ' + (ts || '—');
+  }
+
+  function makePill(text, cls){
+    return `<span class="pill ${cls}">${escapeHtml(text)}</span>`;
+  }
+
+  function render(items){
+    const tbody = document.getElementById('rows');
+    tbody.innerHTML = '';
+
+    clearMarkers();
+    const markerRefs = [];
+
+    if(!items || items.length === 0){
+      tbody.innerHTML = `<tr><td colspan="4" class="muted">No active passenger rail alerts found.</td></tr>`;
+      return;
+    }
+
+    items.forEach((it, idx) => {
+      const railPill = it.railroad === 'SEPTA'
+        ? makePill('SEPTA','septa')
+        : makePill('Amtrak','amtrak');
+
+      const rtCls = (it.report_type || '').toLowerCase().includes('disruption') ? 'disruption' : 'notice';
+      const typePill = makePill(it.report_type || 'Alert', rtCls);
+
+      const tr = document.createElement('tr');
+      tr.style.cursor = (it.lat && it.lon) ? 'pointer' : 'default';
+      tr.innerHTML = `
+        <td>${railPill}</td>
+        <td>${typePill}</td>
+        <td>
+          <div>${escapeHtml(it.location || '—')}</div>
+          ${it.details ? `<div class="muted" style="margin-top:4px;">${escapeHtml(it.details)}</div>` : ''}
+        </td>
+        <td>${escapeHtml(it.etr || '—')}</td>
+      `;
+
+      const m = addMarker(it);
+      markerRefs[idx] = m;
+
+      tr.addEventListener('click', () => {
+        if(it.lat && it.lon){
+          map.setView([it.lat, it.lon], Math.max(map.getZoom(), 10));
+          if(m){ m.openPopup(); }
+        }
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function load(){
+    try{
+      const res = await fetch('./data/rail_alerts.json', { cache: 'no-store' });
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      setUpdated(data.generated_at || data.fetched_at || null);
+      render(data.items || []);
+    }catch(e){
+      document.getElementById('rows').innerHTML =
+        `<tr><td colspan="4" class="muted">Error loading data: ${escapeHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  load();
+  setInterval(load, 60_000);
+</script>
+</body>
+</html>
