@@ -28,8 +28,9 @@ const CENTROIDS = {
 };
 
 function pickCentroid(locationText = "") {
+  const s = locationText.toLowerCase();
   for (const [k, v] of Object.entries(CENTROIDS)) {
-    if (locationText.toLowerCase().includes(k.toLowerCase())) return v;
+    if (s.includes(k.toLowerCase())) return v;
   }
   return null;
 }
@@ -60,32 +61,114 @@ async function fetchText(url) {
   return r.text();
 }
 
+/* -----------------------------
+   Amtrak parsing helpers
+------------------------------ */
+
+function decodeHtmlEntities(str = "") {
+  const named = {
+    "&nbsp;": " ",
+    "&amp;": "&",
+    "&quot;": '"',
+    "&apos;": "'",
+    "&#39;": "'",
+    "&lt;": "<",
+    "&gt;": ">"
+  };
+
+  let out = str;
+
+  for (const [k, v] of Object.entries(named)) {
+    out = out.split(k).join(v);
+  }
+
+  // Decimal numeric entities: &#34;
+  out = out.replace(/&#(\d+);/g, (_, n) => {
+    const code = Number(n);
+    return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+  });
+
+  // Hex numeric entities: &#x22;
+  out = out.replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+    const code = parseInt(h, 16);
+    return Number.isFinite(code) ? String.fromCodePoint(code) : _;
+  });
+
+  return out;
+}
+
+function htmlToText(html = "") {
+  let s = html;
+
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, " ");
+  s = s.replace(/<style[\s\S]*?<\/style>/gi, " ");
+
+  s = s.replace(/<(br|br\/)\s*>/gi, "\n");
+  s = s.replace(/<\/(p|div|li|ul|ol|h1|h2|h3|h4|h5|h6|section|article|table|tr)>/gi, "\n");
+
+  s = s.replace(/<[^>]+>/g, " ");
+
+  s = decodeHtmlEntities(s);
+  s = s.replace(/\r/g, "");
+  s = s.replace(/[ \t]+\n/g, "\n");
+  s = s.replace(/\n{3,}/g, "\n\n");
+  s = s.replace(/[ \t]{2,}/g, " ");
+
+  return s.trim();
+}
+
+function takeSnippetAround(text, needle, radius = 650) {
+  const low = text.toLowerCase();
+  const n = needle.toLowerCase();
+  const idx = low.indexOf(n);
+  if (idx === -1) return "";
+
+  const start = Math.max(0, idx - Math.floor(radius / 2));
+  const end = Math.min(text.length, idx + Math.floor(radius / 2));
+  return text.slice(start, end).replace(/\s+/g, " ").trim();
+}
+
+function looksLikeUiGarbage(t = "") {
+  const bad = [
+    "stationRadiusSearchText",
+    "Nearby Stations",
+    "No stations found",
+    "stationNoResults",
+    "stationHeadingLabel",
+    "confirm",
+    "Continue",
+    "cancel"
+  ];
+  const low = t.toLowerCase();
+  return bad.some(b => low.includes(b.toLowerCase()));
+}
+
+/* -----------------------------
+   SEPTA alerts
+------------------------------ */
+
 async function septaAlerts() {
-  // Official SEPTA Alerts API (verbose)
-  // https://www3.septa.org/api/Alerts/get_alert_data.php  (systemwide)
+  // Official SEPTA Alerts API
   const url = "https://www3.septa.org/api/Alerts/get_alert_data.php";
   const data = await fetchJson(url);
 
-  // Data shape can vary; keep it resilient:
-  // Try to flatten arrays/objects into a list of alert objects.
   let alerts = [];
   if (Array.isArray(data)) alerts = data;
   else if (data?.alerts && Array.isArray(data.alerts)) alerts = data.alerts;
   else if (typeof data === "object") {
-    // some endpoints return keyed-by-route structures
     alerts = Object.values(data).flat().filter(Boolean);
   }
 
-  const rrLineNames = new Set(Object.keys(CENTROIDS).filter(k => k.endsWith("Line") || k.includes("/")));
+  const rrLineNames = new Set(
+    Object.keys(CENTROIDS).filter(k => k.endsWith("Line") || k.includes("/"))
+  );
+
   const items = [];
 
   for (const a of alerts) {
     const route = (a.route_name || a.route || a.route_id || "").toString();
     const message = (a.message || a.alert_message || a.header || a.description || "").toString();
-    const severity = (a.severity || a.alert_type || "").toString();
 
-    // Filter to Regional Rail-ish alerts:
-    // We accept if route matches known RR lines OR message mentions "Regional Rail"
     const isRR =
       [...rrLineNames].some(n => route.toLowerCase().includes(n.toLowerCase())) ||
       /regional\s+rail/i.test(message);
@@ -103,48 +186,7 @@ async function septaAlerts() {
         : "Notice",
       location: loc,
       etr: etr || "",
-      details: message ? message.slice(0, 220) : "",
-      lat: centroid ? centroid[0] : null,
-      lon: centroid ? centroid[1] : null,
-      source_url: "https://www3.septa.org/api/Alerts/get_alert_data.php"
-    });
-  }
-
-  return items;
-}
-
-async function amtrakAlerts() {
-  // Official alerts page (HTML)
-  const url = "https://www.amtrak.com/service-alerts-and-notices";
-  const html = await fetchText(url);
-
-  // Phase 1: simple keyword extraction for PA-relevant routes
-  const keys = ["Keystone Service", "Pennsylvanian", "Northeast Regional", "Acela", "Philadelphia", "Harrisburg", "Pittsburgh"];
-  const items = [];
-
-  // very lightweight scrape: find lines around matching route names
-  for (const k of ["Keystone Service", "Pennsylvanian", "Northeast Regional", "Acela"]) {
-    const idx = html.toLowerCase().indexOf(k.toLowerCase());
-    if (idx === -1) continue;
-
-    // grab a small window around the match and strip tags crudely
-    const snippet = html.slice(Math.max(0, idx - 250), Math.min(html.length, idx + 450));
-    const text = snippet
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    const etr = extractETR(text);
-    const centroid = CENTROIDS[k] || null;
-
-    items.push({
-      railroad: "Amtrak",
-      report_type: "Notice",
-      location: k,
-      etr: etr || "",
-      details: text.slice(0, 220),
+      details: message ? message.replace(/\s+/g, " ").trim().slice(0, 220) : "",
       lat: centroid ? centroid[0] : null,
       lon: centroid ? centroid[1] : null,
       source_url: url
@@ -153,6 +195,51 @@ async function amtrakAlerts() {
 
   return items;
 }
+
+/* -----------------------------
+   Amtrak alerts (cleaner parsing)
+------------------------------ */
+
+async function amtrakAlerts() {
+  const url = "https://www.amtrak.com/service-alerts-and-notices";
+  const html = await fetchText(url);
+  const text = htmlToText(html);
+
+  const routes = ["Keystone Service", "Pennsylvanian", "Northeast Regional", "Acela"];
+  const items = [];
+
+  for (const route of routes) {
+    let details = takeSnippetAround(text, route, 650);
+
+    // Skip if the snippet is empty or looks like UI junk
+    if (!details || looksLikeUiGarbage(details)) continue;
+
+    // Keep it short and readable
+    details = details.replace(/\s+/g, " ").trim().slice(0, 240);
+
+    const etr = extractETR(details);
+    const centroid = CENTROIDS[route] || null;
+
+    items.push({
+      railroad: "Amtrak",
+      report_type: /delay|cancel|cancell|suspend|service disruption|police|fire|signal|track/i.test(details)
+        ? "Disruption"
+        : "Notice",
+      location: route,
+      etr: etr || "",
+      details,
+      lat: centroid ? centroid[0] : null,
+      lon: centroid ? centroid[1] : null,
+      source_url: url
+    });
+  }
+
+  return items;
+}
+
+/* -----------------------------
+   Main
+------------------------------ */
 
 async function main() {
   const [septa, amtrak] = await Promise.allSettled([septaAlerts(), amtrakAlerts()]);
