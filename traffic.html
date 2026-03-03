@@ -705,10 +705,6 @@ async function loadBoard(){
     const plannedVehicle = vehicleAll.filter(isPlannedVehicleItem);
     const activeVehicle = vehicleAll.filter(r => !isPlannedVehicleItem(r));
 
-    // Counts (closures + speed only; vehicle totals intentionally not set)
-    document.getElementById("closuresCount").textContent = String(closuresMerged.length);
-    document.getElementById("speedCount").textContent = String(speed.length);
-
     // Render
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
