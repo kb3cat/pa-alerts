@@ -3,7 +3,7 @@ import fs from "fs/promises";
 
 const OUT_PATH = "data/pa511_map.png";
 
-// Tighter PA-centric framing
+// tighter PA framing
 const VIEW = { Zoom: 8, Latitude: 40.95, Longitude: -77.75 };
 
 function buildUrl() {
@@ -14,7 +14,6 @@ function buildUrl() {
   return u.toString();
 }
 
-// Kill onboarding / walkthrough modals so they can’t block the map
 async function killOnboarding(page) {
   await page.waitForTimeout(2500);
   await page.evaluate(() => {
@@ -29,153 +28,107 @@ async function killOnboarding(page) {
       "#onboardingDialog",
       "#tourDialog"
     ];
-    selectors.forEach((sel) => {
-      document.querySelectorAll(sel).forEach((el) => el.remove());
-    });
+    selectors.forEach((sel) => document.querySelectorAll(sel).forEach((el) => el.remove()));
     document.body.style.overflow = "auto";
   });
   await page.waitForTimeout(800);
 }
 
-// Utility: click first visible locator from a list of selectors (best-effort)
-async function clickFirstVisible(page, selectors, opts = {}) {
-  for (const sel of selectors) {
-    const loc = page.locator(sel).first();
-    try {
-      if (await loc.isVisible({ timeout: opts.timeout ?? 800 })) {
-        await loc.click({ timeout: opts.timeout ?? 1200 });
-        if (opts.afterWaitMs) await page.waitForTimeout(opts.afterWaitMs);
-        return true;
-      }
-    } catch {}
+// Click a checkbox by the visible text near it (robust-ish)
+async function setCheckboxByText(page, text, checked) {
+  const t = String(text);
+
+  // Find a container that has the text AND a checkbox input inside it
+  const row = page.locator(`*:has-text("${t}")`).filter({
+    has: page.locator('input[type="checkbox"]')
+  }).first();
+
+  if (!(await row.count())) return false;
+
+  const cb = row.locator('input[type="checkbox"]').first();
+  const cur = await cb.isChecked().catch(() => null);
+  if (cur === null) return false;
+
+  if (cur !== checked) {
+    // Clicking the input itself can fail if it’s hidden; click the row instead
+    try { await cb.click({ timeout: 1500 }); }
+    catch { await row.click({ timeout: 1500 }); }
+    await page.waitForTimeout(500);
   }
-  return false;
-}
-
-// Utility: set a checkbox within the Legend panel by its visible label text (best-effort)
-async function setLegendCheckbox(page, labelText, checked) {
-  // Try a few robust patterns:
-  // 1) label:has-text("X") input[type=checkbox]
-  // 2) row containing text then find checkbox in it
-  const label = String(labelText);
-
-  // Pattern A
-  try {
-    const input = page.locator(`label:has-text("${label}") input[type="checkbox"]`).first();
-    if (await input.count()) {
-      const isChecked = await input.isChecked().catch(() => null);
-      if (isChecked !== null && isChecked !== checked) {
-        await input.click({ timeout: 2000 });
-        await page.waitForTimeout(400);
-      }
-      return true;
-    }
-  } catch {}
-
-  // Pattern B
-  try {
-    const row = page.locator(`*:has-text("${label}")`).filter({ has: page.locator('input[type="checkbox"]') }).first();
-    if (await row.count()) {
-      const input = row.locator('input[type="checkbox"]').first();
-      const isChecked = await input.isChecked().catch(() => null);
-      if (isChecked !== null && isChecked !== checked) {
-        await input.click({ timeout: 2000 });
-        await page.waitForTimeout(400);
-      }
-      return true;
-    }
-  } catch {}
-
-  return false;
+  return true;
 }
 
 async function openLegend(page) {
-  // Legend button in top-right
-  await clickFirstVisible(page, [
-    'button:has-text("Legend")',
-    '[aria-label="Legend"]',
-    'text=Legend'
-  ], { afterWaitMs: 600 });
-}
-
-async function closeWeatherRestrictionUI(page) {
-  // Bottom strip: "Weather Restriction Information" has a close (X) at right in your screenshot
-  // Try common close button patterns inside that container
-  const bottomPanel = page.locator('text=Weather Restriction Information').first();
+  // Your screenshot shows a Legend button top-right
+  const btn = page.locator('button:has-text("Legend")').first();
   try {
-    if (await bottomPanel.isVisible({ timeout: 800 })) {
-      // Look near it for a close button
-      await clickFirstVisible(page, [
-        'button[aria-label="Close"]',
-        'button[title="Close"]',
-        '.close',
-        '.ui-dialog-titlebar-close',
-        'button:has-text("×")',
-        'button:has-text("X")'
-      ], { afterWaitMs: 600 });
+    if (await btn.isVisible({ timeout: 2000 })) {
+      await btn.click({ timeout: 2000 });
+      await page.waitForTimeout(800);
+      return true;
     }
   } catch {}
-
-  // Upper-left card: "WEATHER RESTRICTION INFORMATION"
-  // Some builds have a small X or collapse chevron inside that card.
-  try {
-    const card = page.locator('text=WEATHER RESTRICTION INFORMATION').first();
-    if (await card.isVisible({ timeout: 800 })) {
-      // Click any close/collapse control inside the same area
-      await clickFirstVisible(page, [
-        // close buttons often appear as an X icon button
-        'div:has-text("WEATHER RESTRICTION INFORMATION") button[aria-label="Close"]',
-        'div:has-text("WEATHER RESTRICTION INFORMATION") button[title="Close"]',
-        'div:has-text("WEATHER RESTRICTION INFORMATION") .close',
-        'div:has-text("WEATHER RESTRICTION INFORMATION") button:has-text("×")',
-        'div:has-text("WEATHER RESTRICTION INFORMATION") button:has-text("X")',
-        // collapse/chevron
-        'div:has-text("WEATHER RESTRICTION INFORMATION") button[aria-label*="collapse" i]',
-        'div:has-text("WEATHER RESTRICTION INFORMATION") button[aria-label*="minimize" i]'
-      ], { afterWaitMs: 600 });
-    }
-  } catch {}
+  return false;
 }
 
-async function moveMyRoutesIn(page) {
-  // In your screenshot there’s a round chevron/arrow button near the top bar (next to “INFO”)
-  // Clicking it usually collapses/reduces the header/sidebar footprint.
-  await clickFirstVisible(page, [
-    // round button containing an arrow/chevron
-    'button:has(svg)',
-    // sometimes it’s an anchor/div with role button
-    '[role="button"]:has(svg)',
-    // fallback: a button near the top bar that isn’t Legend
-    'button[title*="Collapse" i]',
-    'button[aria-label*="Collapse" i]',
-  ], { afterWaitMs: 800 });
-}
-
-async function configureLayers(page) {
-  // Make sure legend is open so toggles exist
+async function configureLegend(page) {
   await openLegend(page);
 
-  // Desired: Closures -> Major Routes only
-  // Remove: Incidents
-  // Keep: Vehicle Restrictions (so restrictions show)
-  // Optional: keep Weather Restrictions off/on? You didn’t ask to keep it. We’ll leave Weather Restrictions as-is.
-  await setLegendCheckbox(page, "Incidents", false);
+  // Set exactly what you requested:
+  // - remove Incidents
+  // - Closures with only Major Routes selected (so Other Routes off)
+  // - keep Vehicle Restrictions on
+  await setCheckboxByText(page, "Incidents", false);
+  await setCheckboxByText(page, "Other Routes", false);
+  await setCheckboxByText(page, "Major Routes", true);
+  await setCheckboxByText(page, "Vehicle Restrictions", true);
 
-  // Some builds have "Closures" as a section header, with sub-items.
-  // Ensure Major Routes is checked, Other Routes unchecked.
-  await setLegendCheckbox(page, "Closures", true).catch?.(() => {});
-  await setLegendCheckbox(page, "Major Routes", true);
-  await setLegendCheckbox(page, "Other Routes", false);
+  // Optional cleanup: turn off Track My Plow if it’s on
+  await setCheckboxByText(page, "Track My Plow", false);
 
-  // Vehicle Restrictions ON (your screenshot shows it, keep it)
-  await setLegendCheckbox(page, "Vehicle Restrictions", true);
+  // Give the map time to redraw
+  await page.waitForTimeout(2000);
+}
 
-  // If you want only major closures + restrictions, these tend to clutter:
-  await setLegendCheckbox(page, "Track My Plow", false);
-  await setLegendCheckbox(page, "Cameras", false);
+// Hard-hide UI overlays so the screenshot is clean and “non-clickable”
+async function hideUiOverlays(page) {
+  await page.evaluate(() => {
+    const killByText = (needle) => {
+      const nodes = Array.from(document.querySelectorAll("body *"));
+      for (const el of nodes) {
+        if (!el || !el.textContent) continue;
+        if (el.textContent.trim() === needle) {
+          // remove the nearest reasonable container
+          el.closest("div,section,aside,article")?.remove();
+          return true;
+        }
+      }
+      return false;
+    };
 
-  // Let the map refresh layers
-  await page.waitForTimeout(1500);
+    // Remove the upper-left info card
+    // (it contains this exact heading in your screenshot)
+    killByText("WEATHER RESTRICTION INFORMATION");
+
+    // Remove bottom bar by its title
+    killByText("Weather Restriction Information");
+
+    // Remove/Hide the right legend pane so it doesn’t appear in the snapshot
+    // Many builds use an aside/drawer; safest is to hide anything containing "Travel Info" and checkboxes.
+    const candidates = Array.from(document.querySelectorAll("aside, .drawer, .panel, .legend, div"))
+      .filter(el => el && /Travel Info/i.test(el.textContent || "") && (el.querySelector('input[type="checkbox"]')));
+
+    candidates.forEach(el => { el.style.display = "none"; });
+
+    // Also hide the top-left header strip if it’s taking too much space
+    // (This keeps “Map only” for a board look)
+    const topBarCandidates = Array.from(document.querySelectorAll("header, .topbar, .appbar, .toolbar, .navbar"));
+    topBarCandidates.forEach(el => {
+      if (/MY ROUTES/i.test(el.textContent || "")) el.style.display = "none";
+    });
+  });
+
+  await page.waitForTimeout(800);
 }
 
 async function main() {
@@ -191,13 +144,14 @@ async function main() {
 
   await killOnboarding(page);
 
-  // Configure the view/UI
-  await configureLayers(page);
-  await closeWeatherRestrictionUI(page);
-  await moveMyRoutesIn(page);
+  // Set layers first (while the UI exists)
+  await configureLegend(page);
 
-  // Final settle time so polylines/icons render
-  await page.waitForTimeout(6000);
+  // Then hide overlays for a clean snapshot
+  await hideUiOverlays(page);
+
+  // Final settle for tiles/overlays
+  await page.waitForTimeout(4000);
 
   await map.screenshot({ path: OUT_PATH });
 
