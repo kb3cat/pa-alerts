@@ -4,8 +4,8 @@ import fs from "fs/promises";
 const OUT_PATH = "data/pa511_map.png";
 
 /*
-  Zoom 7 keeps Erie comfortably in frame.
-  If you want slightly tighter, try 7.5 (but 511 rounds).
+  Zoom 7 keeps Erie visible.
+  Adjust if you want slightly tighter framing.
 */
 const VIEW = {
   Zoom: 7,
@@ -44,7 +44,7 @@ async function killOnboarding(page) {
     document.body.style.overflow = "auto";
   });
 
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1000);
 }
 
 async function openLegend(page) {
@@ -56,50 +56,49 @@ async function openLegend(page) {
   }
 }
 
-async function setLegendCheckbox(page, labelText, checked) {
-  const row = page
-    .locator(`*:has-text("${labelText}")`)
-    .filter({ has: page.locator('input[type="checkbox"]') })
-    .first();
-
-  if (!(await row.count())) return;
-
-  const input = row.locator('input[type="checkbox"]').first();
-  const current = await input.isChecked().catch(() => null);
-
-  if (current === null || current === checked) return;
-
-  await input.click({ force: true });
-  await page.waitForTimeout(800);
-}
-
 async function configureLegend(page) {
   await openLegend(page);
 
-  // Desired state:
-  // Closures ON
-  // Major Routes ON
-  // Incidents OFF
-  // Other Routes OFF
+  // The legend panel container
+  const legendPanel = page.locator('.legend').first();
 
-  await setLegendCheckbox(page, "Incidents", false);
-  await setLegendCheckbox(page, "Closures", true);
-  await setLegendCheckbox(page, "Major Routes", true);
-  await setLegendCheckbox(page, "Other Routes", false);
+  await page.waitForTimeout(1000);
+
+  async function toggle(labelText, shouldBeChecked) {
+    const label = legendPanel.locator(`label:has-text("${labelText}")`).first();
+    if (!(await label.count())) return;
+
+    const input = label.locator('input[type="checkbox"]').first();
+    if (!(await input.count())) return;
+
+    const current = await input.isChecked().catch(() => null);
+    if (current === null || current === shouldBeChecked) return;
+
+    // Click label (safer than clicking hidden input)
+    await label.click({ force: true });
+    await page.waitForTimeout(800);
+  }
+
+  // Desired layer state
+  await toggle("Incidents", false);
+  await toggle("Closures", true);
+  await toggle("Major Routes", true);
+  await toggle("Other Routes", false);
 
   await page.waitForTimeout(3000);
 }
 
 async function removeBottomWeatherBox(page) {
   await page.evaluate(() => {
-    const nodes = Array.from(document.querySelectorAll("body *"));
-    for (const el of nodes) {
+    const elements = Array.from(document.querySelectorAll("body *"));
+
+    for (const el of elements) {
       if (
         el.textContent &&
         el.textContent.includes("Weather Restriction Information") &&
         el.tagName !== "BODY"
       ) {
-        const container = el.closest("div,section,aside,article");
+        const container = el.closest("div, section, aside, article");
         if (container) container.remove();
       }
     }
@@ -126,13 +125,12 @@ async function main() {
 
   await killOnboarding(page);
 
-  // Configure layers
   await configureLegend(page);
 
-  // Remove only the bottom box (leave legend intact)
+  // Keep legend visible, remove bottom info bar only
   await removeBottomWeatherBox(page);
 
-  // Let map settle
+  // Let layers redraw
   await page.waitForTimeout(4000);
 
   await map.screenshot({ path: OUT_PATH });
