@@ -25,7 +25,6 @@ jobs:
         with:
           node-version: "20"
 
-      # Cache npm packages
       - name: Cache npm
         uses: actions/cache@v4
         with:
@@ -34,144 +33,45 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      # Cache Playwright browsers (prevents full reinstall every run)
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-chromium
 
-      # ✅ Make sure we're always building on the latest main
       - name: Sync to latest main
         run: |
           git fetch origin main
           git checkout main
           git reset --hard origin/main
 
-      # Install Playwright
       - name: Install Playwright (Chromium)
         run: |
           npm i playwright
           npx playwright install --with-deps chromium
 
-      # Run scraper
       - name: Run scraper
         run: node ./scripts/scrape_511.mjs
 
-      # ✅ NEW: Generate 511 map snapshot image (non-interactive embed)
       - name: Generate 511 map snapshot
         run: node ./scripts/snap_511_map.mjs
 
-      # Write timestamp for dashboard
       - name: Write last run timestamp
         run: |
           mkdir -p data
           echo "{\"ran_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > data/last_run.json
 
-      # Commit and push data
       - name: Commit & push data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # JSON feeds
           git add data/*.json
-
-          # ✅ NEW: map snapshot image
           git add data/pa511_map.png 2>/dev/null || true
-
-          # your existing debug add
           git add debug/*.png 2>/dev/null || true
 
           git status --porcelain
 
-          # If nothing changed, don't create empty commits
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-
           git commit -m "Update 511PA data"
-
-          # ✅ No rebase/merge. Just push the new generated outputs.
-          git push origin mainname: scrape
-
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
-
-permissions:
-  contents: write
-
-concurrency:
-  group: scrape511
-  cancel-in-progress: true
-
-jobs:
-  scrape:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      # Cache npm packages
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      # Cache Playwright browsers (prevents full reinstall every run)
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-chromium
-
-      # ✅ Make sure we're always building on the latest main
-      - name: Sync to latest main
-        run: |
-          git fetch origin main
-          git checkout main
-          git reset --hard origin/main
-
-      # Install Playwright
-      - name: Install Playwright (Chromium)
-        run: |
-          npm i playwright
-          npx playwright install --with-deps chromium
-
-      # Run scraper
-      - name: Run scraper
-        run: node ./scripts/scrape_511.mjs
-
-      # Write timestamp for dashboard
-      - name: Write last run timestamp
-        run: |
-          mkdir -p data
-          echo "{\"ran_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > data/last_run.json
-
-      # Commit and push data
-      - name: Commit & push data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add data/*.json
-          git add debug/*.png 2>/dev/null || true
-
-          git status --porcelain
-
-          # If nothing changed, don't create empty commits
-          git diff --cached --quiet && echo "No changes to commit" && exit 0
-
-          git commit -m "Update 511PA data"
-
-          # ✅ No rebase/merge. Just push the new generated outputs.
           git push origin main
