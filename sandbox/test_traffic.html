@@ -175,7 +175,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border-radius: 0;
 }
 
-/* ✅ NEW: roadway image next to route name */
+/* ✅ Roadway image next to route name */
 .road-row{
   display:flex;
   align-items:center;
@@ -186,6 +186,14 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   height:34px;
   object-fit:contain;
   flex-shrink:0;
+}
+
+/* ✅ Second-line alignment under roadway text (not under icon) */
+.subline{
+  margin-top: 2px;
+}
+.subline.indent-under-icon{
+  padding-left: 42px; /* 34px icon + 8px gap */
 }
 </style>
 </head>
@@ -339,11 +347,10 @@ function isFakeHeaderRow(s) {
   return false;
 }
 
-/* ✅ NEW: roadway image path helper (uses your /data/icons/i##small.png files) */
+/* ✅ Roadway icon resolver (repoBase-safe) */
 function getRoadImage(text){
   const s = String(text || "");
 
-  // Find Interstate number: I-81, I 81, Interstate 81, I81
   const mi =
     s.match(/\bI\s*-\s*(\d{1,4})\b/i) ||
     s.match(/\bI\s+(\d{1,4})\b/i) ||
@@ -354,20 +361,21 @@ function getRoadImage(text){
 
   const num = mi[1];
 
-  // Make the icon path resolve like your JSON paths do (repoBase-safe)
   const parts = location.pathname.split("/").filter(Boolean);
   const repoBase = parts.length ? `/${parts[0]}/` : "/";
 
-  // Cache-bust so you immediately see changes
   return `${repoBase}data/icons/i${num}small.png?v=${Date.now()}`;
 }
-/* ✅ NEW: make a node that includes [bar][image][roadway text] */
+
+/* ✅ Build a node that includes [icon][roadway text] (border bar stays via .item) */
 function buildRoadRow(text){
   const wrap = document.createElement("div");
   wrap.className = "road-row";
 
   const imgPath = getRoadImage(text);
   if (imgPath) {
+    wrap.dataset.hasIcon = "1";
+
     const img = document.createElement("img");
     img.className = "road-img";
     img.src = imgPath;
@@ -402,7 +410,6 @@ function renderList(elId, items, kind) {
     const div = document.createElement("div");
     div.className = `item ${kind || ""}`;
 
-    // ✅ Put image + roadway line content inside the item, but keep the existing left border bar
     div.appendChild(buildRoadRow(text));
 
     el.appendChild(div);
@@ -684,7 +691,7 @@ function renderVehicleGrouped(elId, items){
     else buckets.get("other").push(text);
   }
 
-  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute); // ✅ Active remains roadway sort
+  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
 
   const tierLabels = {
     1: "Tier 1",
@@ -723,12 +730,12 @@ function renderVehicleGrouped(elId, items){
       const div = document.createElement("div");
       div.className = "item vehicle";
 
-      // ✅ roadway image row for main line
       const line1 = buildRoadRow(main || text);
       div.appendChild(line1);
 
       if (line2) {
         const l2 = document.createElement("div");
+        l2.className = "subline";
         l2.textContent = line2;
         div.appendChild(l2);
       }
@@ -772,7 +779,6 @@ function renderVehicleGroupedPlanned(elId, items){
     else buckets.get("other").push(text);
   }
 
-  // ✅ Planned: sort by start time, then roadway number
   for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
 
   const tierLabels = {
@@ -812,12 +818,18 @@ function renderVehicleGroupedPlanned(elId, items){
       const div = document.createElement("div");
       div.className = "item vehicle";
 
-      // ✅ roadway image row for main line
       const line1 = buildRoadRow(main || text);
       div.appendChild(line1);
 
       if (line2) {
         const l2 = document.createElement("div");
+        l2.className = "subline";
+
+        // ✅ If first line had icon, indent under the roadway text
+        if (line1 && line1.dataset && line1.dataset.hasIcon === "1") {
+          l2.classList.add("indent-under-icon");
+        }
+
         l2.textContent = line2;
         div.appendChild(l2);
       }
@@ -929,8 +941,8 @@ async function loadBoard(){
 
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
-    renderVehicleGrouped("vehicleList", activeVehicle);                 // active: roadway sort
-    renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);  // planned: start time then roadway
+    renderVehicleGrouped("vehicleList", activeVehicle);
+    renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
     if (warnings.length) {
       setStatus("attn","NEEDS ATTENTION",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
