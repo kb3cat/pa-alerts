@@ -133,7 +133,6 @@
       white-space:nowrap;
     }
 
-    /* NEW: thumbnail styling */
     .thumb{
       width:100%;
       height:auto;
@@ -148,29 +147,8 @@
     .cardDesc{
       color:var(--muted);
       font-size:12px;
-      line-height:1.35;
+      line-height:1.4;
       margin:0;
-    }
-
-    .footer{
-      margin-top:16px;
-      color:var(--muted);
-      font-size:12px;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
-      border-top:1px solid var(--border);
-      padding-top:12px;
-    }
-
-    .kbd{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      border:1px solid var(--border);
-      background:rgba(255,255,255,0.03);
-      padding:2px 6px;
-      border-radius:6px;
-      color:var(--text);
     }
   </style>
 </head>
@@ -190,13 +168,16 @@
 
   <main>
     <div class="grid">
+
       <a class="card" href="alerts.html">
         <div class="cardTop">
           <div class="cardTitle">Alerts</div>
           <div class="tag">alerts.html</div>
         </div>
         <img class="thumb" src="images/alerts.png" alt="Alerts preview" loading="lazy" />
-        <p class="cardDesc">Primary alerts board (watch/warning/advisory workflow + details modal).</p>
+        <p class="cardDesc">
+          PA Watches and Warnings, with NWS Alert Map, a link for the Regional Weather Summary out of NWS State College, and Windy radar. Updated every 5 minutes.
+        </p>
       </a>
 
       <a class="card" href="advisories.html">
@@ -205,7 +186,9 @@
           <div class="tag">advisories.html</div>
         </div>
         <img class="thumb" src="images/advisories.png" alt="Advisories preview" loading="lazy" />
-        <p class="cardDesc">Advisory-focused view for quick scanning and status changes.</p>
+        <p class="cardDesc">
+          Same as the Alerts page, but includes Advisories as well. Updated every 5 minutes.
+        </p>
       </a>
 
       <a class="card" href="hazards.html">
@@ -214,7 +197,9 @@
           <div class="tag">hazards.html</div>
         </div>
         <img class="thumb" src="images/hazards.png" alt="Hazards preview" loading="lazy" />
-        <p class="cardDesc">Hazard overview board (clean list + map/summary depending on your build).</p>
+        <p class="cardDesc">
+          A one-page status board showing Alerts, Advisories, Alert Map, Radar, and list of all advisories. Updated every 5 minutes.
+        </p>
       </a>
 
       <a class="card" href="traffic.html">
@@ -223,8 +208,11 @@
           <div class="tag">traffic.html</div>
         </div>
         <img class="thumb" src="images/traffic.png" alt="Traffic preview" loading="lazy" />
-        <p class="cardDesc">511PA roadway status board (closures, restrictions, and major route focus).</p>
+        <p class="cardDesc">
+          Roadway status board which pulls data from 511pa.com and lists road closures, speed restrictions, and active and planned vehicle restrictions. Updated every 5 minutes.
+        </p>
       </a>
+
     </div>
   </main>
 </body>
