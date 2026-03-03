@@ -349,22 +349,37 @@ function isFakeHeaderRow(s) {
 
 /* ✅ Roadway icon resolver (repoBase-safe) */
 function getRoadImage(text){
-  const s = String(text || "");
+  const s = String(text || "").trim();
 
-  const mi =
-    s.match(/\bI\s*-\s*(\d{1,4})\b/i) ||
-    s.match(/\bI\s+(\d{1,4})\b/i) ||
-    s.match(/\bI(\d{1,4})\b/i) ||
-    s.match(/\binterstate\s*(\d{1,4})\b/i);
-
-  if (!mi || !mi[1]) return "";
-
-  const num = mi[1];
-
+  // repoBase-safe base path (works from subfolders too)
   const parts = location.pathname.split("/").filter(Boolean);
   const repoBase = parts.length ? `/${parts[0]}/` : "/";
 
-  return `${repoBase}data/icons/i${num}small.png?v=${Date.now()}`;
+  // 1) Prefer the PRIMARY route at the beginning of the line:
+  //    Examples: "US 322 ...", "US-322 ...", "PA 64 ...", "I-80 ...", "I 80 ..."
+  let m =
+    s.match(/^(?:\(|\[)?\s*(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/^(?:\(|\[)?\s*(PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/^(?:\(|\[)?\s*(I)\s*[- ]?\s*(\d{1,4})\b/i);
+
+  // 2) If not found at start, fall back to first occurrence anywhere (still prefer US/PA over I)
+  if (!m) {
+    m =
+      s.match(/\b(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
+      s.match(/\b(PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+      s.match(/\b(I)\s*[- ]?\s*(\d{1,4})\b/i);
+  }
+
+  if (!m) return "";
+
+  const typ = String(m[1]).toLowerCase();
+  const num = m[2];
+
+  // Your files appear to be like: i80small.png, us322small.png, pa64small.png
+  // If you ONLY have i##small.png today, tell me and I’ll adjust to your actual filenames.
+  const filename = `${typ}${num}small.png`;
+
+  return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
 }
 
 /* ✅ Build a node that includes [icon][roadway text] (border bar stays via .item) */
