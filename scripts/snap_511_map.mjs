@@ -3,6 +3,10 @@ import fs from "fs/promises";
 
 const OUT_PATH = "data/pa511_map.png";
 
+/*
+  Zoom 7 keeps Erie in frame.
+  Adjust later if you want tighter framing.
+*/
 const VIEW = {
   Zoom: 7,
   Latitude: 40.95,
@@ -18,7 +22,10 @@ function buildUrl() {
 }
 
 async function killOnboarding(page) {
+  // Give initial UI a moment to appear
   await page.waitForTimeout(3000);
+
+  // Remove common modal/onboarding overlays (best-effort)
   await page.evaluate(() => {
     const selectors = [
       ".ui-dialog",
@@ -31,53 +38,53 @@ async function killOnboarding(page) {
       "#onboardingDialog",
       "#tourDialog"
     ];
-    selectors.forEach(sel =>
-      document.querySelectorAll(sel).forEach(el => el.remove())
-    );
+
+    for (const sel of selectors) {
+      document.querySelectorAll(sel).forEach(el => el.remove());
+    }
+
     document.body.style.overflow = "auto";
   });
+
   await page.waitForTimeout(1000);
 }
 
 async function openLegend(page) {
   const btn = page.locator('button:has-text("Legend")').first();
-  if (await btn.isVisible({ timeout: 5000 })) {
+  if (await btn.isVisible({ timeout: 8000 })) {
     await btn.click();
     await page.waitForTimeout(1500);
   }
 }
 
 /**
- * Force-set a legend checkbox by LABEL text, even if not visible.
- * Strategy:
- *  1) Find label in legend panel
- *  2) Try input.click({force:true})
- *  3) If that fails, set input.checked in DOM + dispatch change
+ * Force-set a legend checkbox by label text even if it’s not visible/clickable.
+ * 1) Try click input (force)
+ * 2) If that fails, set checked via DOM + dispatch events
  */
 async function forceSetLegendCheckbox(page, labelText, checked) {
-  // Legend panel: scope by visible section header text
-  const legendPanel = page.locator('div:has-text("Travel Info")').first();
+  // Scope to something that only exists inside the legend.
+  // (We avoid broad selectors like *:has-text("Closures") which can match other UI.)
+  const legendScope = page.locator('div:has-text("Travel Info")').first();
 
-  // Find the label and the input inside it
-  const label = legendPanel.locator(`label:has-text("${labelText}")`).first();
+  const label = legendScope.locator(`label:has-text("${labelText}")`).first();
   if (!(await label.count())) return false;
 
   const input = label.locator('input[type="checkbox"]').first();
   if (!(await input.count())) return false;
 
-  // If playwright can read the state, avoid unnecessary changes
   const cur = await input.isChecked().catch(() => null);
   if (cur !== null && cur === checked) return true;
 
   // Try clicking the checkbox directly, forced
   try {
-    await input.click({ force: true, timeout: 2000 });
+    await input.click({ force: true, timeout: 2500 });
     await page.waitForTimeout(600);
     const now = await input.isChecked().catch(() => null);
     if (now === checked) return true;
   } catch {}
 
-  // Last resort: set via DOM + dispatch change
+  // DOM fallback: set state + dispatch input/change
   try {
     const ok = await input.evaluate((el, desired) => {
       try {
@@ -103,24 +110,21 @@ async function forceSetLegendCheckbox(page, labelText, checked) {
 async function configureLegend(page) {
   await openLegend(page);
 
-  // EXACTLY what you want:
-  // - Incidents OFF
-  // - Closures ON
-  // - Major Routes ON
-  // - Other Routes OFF
+  // EXACT settings you requested:
   await forceSetLegendCheckbox(page, "Incidents", false);
   await forceSetLegendCheckbox(page, "Closures", true);
   await forceSetLegendCheckbox(page, "Major Routes", true);
   await forceSetLegendCheckbox(page, "Other Routes", false);
 
-  // Give map time to redraw
-  await page.waitForTimeout(3000);
+  // Let overlays/lines redraw
+  await page.waitForTimeout(2500);
 }
 
 async function removeBottomWeatherBox(page) {
+  // Remove the bottom "Weather Restriction Information" bar (best-effort)
   await page.evaluate(() => {
-    const elements = Array.from(document.querySelectorAll("body *"));
-    for (const el of elements) {
+    const nodes = Array.from(document.querySelectorAll("body *"));
+    for (const el of nodes) {
       if (
         el.textContent &&
         el.textContent.includes("Weather Restriction Information") &&
@@ -131,7 +135,28 @@ async function removeBottomWeatherBox(page) {
       }
     }
   });
+
   await page.waitForTimeout(500);
+}
+
+/**
+ * Key fix: wait for actual map tiles to appear.
+ * The “solid blue” screenshot happens when we capture before tiles render.
+ */
+async function waitForMapTiles(page) {
+  // Some runs take longer than others; this is a visual readiness check.
+  await page.waitForFunction(() => {
+    const imgs = Array.from(document.querySelectorAll("img"));
+    // Google tiles commonly load from googleapis/gstatic; also allow generic tile patterns.
+    const tileImgs = imgs.filter(img => {
+      const s = (img.getAttribute("src") || "").toLowerCase();
+      return s.includes("googleapis") || s.includes("gstatic") || s.includes("google.com");
+    });
+    return tileImgs.length >= 6;
+  }, { timeout: 30000 });
+
+  // Extra buffer for overlays/labels to settle
+  await page.waitForTimeout(1500);
 }
 
 async function main() {
@@ -146,21 +171,21 @@ async function main() {
   });
 
   await page.goto(buildUrl(), {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
     timeout: 120000
   });
 
+  // Give the app time to hydrate
+  await page.waitForTimeout(2000);
+
   await killOnboarding(page);
-
   await configureLegend(page);
-
-  // Keep legend visible, just remove bottom info bar
   await removeBottomWeatherBox(page);
 
-  // Let layers render
-  await page.waitForTimeout(5000);
+  // ✅ Critical: wait for tiles so we don’t capture the blue pre-render state
+  await waitForMapTiles(page);
 
-  // Screenshot the viewport (stable)
+  // Screenshot viewport (stable)
   await page.screenshot({
     path: OUT_PATH,
     fullPage: false
