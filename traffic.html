@@ -213,19 +213,21 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 
   <div class="row vehicle">
     <div class="paneltitle">
-      <div class="name">Vehicle Restrictions</div>
-      <div class="count" id="vehicleCount">
-        <span class="veh-summary" id="vehSummary">T1=0 / T2=0 / T3=0 / T4=0 / T5=0 / 45=0</span>
-      </div>
+      <div class="name">Active Vehicle Restrictions</div>
+      <div class="count" id="vehicleCount"></div>
     </div>
     <div class="items" id="vehicleList"></div>
   </div>
 
-</div>
+  <div class="row vehicle">
+    <div class="paneltitle">
+      <div class="name">Planned Vehicle Restrictions</div>
+      <div class="count" id="plannedVehicleCount"></div>
+    </div>
+    <div class="items" id="plannedVehicleList"></div>
+  </div>
 
-<!-- ✅ Removed from here:
-<div class="footer" id="updated">Data Last Updated: —</div>
--->
+</div>
 
 <script>
 const REFRESH_MS = 60000;
@@ -421,11 +423,6 @@ function formatDataLastUpdated(dt) {
 function extractTextLines(anyJson){
   if (!anyJson) return [];
 
-  // Common shapes we’ve seen in your repo:
-  // - { items: [ { formatted }, ... ] }
-  // - { rows: [ ... ] }
-  // - { items: [ { description }, ... ] }
-  // - fallback: array itself
   if (Array.isArray(anyJson)) return anyJson.map(x => String(x || "")).filter(Boolean);
 
   if (Array.isArray(anyJson.items)) {
@@ -534,9 +531,6 @@ function renderVehicleGrouped(elId, items){
     div.style.borderLeftColor = "var(--green)";
     div.textContent = "None currently reported";
     el.appendChild(div);
-
-    const summaryEl = document.getElementById("vehSummary");
-    if (summaryEl) summaryEl.textContent = "T1=0 / T2=0 / T3=0 / T4=0 / T5=0 / 45=0";
     return;
   }
 
@@ -560,24 +554,6 @@ function renderVehicleGrouped(elId, items){
   }
 
   for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
-
-  const t1 = buckets.get(1).length;
-  const t2 = buckets.get(2).length;
-  const t3 = buckets.get(3).length;
-  const t4 = buckets.get(4).length;
-  const t5 = buckets.get(5).length;
-  const r45 = buckets.get("rl45").length;
-
-  const summaryEl = document.getElementById("vehSummary");
-  if (summaryEl) {
-    summaryEl.innerHTML =
-      `<span class="t1">T1=${t1}</span> / ` +
-      `<span class="t2">T2=${t2}</span> / ` +
-      `<span class="t3">T3=${t3}</span> / ` +
-      `<span class="t4">T4=${t4}</span> / ` +
-      `<span class="t5">T5=${t5}</span> / ` +
-      `<span class="rl45">45=${r45}</span>`;
-  }
 
   const tierLabels = {
     1: "Tier 1",
@@ -628,6 +604,33 @@ function closureDedupeKey(s){
     .replace(/\bestimated reopen:\s*/g, "estimated reopen:")
     .replace(/[|]/g,"|")
     .trim();
+}
+
+/* ✅ NEW: Start/End time split logic (planned vs active) */
+function extractDateTimes(text){
+  const t = String(text || "");
+  // Matches: 3/3/26, 3:00 AM  OR  03/03/2026 3:00 PM
+  const re = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b\s*,?\s*\d{1,2}:\d{2}\s*(AM|PM)\b/gi;
+  return t.match(re) || [];
+}
+function hasEndTime(text){
+  const t = String(text || "").toLowerCase();
+
+  // If the flattened row text includes explicit end-time hints, treat as active
+  if (t.includes("end time")) return true;
+  if (t.includes("until")) return true;
+  if (t.includes("expires")) return true;
+  if (t.includes("expiration")) return true;
+  if (/\bends?\b/.test(t)) return true;
+
+  // If there are 2+ date-time stamps in the same row, assume start+end exists
+  return extractDateTimes(text).length >= 2;
+}
+function isPlannedVehicleItem(it){
+  const text = (it?.text ?? String(it ?? ""));
+  const dts = extractDateTimes(text);
+  const hasStart = dts.length >= 1;
+  return hasStart && !hasEndTime(text);
 }
 
 async function loadBoard(){
@@ -697,21 +700,24 @@ async function loadBoard(){
       .filter(s => !is45CmvRightLaneOnly(s))
       .sort(sortByRoute);
 
-    const vehicle = withTiers.filter(r =>
+    const vehicleAll = withTiers.filter(r =>
       is45CmvRightLaneOnly(r.text) ||
       (r.tier != null) ||
       vehiclePanelCandidate(r.text)
     );
 
-    // Counts
+    const plannedVehicle = vehicleAll.filter(isPlannedVehicleItem);
+    const activeVehicle = vehicleAll.filter(r => !isPlannedVehicleItem(r));
+
+    // Counts (closures + speed only; vehicle totals intentionally not set)
     document.getElementById("closuresCount").textContent = String(closuresMerged.length);
     document.getElementById("speedCount").textContent = String(speed.length);
-    document.getElementById("vehicleCount").textContent = String(vehicle.length);
 
     // Render
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
-    renderVehicleGrouped("vehicleList", vehicle);
+    renderVehicleGrouped("vehicleList", activeVehicle);
+    renderVehicleGrouped("plannedVehicleList", plannedVehicle);
 
     if (warnings.length) {
       setStatus("attn","NEEDS ATTENTION",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
