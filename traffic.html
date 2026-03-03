@@ -579,7 +579,7 @@ function renderVehicleGrouped(elId, items){
 
     const head = document.createElement("div");
     head.className = `grouphead ${headClass[key] || ""}`.trim();
-    head.innerHTML = `${tierLabels[key]} <small>(${arr.length})</small>`;
+    head.textContent = `${tierLabels[key]}`;
     el.appendChild(head);
 
     for (const text of arr) {
