@@ -153,6 +153,13 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 
 /* ITEMS */
 .items{ max-height:45vh; overflow:auto; }
+
+/* ✅ Wallboard mode: force panels to be scroll containers */
+body.wallboard .items{
+  height: 34vh;
+  max-height: none;
+}
+
 .item{
   padding:10px;
   margin:8px 0;
@@ -321,75 +328,61 @@ const STALE_MINUTES = 25;
 
 /* --- Wallboard scroll state --- */
 let WALL_SCROLL_ENABLED = false;
-const scrollers = new Map(); // el -> { raf, dir, lastTs, pauseUntil }
+const scrollers = new Map(); // el -> { timer, dir, pauseUntil }
 
-/* Smooth auto-scroll per element (only if overflow) */
+/* Interval-based auto-scroll (reliable on wallboards / Firefox) */
 function startAutoScroll(el){
   if (!el) return;
   stopAutoScroll(el);
 
   const state = {
-    raf: null,
+    timer: null,
     dir: 1,
-    lastTs: null,
     pauseUntil: 0
   };
   scrollers.set(el, state);
 
-  const speedPxPerSec = 18;    // gentle
-  const edgePauseMs = 2200;    // pause at top/bottom
+  const stepPx = 1;          // pixels per tick
+  const tickMs = 40;         // 25 ticks/sec (~25px/sec)
+  const edgePauseMs = 2200;  // pause at top/bottom
 
-  const tick = (ts) => {
+  state.timer = setInterval(() => {
     if (!WALL_SCROLL_ENABLED) return;
     if (!document.body.contains(el)) return;
 
     const max = el.scrollHeight - el.clientHeight;
-    if (max <= 4) {
-      state.raf = requestAnimationFrame(tick);
-      return;
-    }
+    if (max <= 4) return; // nothing to scroll
 
-    if (state.lastTs == null) state.lastTs = ts;
-    const dt = (ts - state.lastTs) / 1000;
-    state.lastTs = ts;
+    const now = Date.now();
+    if (now < state.pauseUntil) return;
 
-    if (ts < state.pauseUntil) {
-      state.raf = requestAnimationFrame(tick);
-      return;
-    }
-
-    const delta = speedPxPerSec * dt * state.dir;
-    el.scrollTop += delta;
+    el.scrollTop += stepPx * state.dir;
 
     if (el.scrollTop <= 0) {
       el.scrollTop = 0;
       state.dir = 1;
-      state.pauseUntil = ts + edgePauseMs;
+      state.pauseUntil = now + edgePauseMs;
     } else if (el.scrollTop >= max) {
       el.scrollTop = max;
       state.dir = -1;
-      state.pauseUntil = ts + edgePauseMs;
+      state.pauseUntil = now + edgePauseMs;
     }
-
-    state.raf = requestAnimationFrame(tick);
-  };
-
-  state.raf = requestAnimationFrame(tick);
+  }, tickMs);
 }
 
 function stopAutoScroll(el){
   const s = scrollers.get(el);
-  if (s && s.raf) cancelAnimationFrame(s.raf);
+  if (s && s.timer) clearInterval(s.timer);
   scrollers.delete(el);
 }
 
-/* ✅ NEW: overflow detector so only panels that need it will scroll */
+/* Overflow detector so only panels that need it will scroll */
 function panelOverflows(el){
   if (!el) return false;
   return (el.scrollHeight - el.clientHeight) > 6;
 }
 
-/* ✅ UPDATED: only scroll panels that overflow */
+/* Only scroll panels that overflow */
 function applyWallScroll(enabled){
   WALL_SCROLL_ENABLED = !!enabled;
 
@@ -405,12 +398,10 @@ function applyWallScroll(enabled){
     document.getElementById("plannedVehicleList")
   ].filter(Boolean);
 
-  // Stop scrollers for panels that no longer overflow
   for (const [el] of scrollers.entries()) {
     if (!panelOverflows(el)) stopAutoScroll(el);
   }
 
-  // Start scrollers only for panels that overflow
   panels.forEach(el => {
     if (panelOverflows(el)) startAutoScroll(el);
     else stopAutoScroll(el);
@@ -464,7 +455,7 @@ function setStatus(state, text, hover) {
   pill.title = hover || "";
 }
 
-/* --- show JS errors instead of getting stuck on LOADING --- */
+/* show JS errors instead of getting stuck on LOADING */
 window.addEventListener("error", (e) => {
   try { setStatus("err","JS ERROR", e?.message || "Unknown error"); } catch {}
 });
@@ -508,7 +499,7 @@ function isFakeHeaderRow(s) {
   return false;
 }
 
-/* ✅ Roadway icon resolver (prefers leading route; avoids picking I-xx from "between Exit I-xx") */
+/* Roadway icon resolver (prefers leading route; avoids picking I-xx from "between Exit I-xx") */
 function getRoadImage(text){
   const s = String(text || "").trim();
 
@@ -984,11 +975,9 @@ function renderVehicleGroupedPlanned(elId, items){
       if (line2) {
         const l2 = document.createElement("div");
         l2.className = "subline";
-
         if (line1 && line1.dataset && line1.dataset.hasIcon === "1") {
           l2.classList.add("indent-under-icon");
         }
-
         l2.textContent = line2;
         div.appendChild(l2);
       }
@@ -1103,7 +1092,7 @@ async function loadBoard(){
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
-    // ✅ If wallboard scroll is enabled, re-check which panels overflow after re-render
+    // Re-check which panels overflow after re-render (when enabled)
     if (WALL_SCROLL_ENABLED) applyWallScroll(true);
 
     if (warnings.length) {
@@ -1116,10 +1105,23 @@ async function loadBoard(){
   }
 }
 
-/* Hook toggle */
-document.getElementById("wallScrollToggle").addEventListener("change", (e) => {
-  applyWallScroll(!!e.target.checked);
-});
+/* ✅ Toggle + remember setting */
+(function initWallboardToggle(){
+  const toggle = document.getElementById("wallScrollToggle");
+  if (!toggle) return;
+
+  const saved = localStorage.getItem("wallboardScroll") === "1";
+  toggle.checked = saved;
+  document.body.classList.toggle("wallboard", saved);
+  applyWallScroll(saved);
+
+  toggle.addEventListener("change", (e) => {
+    const on = !!e.target.checked;
+    localStorage.setItem("wallboardScroll", on ? "1" : "0");
+    document.body.classList.toggle("wallboard", on);
+    applyWallScroll(on);
+  });
+})();
 
 loadBoard();
 setInterval(loadBoard, REFRESH_MS);
