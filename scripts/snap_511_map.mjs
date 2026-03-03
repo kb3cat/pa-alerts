@@ -4,8 +4,7 @@ import fs from "fs/promises";
 const OUT_PATH = "data/pa511_map.png";
 
 /*
-  Zoom 7 keeps Erie visible.
-  Adjust if you want slightly tighter framing.
+  Zoom 7 keeps Erie in frame.
 */
 const VIEW = {
   Zoom: 7,
@@ -22,7 +21,7 @@ function buildUrl() {
 }
 
 async function killOnboarding(page) {
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(3000);
 
   await page.evaluate(() => {
     const selectors = [
@@ -59,8 +58,8 @@ async function openLegend(page) {
 async function configureLegend(page) {
   await openLegend(page);
 
-  // The legend panel container
-  const legendPanel = page.locator('.legend').first();
+  // Scope only inside legend container
+  const legendPanel = page.locator('div:has-text("Travel Info")').first();
 
   await page.waitForTimeout(1000);
 
@@ -74,12 +73,10 @@ async function configureLegend(page) {
     const current = await input.isChecked().catch(() => null);
     if (current === null || current === shouldBeChecked) return;
 
-    // Click label (safer than clicking hidden input)
     await label.click({ force: true });
     await page.waitForTimeout(800);
   }
 
-  // Desired layer state
   await toggle("Incidents", false);
   await toggle("Closures", true);
   await toggle("Major Routes", true);
@@ -110,30 +107,33 @@ async function removeBottomWeatherBox(page) {
 async function main() {
   await fs.mkdir("data", { recursive: true });
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: ["--no-sandbox"]
+  });
+
   const page = await browser.newPage({
     viewport: { width: 1600, height: 900 }
   });
 
   await page.goto(buildUrl(), {
-    waitUntil: "domcontentloaded",
+    waitUntil: "networkidle",
     timeout: 120000
   });
-
-  const map = page.locator("#map-canvas");
-  await map.waitFor({ state: "visible", timeout: 60000 });
 
   await killOnboarding(page);
 
   await configureLegend(page);
 
-  // Keep legend visible, remove bottom info bar only
   await removeBottomWeatherBox(page);
 
-  // Let layers redraw
-  await page.waitForTimeout(4000);
+  // Let map fully render
+  await page.waitForTimeout(5000);
 
-  await map.screenshot({ path: OUT_PATH });
+  // Screenshot whole visible viewport (more stable than targeting #map-canvas)
+  await page.screenshot({
+    path: OUT_PATH,
+    fullPage: false
+  });
 
   await browser.close();
   console.log(`Wrote ${OUT_PATH}`);
