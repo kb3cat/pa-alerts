@@ -183,7 +183,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="header-left">
     <div class="title">Pennsylvania 511 Roadway Status Board</div>
     <div class="subtitle">Requested every 5 minutes via GitHub Actions; execution timing may vary.</div>
-    <!-- ✅ Moved here -->
     <div class="footer header-updated" id="updated">Data Last Updated: —</div>
   </div>
 
@@ -198,21 +197,21 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="row closures">
     <div class="paneltitle">
       <div class="name">Closures</div>
-          </div>
+    </div>
     <div class="items" id="closuresList"></div>
   </div>
 
   <div class="row speed">
     <div class="paneltitle">
       <div class="name">Speed Restrictions</div>
-     </div>
+    </div>
     <div class="items" id="speedList"></div>
   </div>
 
   <div class="row vehicle">
     <div class="paneltitle">
       <div class="name">Active Vehicle Restrictions</div>
-      </div>
+    </div>
     <div class="items" id="vehicleList"></div>
   </div>
 
@@ -356,44 +355,6 @@ function isSpeedRestriction(text) {
   return hasSpeed && hasRoad;
 }
 
-/* Major Route (good-enough): Interstate/Turnpike OR says "Major Route" */
-function isMajorRouteText(text){
-  const t = String(text || "");
-  return (
-    /\bmajor\s*route(s)?\b/i.test(t) ||
-    /\b(i-\d+|interstate\s*\d+)\b/i.test(t) ||
-    /\bturnpike\b/i.test(t)
-  );
-}
-
-/* Closure-ish wording */
-function isClosureish(text){
-  const t = String(text || "").toLowerCase();
-
-  // Exclude partial closures first
-  if (
-    t.includes("ramp") ||
-    t.includes("shoulder") ||
-    t.includes("lane restriction") ||
-    t.includes("right lane closed") ||
-    t.includes("left lane closed") ||
-    t.includes("single lane") ||
-    t.includes("partial closure")
-  ) return false;
-
-  // Include only full roadway closures
-  return (
-    t.includes("all lanes closed") ||
-    t.includes("all lanes blocked") ||
-    t.includes("closed in both directions") ||
-    t.includes("closed both directions") ||
-    t.includes("full closure") ||
-    t.includes("road closed") ||
-    t.includes("traffic stopped") ||
-    t.includes("impassable")
-  );
-}
-
 /* 45 MPH - CMV Right Lane Only */
 function is45CmvRightLaneOnly(text){
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
@@ -468,7 +429,49 @@ function sortByRoute(a,b){
   return String(a).localeCompare(String(b));
 }
 
-/* Tier grouping (unchanged logic from your last version) */
+/* ✅ Planned sort: start time first, then roadway number */
+function parseDtToEpoch(dtStr){
+  const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
+  if (!m) return null;
+
+  let mm = parseInt(m[1], 10);
+  let dd = parseInt(m[2], 10);
+  let yy = parseInt(m[3], 10);
+  let hh = parseInt(m[4], 10);
+  let min = parseInt(m[5], 10);
+  const ap = String(m[6] || "").toUpperCase();
+
+  if (String(yy).length === 2) yy = 2000 + yy;
+
+  if (ap === "AM") {
+    if (hh === 12) hh = 0;
+  } else if (ap === "PM") {
+    if (hh !== 12) hh += 12;
+  }
+
+  const d = new Date(yy, mm - 1, dd, hh, min, 0, 0);
+  const t = d.getTime();
+  return isNaN(t) ? null : t;
+}
+function extractDateTimes(text){
+  const t = String(text || "");
+  const re = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b\s*,?\s*\d{1,2}:\d{2}\s*(AM|PM)\b/gi;
+  return t.match(re) || [];
+}
+function plannedStartEpoch(text){
+  const dts = extractDateTimes(text);
+  if (!dts.length) return Number.POSITIVE_INFINITY;
+  const ep = parseDtToEpoch(dts[0]);
+  return (ep == null) ? Number.POSITIVE_INFINITY : ep;
+}
+function sortPlannedByStartThenRoute(a,b){
+  const ta = plannedStartEpoch(a);
+  const tb = plannedStartEpoch(b);
+  if (ta !== tb) return ta - tb;
+  return sortByRoute(a,b);
+}
+
+/* Tier grouping (unchanged logic) */
 function extractTierHeader(s){
   const t = (s || "").trim();
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
@@ -515,13 +518,7 @@ function vehiclePanelCandidate(text){
   );
 }
 
-/* ✅ Shared datetime helpers + planned/active cleanups */
-function extractDateTimes(text){
-  const t = String(text || "");
-  // Matches: 3/3/26, 3:00 AM  OR  03/03/2026 3:00 PM
-  const re = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b\s*,?\s*\d{1,2}:\d{2}\s*(AM|PM)\b/gi;
-  return t.match(re) || [];
-}
+/* ✅ Display cleanups */
 function parseMmDdYyTimeLabel(dtStr, label){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -550,11 +547,10 @@ function parseMmDdYyTimeLabel(dtStr, label){
   return `${label} ${MM}/${DD}/${yy} at ${HH}:${MN} hours.`;
 }
 function stripPipeRouteOnly(text){
-  // removes: "| I-80 |"  (also US-/PA- forms) anywhere
   return String(text || "").replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*\|\s*/gi, " | ").trim();
 }
 
-/* Planned: remove the first datetime from main line; add "Starting on" (first dt) */
+/* Planned: remove first dt; add Starting on (first dt) */
 function cleanupPlannedVehicleText(fullText){
   const raw = stripPipeRouteOnly(fullText);
 
@@ -570,11 +566,11 @@ function cleanupPlannedVehicleText(fullText){
 
   main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
 
-  const startingLine = dt ? parseMmDdYyTimeLabel(dt, "Starting on:") : null;
-  return { main, line2: startingLine };
+  const line2 = dt ? parseMmDdYyTimeLabel(dt, "Starting on:") : null;
+  return { main, line2 };
 }
 
-/* Active: remove the last datetime from main line; add "Ending on" (last dt) */
+/* Active: remove last dt; add Ending on (last dt) */
 function cleanupActiveVehicleText(fullText){
   const raw = stripPipeRouteOnly(fullText);
 
@@ -590,8 +586,8 @@ function cleanupActiveVehicleText(fullText){
 
   main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
 
-  const endingLine = dt ? parseMmDdYyTimeLabel(dt, "Ending on:") : null;
-  return { main, line2: endingLine };
+  const line2 = dt ? parseMmDdYyTimeLabel(dt, "Ending on:") : null;
+  return { main, line2 };
 }
 
 function renderVehicleGrouped(elId, items){
@@ -628,7 +624,7 @@ function renderVehicleGrouped(elId, items){
     else buckets.get("other").push(text);
   }
 
-  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
+  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute); // ✅ Active remains roadway sort
 
   const tierLabels = {
     1: "Tier 1",
@@ -662,7 +658,6 @@ function renderVehicleGrouped(elId, items){
     el.appendChild(head);
 
     for (const text of arr) {
-      // ✅ Active formatting (Ending on...)
       const { main, line2 } = cleanupActiveVehicleText(text);
 
       const div = document.createElement("div");
@@ -717,7 +712,8 @@ function renderVehicleGroupedPlanned(elId, items){
     else buckets.get("other").push(text);
   }
 
-  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
+  // ✅ Planned: sort by start time, then roadway number
+  for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
 
   const tierLabels = {
     1: "Tier 1",
@@ -751,7 +747,6 @@ function renderVehicleGroupedPlanned(elId, items){
     el.appendChild(head);
 
     for (const text of arr) {
-      // ✅ Planned formatting (Starting on...)
       const { main, line2 } = cleanupPlannedVehicleText(text);
 
       const div = document.createElement("div");
@@ -786,15 +781,11 @@ function closureDedupeKey(s){
 /* ✅ Start/End time split logic (planned vs active) */
 function hasEndTime(text){
   const t = String(text || "").toLowerCase();
-
-  // If the flattened row text includes explicit end-time hints, treat as active
   if (t.includes("end time")) return true;
   if (t.includes("until")) return true;
   if (t.includes("expires")) return true;
   if (t.includes("expiration")) return true;
   if (/\bends?\b/.test(t)) return true;
-
-  // If there are 2+ date-time stamps in the same row, assume start+end exists
   return extractDateTimes(text).length >= 2;
 }
 function isPlannedVehicleItem(it){
@@ -809,7 +800,6 @@ async function loadBoard(){
     let lastRunDt = null;
     let warnings = [];
 
-    // last_run.json
     try {
       const lastRunRes = await fetchFirstWorkingJson(LAST_RUN_FILE);
       const raw =
@@ -843,13 +833,11 @@ async function loadBoard(){
       return;
     }
 
-    // Load all data feeds we care about
     let closuresJson=null, restr=null;
 
     try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
     try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
 
-    // Closures: ONLY from major_route_closures.json + de-dupe
     const closuresPrimaryRaw = extractTextLines(closuresJson).map(cleanLine).filter(Boolean);
     const seen = new Set();
     const closuresMerged = [];
@@ -861,7 +849,6 @@ async function loadBoard(){
     }
     closuresMerged.sort(sortByRoute);
 
-    // Speed/Vehicle (same as your last working version)
     const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
     const withTiers = applyTierContext(restrRows);
 
@@ -880,11 +867,10 @@ async function loadBoard(){
     const plannedVehicle = vehicleAll.filter(isPlannedVehicleItem);
     const activeVehicle = vehicleAll.filter(r => !isPlannedVehicleItem(r));
 
-    // Render
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
-    renderVehicleGrouped("vehicleList", activeVehicle);
-    renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
+    renderVehicleGrouped("vehicleList", activeVehicle);              // active: roadway sort
+    renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle); // planned: start time then roadway
 
     if (warnings.length) {
       setStatus("attn","NEEDS ATTENTION",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
