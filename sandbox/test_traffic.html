@@ -341,10 +341,8 @@ function startAutoScroll(el){
 
   const tick = (ts) => {
     if (!WALL_SCROLL_ENABLED) return;
-
     if (!document.body.contains(el)) return;
 
-    // Only scroll if it overflows
     const max = el.scrollHeight - el.clientHeight;
     if (max <= 4) {
       state.raf = requestAnimationFrame(tick);
@@ -363,7 +361,6 @@ function startAutoScroll(el){
     const delta = speedPxPerSec * dt * state.dir;
     el.scrollTop += delta;
 
-    // Edge handling
     if (el.scrollTop <= 0) {
       el.scrollTop = 0;
       state.dir = 1;
@@ -386,16 +383,21 @@ function stopAutoScroll(el){
   scrollers.delete(el);
 }
 
+/* ✅ NEW: overflow detector so only panels that need it will scroll */
+function panelOverflows(el){
+  if (!el) return false;
+  return (el.scrollHeight - el.clientHeight) > 6;
+}
+
+/* ✅ UPDATED: only scroll panels that overflow */
 function applyWallScroll(enabled){
   WALL_SCROLL_ENABLED = !!enabled;
 
-  // Stop everything if disabled
   if (!WALL_SCROLL_ENABLED) {
     for (const [el] of scrollers.entries()) stopAutoScroll(el);
     return;
   }
 
-  // Start (or restart) scrollers on all panels
   const panels = [
     document.getElementById("closuresList"),
     document.getElementById("speedList"),
@@ -403,7 +405,16 @@ function applyWallScroll(enabled){
     document.getElementById("plannedVehicleList")
   ].filter(Boolean);
 
-  panels.forEach(startAutoScroll);
+  // Stop scrollers for panels that no longer overflow
+  for (const [el] of scrollers.entries()) {
+    if (!panelOverflows(el)) stopAutoScroll(el);
+  }
+
+  // Start scrollers only for panels that overflow
+  panels.forEach(el => {
+    if (panelOverflows(el)) startAutoScroll(el);
+    else stopAutoScroll(el);
+  });
 }
 
 function candidatePaths(filename) {
@@ -504,13 +515,11 @@ function getRoadImage(text){
   const parts = location.pathname.split("/").filter(Boolean);
   const repoBase = parts.length ? `/${parts[0]}/` : "/";
 
-  // Prefer primary route at start: US/PA/I
   let m =
     s.match(/^(?:\(|\[)?\s*(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
     s.match(/^(?:\(|\[)?\s*(PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
     s.match(/^(?:\(|\[)?\s*(I)\s*[- ]?\s*(\d{1,4})\b/i);
 
-  // Fallback: first occurrence anywhere (still prefers US/PA over I)
   if (!m) {
     m =
       s.match(/\b(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
@@ -1094,7 +1103,7 @@ async function loadBoard(){
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
-    // If wallboard scroll is enabled, re-apply scrollers after re-render
+    // ✅ If wallboard scroll is enabled, re-check which panels overflow after re-render
     if (WALL_SCROLL_ENABLED) applyWallScroll(true);
 
     if (warnings.length) {
