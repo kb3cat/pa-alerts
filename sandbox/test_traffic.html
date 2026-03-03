@@ -94,20 +94,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
 .paneltitle .count{ font-size:18px; color:var(--muted); }
 
-/* Vehicle summary next to panel title */
-.veh-summary{
-  font-size:12px;
-  font-weight:400;
-  color:var(--muted);
-  white-space:nowrap;
-}
-.veh-summary .t1{ color:#a855f7; }
-.veh-summary .t2{ color:#f59e0b; }
-.veh-summary .t3{ color:#3b82f6; }
-.veh-summary .t4{ color:#ef4444; }
-.veh-summary .t5{ color:#ec4899; }
-.veh-summary .rl45{ color:#3b82f6; }
-
 /* ITEMS */
 .items{ max-height:45vh; overflow:auto; }
 .item{
@@ -136,13 +122,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   font-size: 15px;
   letter-spacing: .02em;
 }
-.grouphead small{
-  color: var(--muted);
-  font-weight: 400;
-  margin-left: 6px;
-}
-
-/* Tier header font colors */
 .grouphead.tier1{ color:#a855f7; }
 .grouphead.tier2{ color:#f59e0b; }
 .grouphead.tier3{ color:#3b82f6; }
@@ -208,25 +187,23 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
     min-height: 200px;
   }
 }
-.mapwrap iframe{
+.mapwrap img{
   width: 100%;
   height: 100%;
-  border: 0;
+  object-fit: cover;
   display: block;
-}
-/* Blocks ALL interaction */
-.mapblock{
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  pointer-events: all;
-  cursor: default;
 }
 .mapNote{
   margin-top: 8px;
   font-size: 12px;
   color: var(--muted);
 }
+.mapLink{
+  color: var(--blue);
+  text-decoration: none;
+  font-weight: 700;
+}
+.mapLink:hover{ text-decoration: underline; }
 </style>
 </head>
 
@@ -275,7 +252,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
     <div class="items" id="plannedVehicleList"></div>
   </div>
 
-  <!-- ✅ Option A: Collapsible map row at bottom -->
+  <!-- ✅ Option A: Collapsible 511 map SNAPSHOT row at bottom -->
   <div class="row maprow">
     <div class="paneltitle">
       <div class="name">511 Map (Major Closures + Restrictions)</div>
@@ -284,16 +261,14 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 
     <div id="mapCollapsible" class="mapCollapsible is-collapsed">
       <div class="mapwrap">
-        <iframe
-          id="pa511Frame"
-          title="511PA Map"
-          loading="lazy"
-          referrerpolicy="no-referrer"
-          src="about:blank"
-        ></iframe>
-        <div class="mapblock" aria-hidden="true"></div>
+        <img id="pa511Img" alt="511PA map snapshot" src="data/pa511_map.png?v=0" />
       </div>
-      <div class="mapNote">Map refreshes automatically. (Non-interactive on this board.)</div>
+
+      <div class="mapNote">
+        Map snapshot refreshes automatically. (Non-interactive on this board.)
+        &nbsp;•&nbsp;
+        <a class="mapLink" href="#" id="pa511OpenLink" target="_blank" rel="noreferrer">Open interactive 511 map</a>
+      </div>
     </div>
   </div>
 
@@ -304,8 +279,6 @@ const REFRESH_MS = 60000;
 
 const CLOSURES_FILE = "major_route_closures.json";
 const RESTR_FILE = "restrictions.json";
-const ROADCONDS_FILE = "road_conditions.json";
-const TRAVELDELAYS_FILE = "travel_delays.json";
 
 const LAST_RUN_FILE = "last_run.json";
 const STALE_MINUTES = 25;
@@ -395,10 +368,7 @@ function cleanLine(s) {
 
 function isFakeHeaderRow(s) {
   const t = s.trim().toLowerCase();
-  if (t === "speed restrictions") return true;
-  if (t === "vehicle restrictions") return true;
-  if (t === "restrictions") return true;
-  return false;
+  return (t === "speed restrictions" || t === "vehicle restrictions" || t === "restrictions");
 }
 
 function renderList(elId, items, kind) {
@@ -454,19 +424,11 @@ function formatDataLastUpdated(dt) {
 
 function extractTextLines(anyJson){
   if (!anyJson) return [];
-
   if (Array.isArray(anyJson)) return anyJson.map(x => String(x || "")).filter(Boolean);
 
   if (Array.isArray(anyJson.items)) {
     return anyJson.items
-      .map(it =>
-        it?.formatted ||
-        it?.description ||
-        it?.title ||
-        it?.message ||
-        it?.text ||
-        ""
-      )
+      .map(it => it?.formatted || it?.description || it?.title || it?.message || it?.text || "")
       .map(s => String(s || "").trim())
       .filter(Boolean);
   }
@@ -543,7 +505,7 @@ function sortPlannedByStartThenRoute(a,b){
   return sortByRoute(a,b);
 }
 
-/* Tier grouping (unchanged logic) */
+/* Tier grouping */
 function extractTierHeader(s){
   const t = (s || "").trim();
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
@@ -590,7 +552,7 @@ function vehiclePanelCandidate(text){
   );
 }
 
-/* ✅ Display cleanups */
+/* ✅ Vehicle display cleanups */
 function parseMmDdYyTimeLabel(dtStr, label){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -616,13 +578,13 @@ function parseMmDdYyTimeLabel(dtStr, label){
   return `${label} ${MM}/${DD}/${yy} at ${HH}:${MN} hours.`;
 }
 function stripPipeRouteOnly(text){
+  // removes the duplicate "| I-80 |" style fragment anywhere it appears
   return String(text || "").replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*\|\s*/gi, " | ").trim();
 }
 
 /* Planned: remove first dt; add Starting on (first dt) */
 function cleanupPlannedVehicleText(fullText){
   const raw = stripPipeRouteOnly(fullText);
-
   const dts = extractDateTimes(raw);
   const dt = dts.length ? dts[0] : null;
 
@@ -632,7 +594,6 @@ function cleanupPlannedVehicleText(fullText){
     main = main.replace(/\s*\|\s*$/g, "").trim();
     main = main.replace(/\s{2,}/g, " ");
   }
-
   main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
 
   const line2 = dt ? parseMmDdYyTimeLabel(dt, "Starting on:") : null;
@@ -642,7 +603,6 @@ function cleanupPlannedVehicleText(fullText){
 /* Active: remove last dt; add Ending on (last dt) */
 function cleanupActiveVehicleText(fullText){
   const raw = stripPipeRouteOnly(fullText);
-
   const dts = extractDateTimes(raw);
   const dt = dts.length ? dts[dts.length - 1] : null;
 
@@ -652,17 +612,16 @@ function cleanupActiveVehicleText(fullText){
     main = main.replace(/\s*\|\s*$/g, "").trim();
     main = main.replace(/\s{2,}/g, " ");
   }
-
   main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
 
   const line2 = dt ? parseMmDdYyTimeLabel(dt, "Ending on:") : null;
   return { main, line2 };
 }
 
+/* Grouped renderers */
 function renderVehicleGrouped(elId, items){
   const el = document.getElementById(elId);
   if (!el) return;
-
   el.innerHTML = "";
 
   if (!items.length) {
@@ -682,26 +641,23 @@ function renderVehicleGrouped(elId, items){
   for (const it of items) {
     const text = it?.text ?? String(it ?? "");
     const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
-
     if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
     if (tier && buckets.has(tier)) buckets.get(tier).push(text);
     else buckets.get("other").push(text);
   }
 
-  // ✅ Active remains roadway sort
+  // Active stays roadway sort
   for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
 
   const tierLabels = {
-    1: "Tier 1", 2: "Tier 2", 3: "Tier 3", 4: "Tier 4", 5: "Tier 5",
-    rl45: "45 MPH — CMV Right Lane Only",
-    other: "Other / Unclassified vehicle restrictions"
+    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
   };
-
   const headClass = {
-    1: "tier1", 2: "tier2", 3: "tier3", 4: "tier4", 5: "tier5",
-    rl45: "rl45", other: ""
+    1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",
+    rl45:"rl45", other:""
   };
-
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -710,7 +666,7 @@ function renderVehicleGrouped(elId, items){
 
     const head = document.createElement("div");
     head.className = `grouphead ${headClass[key] || ""}`.trim();
-    head.textContent = `${tierLabels[key]}`;
+    head.textContent = tierLabels[key];
     el.appendChild(head);
 
     for (const text of arr) {
@@ -719,9 +675,9 @@ function renderVehicleGrouped(elId, items){
       const div = document.createElement("div");
       div.className = "item vehicle";
 
-      const line1 = document.createElement("div");
-      line1.textContent = main || text;
-      div.appendChild(line1);
+      const l1 = document.createElement("div");
+      l1.textContent = main || text;
+      div.appendChild(l1);
 
       if (line2) {
         const l2 = document.createElement("div");
@@ -737,7 +693,6 @@ function renderVehicleGrouped(elId, items){
 function renderVehicleGroupedPlanned(elId, items){
   const el = document.getElementById(elId);
   if (!el) return;
-
   el.innerHTML = "";
 
   if (!items.length) {
@@ -757,26 +712,23 @@ function renderVehicleGroupedPlanned(elId, items){
   for (const it of items) {
     const text = it?.text ?? String(it ?? "");
     const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
-
     if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
     if (tier && buckets.has(tier)) buckets.get(tier).push(text);
     else buckets.get("other").push(text);
   }
 
-  // ✅ Planned: sort by start time, then roadway number
+  // Planned: sort by start time then roadway
   for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
 
   const tierLabels = {
-    1: "Tier 1", 2: "Tier 2", 3: "Tier 3", 4: "Tier 4", 5: "Tier 5",
-    rl45: "45 MPH — CMV Right Lane Only",
-    other: "Other / Unclassified vehicle restrictions"
+    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
   };
-
   const headClass = {
-    1: "tier1", 2: "tier2", 3: "tier3", 4: "tier4", 5: "tier5",
-    rl45: "rl45", other: ""
+    1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",
+    rl45:"rl45", other:""
   };
-
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -785,7 +737,7 @@ function renderVehicleGroupedPlanned(elId, items){
 
     const head = document.createElement("div");
     head.className = `grouphead ${headClass[key] || ""}`.trim();
-    head.textContent = `${tierLabels[key]}`;
+    head.textContent = tierLabels[key];
     el.appendChild(head);
 
     for (const text of arr) {
@@ -794,9 +746,9 @@ function renderVehicleGroupedPlanned(elId, items){
       const div = document.createElement("div");
       div.className = "item vehicle";
 
-      const line1 = document.createElement("div");
-      line1.textContent = main || text;
-      div.appendChild(line1);
+      const l1 = document.createElement("div");
+      l1.textContent = main || text;
+      div.appendChild(l1);
 
       if (line2) {
         const l2 = document.createElement("div");
@@ -809,7 +761,7 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 }
 
-/* NEW: closures de-dupe key */
+/* closures de-dupe key */
 function closureDedupeKey(s){
   return String(s || "")
     .toLowerCase()
@@ -820,7 +772,7 @@ function closureDedupeKey(s){
     .trim();
 }
 
-/* ✅ Start/End time split logic (planned vs active) */
+/* planned vs active detection */
 function hasEndTime(text){
   const t = String(text || "").toLowerCase();
   if (t.includes("end time")) return true;
@@ -837,47 +789,34 @@ function isPlannedVehicleItem(it){
   return hasStart && !hasEndTime(text);
 }
 
-/* -------- 511PA Map embed (non-interactive + auto-refresh) --------
-   Set to YOUR requested features:
-   - Major closures
-   - Restrictions (active + planned)
-*/
-const PA511_LAYERS = [
-  "MajorRouteClosure",
-  "TruckRestrictions",
-  "TruckRestrictionPolyline",
-  "TruckRestrictionsFuture",
-  "TruckRestrictionFuturePolyline"
-];
+/* --- 511 snapshot image + interactive link --- */
+function setPa511LinksAndImage(lastRunDt){
+  const img = document.getElementById("pa511Img");
+  const a = document.getElementById("pa511OpenLink");
 
-// Default view (center-ish PA). Tweak if you want.
-const PA511_VIEW = { Zoom: 8, Latitude: 41.1115303, Longitude: -78.9237541 };
+  const v = lastRunDt ? lastRunDt.getTime() : Date.now();
+  if (img) img.src = `data/pa511_map.png?v=${v}`;
 
-// Refresh cadence
-const PA511_REFRESH_MS = 5 * 60 * 1000; // 5 minutes
+  // EXACT features requested: Major Closures + Vehicle Restrictions (active + planned)
+  const PA511_LAYERS = [
+    "MajorRouteClosure",
+    "TruckRestrictions",
+    "TruckRestrictionPolyline",
+    "TruckRestrictionsFuture",
+    "TruckRestrictionFuturePolyline"
+  ];
+  const PA511_VIEW = { Zoom: 8, Latitude: 41.1115303, Longitude: -78.9237541 };
 
-function buildPa511Url(){
   const u = new URL("https://www.511pa.com/map");
   u.searchParams.set("SelectedLayers", PA511_LAYERS.join(","));
   u.searchParams.set("Zoom", String(PA511_VIEW.Zoom));
   u.searchParams.set("Latitude", String(PA511_VIEW.Latitude));
   u.searchParams.set("Longitude", String(PA511_VIEW.Longitude));
-  u.searchParams.set("v", String(Date.now())); // cache-buster
-  return u.toString();
+
+  if (a) a.href = u.toString();
 }
 
-function refreshPa511Frame(force){
-  const f = document.getElementById("pa511Frame");
-  if (!f) return;
-
-  const box = document.getElementById("mapCollapsible");
-  const visible = box && !box.classList.contains("is-collapsed");
-  if (!visible && !force) return;
-
-  f.src = buildPa511Url();
-}
-
-/* Toggle behavior */
+/* Toggle map section */
 (function(){
   const btn = document.getElementById("toggleMapBtn");
   const box = document.getElementById("mapCollapsible");
@@ -893,13 +832,9 @@ function refreshPa511Frame(force){
       box.classList.remove("is-collapsed");
       btn.textContent = "Hide Map";
       btn.setAttribute("aria-expanded", "true");
-      refreshPa511Frame(true); // refresh immediately when opened
     }
   });
 })();
-
-// refresh periodically (only when open)
-setInterval(() => refreshPa511Frame(false), PA511_REFRESH_MS);
 
 async function loadBoard(){
   try {
@@ -929,6 +864,9 @@ async function loadBoard(){
       ? formatDataLastUpdated(lastRunDt)
       : "Data Last Updated: Unknown";
 
+    // ✅ always update the map image/link cache-buster (even if stale)
+    setPa511LinksAndImage(lastRunDt);
+
     if (!lastRunDt) {
       setStatus("err","NOT UPDATING",`Dashboard can't determine last run time.\nFix: ensure the workflow writes data/${LAST_RUN_FILE}.`);
       return;
@@ -940,13 +878,12 @@ async function loadBoard(){
       return;
     }
 
-    // Load all data feeds we care about
+    // Load data feeds
     let closuresJson=null, restr=null;
-
     try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
     try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
 
-    // Closures: ONLY from major_route_closures.json + de-dupe
+    // Closures (de-dupe)
     const closuresPrimaryRaw = extractTextLines(closuresJson).map(cleanLine).filter(Boolean);
     const seen = new Set();
     const closuresMerged = [];
@@ -958,7 +895,7 @@ async function loadBoard(){
     }
     closuresMerged.sort(sortByRoute);
 
-    // Speed/Vehicle
+    // Speed + Vehicle
     const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
     const withTiers = applyTierContext(restrRows);
 
