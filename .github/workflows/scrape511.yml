@@ -53,31 +53,7 @@ jobs:
       - name: Run scraper
         run: node ./scripts/scrape_511.mjs
 
-      # ✅ NEW: Detect if restrictions exist + write data/has_restrictions.json
-      - name: Detect if restrictions exist
-        id: restrcheck
-        run: |
-          node -e "
-            const fs=require('fs');
-            let has=false;
-            try{
-              const j=JSON.parse(fs.readFileSync('data/restrictions.json','utf8'));
-              const rows=Array.isArray(j?.rows) ? j.rows : [];
-              has = rows.some(r => {
-                const s = Array.isArray(r) ? r.join(' | ') : String(r||'');
-                return s.trim().length > 0;
-              });
-            }catch(e){}
-            fs.mkdirSync('data',{recursive:true});
-            fs.writeFileSync('data/has_restrictions.json', JSON.stringify({has, checked_at:new Date().toISOString()}));
-            console.log('hasRestrictions='+(has?'true':'false'));
-          "
-          echo "hasRestrictions=$(node -e "const j=require('./data/has_restrictions.json'); process.stdout.write(j.has?'true':'false')")" >> $GITHUB_OUTPUT
-
-      # ✅ NEW: Only generate snapshot if restrictions exist
-      - name: Generate 511 map snapshot
-        if: steps.restrcheck.outputs.hasRestrictions == 'true'
-        run: node ./scripts/snap_511_map.mjs
+      # Map snapshot REMOVED
 
       - name: Write last run timestamp
         run: |
@@ -91,9 +67,6 @@ jobs:
 
           # JSON feeds + flags
           git add data/*.json 2>/dev/null || true
-
-          # map snapshot only exists when restrictions exist
-          git add data/pa511_map.png 2>/dev/null || true
 
           # existing debug images
           git add debug/*.png 2>/dev/null || true
