@@ -72,6 +72,63 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border-color: rgba(255, 43, 43, .35);
 }
 
+/* Header right cluster */
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* Toggle (next to pill) */
+.toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  font-size:12px;
+  user-select:none;
+  white-space:nowrap;
+}
+.toggle input{
+  appearance:none;
+  width:38px;
+  height:20px;
+  border-radius:999px;
+  background: rgba(255,255,255,.18);
+  position:relative;
+  outline:none;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.18);
+}
+.toggle input:before{
+  content:"";
+  position:absolute;
+  width:16px;
+  height:16px;
+  border-radius:999px;
+  top:1px;
+  left:1px;
+  background: rgba(255,255,255,.85);
+  transition: transform .18s ease;
+}
+.toggle input:checked{
+  background: rgba(41, 211, 106, .35);
+  border-color: rgba(41, 211, 106, .35);
+}
+.toggle input:checked:before{
+  transform: translateX(18px);
+}
+.toggle .lbl{
+  color: var(--muted);
+}
+.toggle input:checked + .lbl{
+  color: #c9ffcf;
+}
+
 /* ROWS */
 .grid{ padding:10px; }
 .row{
@@ -94,22 +151,17 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
 .paneltitle .count{ font-size:18px; color:var(--muted); }
 
-/* Vehicle summary next to panel title */
-.veh-summary{
-  font-size:12px;
-  font-weight:400;
-  color:var(--muted);
-  white-space:nowrap;
-}
-.veh-summary .t1{ color:#a855f7; }
-.veh-summary .t2{ color:#f59e0b; }
-.veh-summary .t3{ color:#3b82f6; }
-.veh-summary .t4{ color:#ef4444; }
-.veh-summary .t5{ color:#ec4899; }
-.veh-summary .rl45{ color:#3b82f6; }
-
-/* ITEMS */
+/* ITEMS (normal mode) */
 .items{ max-height:45vh; overflow:auto; }
+
+/* ✅ Wallboard-only: apply ONLY to panels that need scroll */
+.items.wb-scroll{
+  height: 34vh;     /* constrain only the overflowing panel */
+  max-height: none; /* override 45vh */
+  overflow: auto;
+}
+
+/* ITEMS content */
 .item{
   padding:10px;
   margin:8px 0;
@@ -141,8 +193,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   font-weight: 400;
   margin-left: 6px;
 }
-
-/* Tier header font colors */
 .grouphead.tier1{ color:#a855f7; }
 .grouphead.tier2{ color:#f59e0b; }
 .grouphead.tier3{ color:#3b82f6; }
@@ -150,7 +200,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .grouphead.tier5{ color:#ec4899; }
 .grouphead.rl45{ color:#3b82f6; }
 
-/* FOOTER (original styling kept for reuse, but we’re moving it into the header) */
+/* FOOTER pill reused in header */
 .footer{
   position:fixed;
   bottom:8px;
@@ -162,8 +212,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border:1px solid rgba(255,255,255,.08);
   border-radius:999px;
 }
-
-/* ✅ New: when footer is used in the header, undo fixed positioning + box */
 .header-updated{
   position: static;
   bottom: auto;
@@ -175,7 +223,20 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border-radius: 0;
 }
 
-/* ✅ Roadway image next to route name */
+/* Link under updated */
+.header-links{
+  margin-top: 6px;
+  font-size: 12px;
+}
+.header-links a{
+  color: #bfe7ff;
+  text-decoration: none;
+}
+.header-links a:hover{
+  text-decoration: underline;
+}
+
+/* Roadway icon next to route name */
 .road-row{
   display:flex;
   align-items:center;
@@ -188,7 +249,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   flex-shrink:0;
 }
 
-/* ✅ Second-line alignment under roadway text (not under icon) */
+/* Second-line alignment under roadway text (not under icon) */
 .subline{
   margin-top: 2px;
 }
@@ -205,11 +266,24 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
     <div class="title">Pennsylvania 511 Roadway Status Board</div>
     <div class="subtitle">Requested every 5 minutes via GitHub Actions; execution timing may vary.</div>
     <div class="footer header-updated" id="updated">Data Last Updated: —</div>
+
+    <div class="header-links">
+      <a href="https://www.511pa.com/map/page/vehiclerestriction" target="_blank" rel="noopener">
+        Open 511PA Map (Vehicle Restrictions; enable Major Closures in Layers)
+      </a>
+    </div>
   </div>
 
-  <div id="statuspill" class="status-pill status-err" title="Loading…">
-    <span class="status-dot"></span>
-    <span id="statusline">LOADING…</span>
+  <div class="header-right">
+    <label class="toggle" title="When enabled, panels that overflow will auto-scroll (useful for wallboards).">
+      <input id="wallScrollToggle" type="checkbox" />
+      <span class="lbl">Wallboard Scroll</span>
+    </label>
+
+    <div id="statuspill" class="status-pill status-err" title="Loading…">
+      <span class="status-dot"></span>
+      <span id="statusline">LOADING…</span>
+    </div>
   </div>
 </div>
 
@@ -250,11 +324,118 @@ const REFRESH_MS = 60000;
 
 const CLOSURES_FILE = "major_route_closures.json";
 const RESTR_FILE = "restrictions.json";
-const ROADCONDS_FILE = "road_conditions.json";
-const TRAVELDELAYS_FILE = "travel_delays.json";
 
 const LAST_RUN_FILE = "last_run.json";
 const STALE_MINUTES = 25;
+
+/* --- Wallboard scroll state --- */
+let WALL_SCROLL_ENABLED = false;
+const scrollers = new Map(); // el -> { timer, dir, pauseUntil }
+
+/* Interval-based auto-scroll (reliable on Firefox / wallboards) */
+function startAutoScroll(el){
+  if (!el) return;
+  stopAutoScroll(el);
+
+  const state = { timer: null, mode: "down", pauseUntil: 0 };
+  scrollers.set(el, state);
+
+  const downStepPx = 1;       // normal scroll down speed
+  const upStepPx = 18;        // FAST scroll back to top speed
+  const tickMs = 40;
+
+  const topPauseMs = 1800;    // pause at top
+  const bottomPauseMs = 2200; // pause at bottom
+
+  // start at top each time we enable
+  el.scrollTop = 0;
+  state.pauseUntil = Date.now() + topPauseMs;
+
+  state.timer = setInterval(() => {
+    if (!WALL_SCROLL_ENABLED) return;
+    if (!document.body.contains(el)) return;
+
+    const max = el.scrollHeight - el.clientHeight;
+    if (max <= 4) return;
+
+    const now = Date.now();
+    if (now < state.pauseUntil) return;
+
+    const st = scrollers.get(el);
+    if (!st) return;
+
+    if (st.mode === "down") {
+      el.scrollTop += downStepPx;
+
+      if (el.scrollTop >= max) {
+        el.scrollTop = max;
+        st.mode = "pause-bottom";
+        st.pauseUntil = now + bottomPauseMs;
+      }
+      return;
+    }
+
+    if (st.mode === "pause-bottom") {
+      // when pause ends, switch to fast-up
+      st.mode = "up";
+      return;
+    }
+
+    if (st.mode === "up") {
+      el.scrollTop -= upStepPx;
+
+      if (el.scrollTop <= 0) {
+        el.scrollTop = 0;
+        st.mode = "down";
+        st.pauseUntil = Date.now() + topPauseMs;
+      }
+      return;
+    }
+  }, tickMs);
+}
+
+function stopAutoScroll(el){
+  const s = scrollers.get(el);
+  if (s && s.timer) clearInterval(s.timer);
+  scrollers.delete(el);
+}
+
+function panelOverflows(el){
+  if (!el) return false;
+  return (el.scrollHeight - el.clientHeight) > 6;
+}
+
+/* ✅ Only constrain + scroll the panels that actually overflow */
+function applyWallScroll(enabled){
+  WALL_SCROLL_ENABLED = !!enabled;
+
+  const panels = [
+    document.getElementById("closuresList"),
+    document.getElementById("speedList"),
+    document.getElementById("vehicleList"),
+    document.getElementById("plannedVehicleList")
+  ].filter(Boolean);
+
+  // always clear sizing + scrollers first
+  panels.forEach(el => el.classList.remove("wb-scroll"));
+  for (const [el] of scrollers.entries()) stopAutoScroll(el);
+
+  if (!WALL_SCROLL_ENABLED) return;
+
+  // PASS 1: decide which panels need scrolling WITHOUT forcing height
+  const needScroll = panels.filter(el => panelOverflows(el));
+
+  // PASS 2: only those panels get constrained height and auto-scroll
+  needScroll.forEach(el => el.classList.add("wb-scroll"));
+
+  // Give layout a moment to apply height before starting scroll
+  setTimeout(() => {
+    needScroll.forEach(el => {
+      // re-check after height applied
+      if (panelOverflows(el)) startAutoScroll(el);
+    });
+  }, 50);
+}
 
 function candidatePaths(filename) {
   const here = new URL(".", window.location.href);
@@ -303,7 +484,7 @@ function setStatus(state, text, hover) {
   pill.title = hover || "";
 }
 
-/* --- show JS errors instead of getting stuck on LOADING --- */
+/* show JS errors instead of getting stuck on LOADING */
 window.addEventListener("error", (e) => {
   try { setStatus("err","JS ERROR", e?.message || "Unknown error"); } catch {}
 });
@@ -336,6 +517,9 @@ function cleanLine(s) {
   t = t.replace(/\s*\|\s*\|\s*/g, " | ");
   t = t.replace(/\s{2,}/g, " ");
 
+    // ✅ NEW: remove trailing route-only column like " | I - 180"
+  t = t.replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*$/gi, "");
+
   return t.trim();
 }
 
@@ -347,22 +531,18 @@ function isFakeHeaderRow(s) {
   return false;
 }
 
-/* ✅ Roadway icon resolver (repoBase-safe) */
+/* Roadway icon resolver (prefers leading route; avoids picking I-xx from "between Exit I-xx") */
 function getRoadImage(text){
   const s = String(text || "").trim();
 
-  // repoBase-safe base path (works from subfolders too)
   const parts = location.pathname.split("/").filter(Boolean);
   const repoBase = parts.length ? `/${parts[0]}/` : "/";
 
-  // 1) Prefer the PRIMARY route at the beginning of the line:
-  //    Examples: "US 322 ...", "US-322 ...", "PA 64 ...", "I-80 ...", "I 80 ..."
   let m =
     s.match(/^(?:\(|\[)?\s*(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
     s.match(/^(?:\(|\[)?\s*(PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
     s.match(/^(?:\(|\[)?\s*(I)\s*[- ]?\s*(\d{1,4})\b/i);
 
-  // 2) If not found at start, fall back to first occurrence anywhere (still prefer US/PA over I)
   if (!m) {
     m =
       s.match(/\b(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
@@ -374,15 +554,10 @@ function getRoadImage(text){
 
   const typ = String(m[1]).toLowerCase();
   const num = m[2];
-
-  // Your files appear to be like: i80small.png, us322small.png, pa64small.png
-  // If you ONLY have i##small.png today, tell me and I’ll adjust to your actual filenames.
   const filename = `${typ}${num}small.png`;
-
   return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
 }
 
-/* ✅ Build a node that includes [icon][roadway text] (border bar stays via .item) */
 function buildRoadRow(text){
   const wrap = document.createElement("div");
   wrap.className = "road-row";
@@ -401,6 +576,41 @@ function buildRoadRow(text){
 
   const name = document.createElement("div");
   name.textContent = text;
+  wrap.appendChild(name);
+
+  return wrap;
+}
+
+/* Closures-only: add (County) before roadway text */
+function extractCounty(text){
+  const s = String(text || "");
+
+  let m =
+    s.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+County\b/) ||
+    s.match(/\bCounty:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/i);
+
+  if (m && m[1]) return m[1].trim();
+  return "";
+}
+function buildRoadRowWithCounty(text){
+  const wrap = document.createElement("div");
+  wrap.className = "road-row";
+
+  const imgPath = getRoadImage(text);
+  if (imgPath) {
+    wrap.dataset.hasIcon = "1";
+
+    const img = document.createElement("img");
+    img.className = "road-img";
+    img.src = imgPath;
+    img.alt = "";
+    img.onerror = () => { img.style.display = "none"; };
+    wrap.appendChild(img);
+  }
+
+  const county = extractCounty(text);
+  const name = document.createElement("div");
+  name.textContent = county ? `(${county}) ${text}` : text;
   wrap.appendChild(name);
 
   return wrap;
@@ -425,7 +635,8 @@ function renderList(elId, items, kind) {
     const div = document.createElement("div");
     div.className = `item ${kind || ""}`;
 
-    div.appendChild(buildRoadRow(text));
+    if (elId === "closuresList") div.appendChild(buildRoadRowWithCounty(text));
+    else div.appendChild(buildRoadRow(text));
 
     el.appendChild(div);
   });
@@ -511,7 +722,7 @@ function sortByRoute(a,b){
   return String(a).localeCompare(String(b));
 }
 
-/* ✅ Planned sort: start time first, then roadway number */
+/* Planned sort */
 function parseDtToEpoch(dtStr){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -553,7 +764,7 @@ function sortPlannedByStartThenRoute(a,b){
   return sortByRoute(a,b);
 }
 
-/* Tier grouping (unchanged logic) */
+/* Tier grouping */
 function extractTierHeader(s){
   const t = (s || "").trim();
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
@@ -600,7 +811,7 @@ function vehiclePanelCandidate(text){
   );
 }
 
-/* ✅ Display cleanups */
+/* Display cleanups */
 function parseMmDdYyTimeLabel(dtStr, label){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -632,10 +843,8 @@ function stripPipeRouteOnly(text){
   return String(text || "").replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*\|\s*/gi, " | ").trim();
 }
 
-/* Planned: remove first dt; add Starting on (first dt) */
 function cleanupPlannedVehicleText(fullText){
   const raw = stripPipeRouteOnly(fullText);
-
   const dts = extractDateTimes(raw);
   const dt = dts.length ? dts[0] : null;
 
@@ -645,17 +854,14 @@ function cleanupPlannedVehicleText(fullText){
     main = main.replace(/\s*\|\s*$/g, "").trim();
     main = main.replace(/\s{2,}/g, " ");
   }
-
   main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
 
   const line2 = dt ? parseMmDdYyTimeLabel(dt, "Starting on:") : null;
   return { main, line2 };
 }
 
-/* Active: remove last dt; add Ending on (last dt) */
 function cleanupActiveVehicleText(fullText){
   const raw = stripPipeRouteOnly(fullText);
-
   const dts = extractDateTimes(raw);
   const dt = dts.length ? dts[dts.length - 1] : null;
 
@@ -665,7 +871,6 @@ function cleanupActiveVehicleText(fullText){
     main = main.replace(/\s*\|\s*$/g, "").trim();
     main = main.replace(/\s{2,}/g, " ");
   }
-
   main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
 
   const line2 = dt ? parseMmDdYyTimeLabel(dt, "Ending on:") : null;
@@ -688,13 +893,8 @@ function renderVehicleGrouped(elId, items){
   }
 
   const buckets = new Map([
-    [1, []],
-    [2, []],
-    [3, []],
-    [4, []],
-    [5, []],
-    ["rl45", []],
-    ["other", []]
+    [1, []],[2, []],[3, []],[4, []],[5, []],
+    ["rl45", []],["other", []]
   ]);
 
   for (const it of items) {
@@ -709,25 +909,11 @@ function renderVehicleGrouped(elId, items){
   for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
 
   const tierLabels = {
-    1: "Tier 1",
-    2: "Tier 2",
-    3: "Tier 3",
-    4: "Tier 4",
-    5: "Tier 5",
-    rl45: "45 MPH — CMV Right Lane Only",
-    other: "Other / Unclassified vehicle restrictions"
+    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
   };
-
-  const headClass = {
-    1: "tier1",
-    2: "tier2",
-    3: "tier3",
-    4: "tier4",
-    5: "tier5",
-    rl45: "rl45",
-    other: ""
-  };
-
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:""};
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -745,8 +931,7 @@ function renderVehicleGrouped(elId, items){
       const div = document.createElement("div");
       div.className = "item vehicle";
 
-      const line1 = buildRoadRow(main || text);
-      div.appendChild(line1);
+      div.appendChild(buildRoadRow(main || text));
 
       if (line2) {
         const l2 = document.createElement("div");
@@ -776,13 +961,8 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 
   const buckets = new Map([
-    [1, []],
-    [2, []],
-    [3, []],
-    [4, []],
-    [5, []],
-    ["rl45", []],
-    ["other", []]
+    [1, []],[2, []],[3, []],[4, []],[5, []],
+    ["rl45", []],["other", []]
   ]);
 
   for (const it of items) {
@@ -797,25 +977,11 @@ function renderVehicleGroupedPlanned(elId, items){
   for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
 
   const tierLabels = {
-    1: "Tier 1",
-    2: "Tier 2",
-    3: "Tier 3",
-    4: "Tier 4",
-    5: "Tier 5",
-    rl45: "45 MPH — CMV Right Lane Only",
-    other: "Other / Unclassified vehicle restrictions"
+    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
   };
-
-  const headClass = {
-    1: "tier1",
-    2: "tier2",
-    3: "tier3",
-    4: "tier4",
-    5: "tier5",
-    rl45: "rl45",
-    other: ""
-  };
-
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:""};
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -839,12 +1005,7 @@ function renderVehicleGroupedPlanned(elId, items){
       if (line2) {
         const l2 = document.createElement("div");
         l2.className = "subline";
-
-        // ✅ If first line had icon, indent under the roadway text
-        if (line1 && line1.dataset && line1.dataset.hasIcon === "1") {
-          l2.classList.add("indent-under-icon");
-        }
-
+        if (line1?.dataset?.hasIcon === "1") l2.classList.add("indent-under-icon");
         l2.textContent = line2;
         div.appendChild(l2);
       }
@@ -854,7 +1015,7 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 }
 
-/* NEW: closures de-dupe key */
+/* Closures de-dupe key */
 function closureDedupeKey(s){
   return String(s || "")
     .toLowerCase()
@@ -865,7 +1026,7 @@ function closureDedupeKey(s){
     .trim();
 }
 
-/* ✅ Start/End time split logic (planned vs active) */
+/* Start/End time split logic (planned vs active) */
 function hasEndTime(text){
   const t = String(text || "").toLowerCase();
   if (t.includes("end time")) return true;
@@ -959,6 +1120,9 @@ async function loadBoard(){
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
+    // After re-render, re-evaluate which panels need scroll
+    if (WALL_SCROLL_ENABLED) applyWallScroll(true);
+
     if (warnings.length) {
       setStatus("attn","NEEDS ATTENTION",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
     } else {
@@ -968,6 +1132,22 @@ async function loadBoard(){
     setStatus("err","JS ERROR", e?.stack || e?.message || String(e));
   }
 }
+
+/* Toggle + remember setting */
+(function initWallboardToggle(){
+  const toggle = document.getElementById("wallScrollToggle");
+  if (!toggle) return;
+
+  const saved = localStorage.getItem("wallboardScroll") === "1";
+  toggle.checked = saved;
+  applyWallScroll(saved);
+
+  toggle.addEventListener("change", (e) => {
+    const on = !!e.target.checked;
+    localStorage.setItem("wallboardScroll", on ? "1" : "0");
+    applyWallScroll(on);
+  });
+})();
 
 loadBoard();
 setInterval(loadBoard, REFRESH_MS);
