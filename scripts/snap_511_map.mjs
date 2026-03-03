@@ -236,10 +236,10 @@ async function waitForMapReady(page, { minTileResponses = 8, timeoutMs = 60000 }
  * This helps avoid saving a “blue/blank” frame that rendered too early.
  */
 async function screenshotWithRetries(page, outPath, { attempts = 3, minBytes = 220000 } = {}) {
-  const tmp = `${outPath}.tmp`;
+  // IMPORTANT: temp file must end in .png so Playwright knows the format
+  const tmp = outPath.replace(/\.png$/i, ".tmp.png");
 
   for (let i = 1; i <= attempts; i++) {
-    // Ensure legend is open at capture time.
     await openLegend(page);
 
     await page.screenshot({ path: tmp, fullPage: false });
@@ -248,7 +248,11 @@ async function screenshotWithRetries(page, outPath, { attempts = 3, minBytes = 2
     const size = st?.size || 0;
 
     if (size >= minBytes) {
-      await fs.rename(tmp, outPath);
+      await fs.rename(tmp, outPath).catch(async () => {
+        const buf = await fs.readFile(tmp);
+        await fs.writeFile(outPath, buf);
+        await fs.unlink(tmp).catch(() => {});
+      });
       return { ok: true, size, attempt: i };
     }
 
@@ -257,9 +261,8 @@ async function screenshotWithRetries(page, outPath, { attempts = 3, minBytes = 2
     await waitForMapReady(page, { minTileResponses: 6, timeoutMs: 20000 });
   }
 
-  // Last resort: keep the last tmp even if small
+  // Last resort: keep whatever we got
   await fs.rename(tmp, outPath).catch(async () => {
-    // if rename fails, try copy+unlink
     const buf = await fs.readFile(tmp);
     await fs.writeFile(outPath, buf);
     await fs.unlink(tmp).catch(() => {});
