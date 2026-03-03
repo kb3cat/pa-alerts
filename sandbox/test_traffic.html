@@ -337,12 +337,17 @@ function startAutoScroll(el){
   if (!el) return;
   stopAutoScroll(el);
 
-  const state = { timer: null, dir: 1, pauseUntil: 0 };
+  const state = { timer: null, pauseUntil: 0 };
   scrollers.set(el, state);
 
-  const stepPx = 1;
-  const tickMs = 40;
-  const edgePauseMs = 2200;
+  const stepPx = 1;         // scroll speed
+  const tickMs = 40;        // smoothness
+  const topPauseMs = 1800;  // pause at top
+  const bottomPauseMs = 2200; // pause at bottom
+
+  // start at top each time we enable
+  el.scrollTop = 0;
+  state.pauseUntil = Date.now() + topPauseMs;
 
   state.timer = setInterval(() => {
     if (!WALL_SCROLL_ENABLED) return;
@@ -354,16 +359,21 @@ function startAutoScroll(el){
     const now = Date.now();
     if (now < state.pauseUntil) return;
 
-    el.scrollTop += stepPx * state.dir;
+    el.scrollTop += stepPx;
 
-    if (el.scrollTop <= 0) {
-      el.scrollTop = 0;
-      state.dir = 1;
-      state.pauseUntil = now + edgePauseMs;
-    } else if (el.scrollTop >= max) {
+    // reached (or passed) bottom
+    if (el.scrollTop >= max) {
       el.scrollTop = max;
-      state.dir = -1;
-      state.pauseUntil = now + edgePauseMs;
+      state.pauseUntil = now + bottomPauseMs;
+
+      // jump back to top after the bottom pause
+      setTimeout(() => {
+        if (!WALL_SCROLL_ENABLED) return;
+        if (!document.body.contains(el)) return;
+        el.scrollTop = 0;
+        const st = scrollers.get(el);
+        if (st) st.pauseUntil = Date.now() + topPauseMs;
+      }, bottomPauseMs);
     }
   }, tickMs);
 }
