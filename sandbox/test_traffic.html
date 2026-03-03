@@ -337,12 +337,14 @@ function startAutoScroll(el){
   if (!el) return;
   stopAutoScroll(el);
 
-  const state = { timer: null, pauseUntil: 0 };
+  const state = { timer: null, mode: "down", pauseUntil: 0 };
   scrollers.set(el, state);
 
-  const stepPx = 1;         // scroll speed
-  const tickMs = 40;        // smoothness
-  const topPauseMs = 1800;  // pause at top
+  const downStepPx = 1;       // normal scroll down speed
+  const upStepPx = 18;        // FAST scroll back to top speed
+  const tickMs = 40;
+
+  const topPauseMs = 1800;    // pause at top
   const bottomPauseMs = 2200; // pause at bottom
 
   // start at top each time we enable
@@ -359,21 +361,35 @@ function startAutoScroll(el){
     const now = Date.now();
     if (now < state.pauseUntil) return;
 
-    el.scrollTop += stepPx;
+    const st = scrollers.get(el);
+    if (!st) return;
 
-    // reached (or passed) bottom
-    if (el.scrollTop >= max) {
-      el.scrollTop = max;
-      state.pauseUntil = now + bottomPauseMs;
+    if (st.mode === "down") {
+      el.scrollTop += downStepPx;
 
-      // jump back to top after the bottom pause
-      setTimeout(() => {
-        if (!WALL_SCROLL_ENABLED) return;
-        if (!document.body.contains(el)) return;
+      if (el.scrollTop >= max) {
+        el.scrollTop = max;
+        st.mode = "pause-bottom";
+        st.pauseUntil = now + bottomPauseMs;
+      }
+      return;
+    }
+
+    if (st.mode === "pause-bottom") {
+      // when pause ends, switch to fast-up
+      st.mode = "up";
+      return;
+    }
+
+    if (st.mode === "up") {
+      el.scrollTop -= upStepPx;
+
+      if (el.scrollTop <= 0) {
         el.scrollTop = 0;
-        const st = scrollers.get(el);
-        if (st) st.pauseUntil = Date.now() + topPauseMs;
-      }, bottomPauseMs);
+        st.mode = "down";
+        st.pauseUntil = Date.now() + topPauseMs;
+      }
+      return;
     }
   }, tickMs);
 }
