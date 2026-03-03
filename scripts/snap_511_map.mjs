@@ -4,7 +4,7 @@ import fs from "fs/promises";
 const OUT_PATH = "data/pa511_map.png";
 
 /**
- * Features you said you want:
+ * Features you want:
  * - Major Closures (Major Routes)
  * - Vehicle Restrictions (active + planned)
  *
@@ -19,7 +19,7 @@ const PA511_LAYERS = [
   "TruckRestrictionFuturePolyline"
 ];
 
-// Default view (center-ish PA). Adjust if you want tighter framing.
+// Default view (center-ish PA). Adjust if needed.
 const VIEW = { Zoom: 8, Latitude: 41.1115303, Longitude: -78.9237541 };
 
 function buildUrl(){
@@ -35,17 +35,13 @@ async function main(){
   await fs.mkdir("data", { recursive: true });
 
   const browser = await chromium.launch();
-  const page = await browser.newPage({
-    viewport: { width: 1600, height: 900 }
-  });
+  const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
 
-  const url = buildUrl();
-  await page.goto(url, { waitUntil: "networkidle", timeout: 120000 });
+  await page.goto(buildUrl(), { waitUntil: "networkidle", timeout: 120000 });
 
-  // Give the map time to finish drawing layers
+  // Give tiles/layers time to render
   await page.waitForTimeout(9000);
 
-  // Screenshot the visible map viewport
   await page.screenshot({ path: OUT_PATH, fullPage: false });
 
   await browser.close();
