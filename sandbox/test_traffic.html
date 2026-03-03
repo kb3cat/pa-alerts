@@ -151,15 +151,17 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
 .paneltitle .count{ font-size:18px; color:var(--muted); }
 
-/* ITEMS */
+/* ITEMS (normal mode) */
 .items{ max-height:45vh; overflow:auto; }
 
-/* ✅ Wallboard mode: force panels to be scroll containers */
-body.wallboard .items{
-  height: 34vh;
-  max-height: none;
+/* ✅ Wallboard-only: apply ONLY to panels that need scroll */
+.items.wb-scroll{
+  height: 34vh;     /* constrain only the overflowing panel */
+  max-height: none; /* override 45vh */
+  overflow: auto;
 }
 
+/* ITEMS content */
 .item{
   padding:10px;
   margin:8px 0;
@@ -273,7 +275,7 @@ body.wallboard .items{
   </div>
 
   <div class="header-right">
-    <label class="toggle" title="When enabled, each panel will auto-scroll if it overflows (useful for wallboards).">
+    <label class="toggle" title="When enabled, panels that overflow will auto-scroll (useful for wallboards).">
       <input id="wallScrollToggle" type="checkbox" />
       <span class="lbl">Wallboard Scroll</span>
     </label>
@@ -330,28 +332,24 @@ const STALE_MINUTES = 25;
 let WALL_SCROLL_ENABLED = false;
 const scrollers = new Map(); // el -> { timer, dir, pauseUntil }
 
-/* Interval-based auto-scroll (reliable on wallboards / Firefox) */
+/* Interval-based auto-scroll (reliable on Firefox / wallboards) */
 function startAutoScroll(el){
   if (!el) return;
   stopAutoScroll(el);
 
-  const state = {
-    timer: null,
-    dir: 1,
-    pauseUntil: 0
-  };
+  const state = { timer: null, dir: 1, pauseUntil: 0 };
   scrollers.set(el, state);
 
-  const stepPx = 1;          // pixels per tick
-  const tickMs = 40;         // 25 ticks/sec (~25px/sec)
-  const edgePauseMs = 2200;  // pause at top/bottom
+  const stepPx = 1;
+  const tickMs = 40;
+  const edgePauseMs = 2200;
 
   state.timer = setInterval(() => {
     if (!WALL_SCROLL_ENABLED) return;
     if (!document.body.contains(el)) return;
 
     const max = el.scrollHeight - el.clientHeight;
-    if (max <= 4) return; // nothing to scroll
+    if (max <= 4) return;
 
     const now = Date.now();
     if (now < state.pauseUntil) return;
@@ -376,20 +374,14 @@ function stopAutoScroll(el){
   scrollers.delete(el);
 }
 
-/* Overflow detector so only panels that need it will scroll */
 function panelOverflows(el){
   if (!el) return false;
   return (el.scrollHeight - el.clientHeight) > 6;
 }
 
-/* Only scroll panels that overflow */
+/* ✅ Only constrain + scroll the panels that actually overflow */
 function applyWallScroll(enabled){
   WALL_SCROLL_ENABLED = !!enabled;
-
-  if (!WALL_SCROLL_ENABLED) {
-    for (const [el] of scrollers.entries()) stopAutoScroll(el);
-    return;
-  }
 
   const panels = [
     document.getElementById("closuresList"),
@@ -398,14 +390,25 @@ function applyWallScroll(enabled){
     document.getElementById("plannedVehicleList")
   ].filter(Boolean);
 
-  for (const [el] of scrollers.entries()) {
-    if (!panelOverflows(el)) stopAutoScroll(el);
-  }
+  // always clear sizing + scrollers first
+  panels.forEach(el => el.classList.remove("wb-scroll"));
+  for (const [el] of scrollers.entries()) stopAutoScroll(el);
 
-  panels.forEach(el => {
-    if (panelOverflows(el)) startAutoScroll(el);
-    else stopAutoScroll(el);
-  });
+  if (!WALL_SCROLL_ENABLED) return;
+
+  // PASS 1: decide which panels need scrolling WITHOUT forcing height
+  const needScroll = panels.filter(el => panelOverflows(el));
+
+  // PASS 2: only those panels get constrained height and auto-scroll
+  needScroll.forEach(el => el.classList.add("wb-scroll"));
+
+  // Give layout a moment to apply height before starting scroll
+  setTimeout(() => {
+    needScroll.forEach(el => {
+      // re-check after height applied
+      if (panelOverflows(el)) startAutoScroll(el);
+    });
+  }, 50);
 }
 
 function candidatePaths(filename) {
@@ -522,7 +525,6 @@ function getRoadImage(text){
 
   const typ = String(m[1]).toLowerCase();
   const num = m[2];
-
   const filename = `${typ}${num}small.png`;
   return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
 }
@@ -691,7 +693,7 @@ function sortByRoute(a,b){
   return String(a).localeCompare(String(b));
 }
 
-/* Planned sort: start time first, then roadway number */
+/* Planned sort */
 function parseDtToEpoch(dtStr){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -878,11 +880,11 @@ function renderVehicleGrouped(elId, items){
   for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
 
   const tierLabels = {
-    1: "Tier 1", 2: "Tier 2", 3: "Tier 3", 4: "Tier 4", 5: "Tier 5",
-    rl45: "45 MPH — CMV Right Lane Only",
-    other: "Other / Unclassified vehicle restrictions"
+    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
   };
-  const headClass = { 1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:"" };
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:""};
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -900,8 +902,7 @@ function renderVehicleGrouped(elId, items){
       const div = document.createElement("div");
       div.className = "item vehicle";
 
-      const line1 = buildRoadRow(main || text);
-      div.appendChild(line1);
+      div.appendChild(buildRoadRow(main || text));
 
       if (line2) {
         const l2 = document.createElement("div");
@@ -947,11 +948,11 @@ function renderVehicleGroupedPlanned(elId, items){
   for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
 
   const tierLabels = {
-    1: "Tier 1", 2: "Tier 2", 3: "Tier 3", 4: "Tier 4", 5: "Tier 5",
-    rl45: "45 MPH — CMV Right Lane Only",
-    other: "Other / Unclassified vehicle restrictions"
+    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
   };
-  const headClass = { 1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:"" };
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:""};
   const order = [1,2,3,4,5,"rl45","other"];
 
   for (const key of order) {
@@ -975,9 +976,7 @@ function renderVehicleGroupedPlanned(elId, items){
       if (line2) {
         const l2 = document.createElement("div");
         l2.className = "subline";
-        if (line1 && line1.dataset && line1.dataset.hasIcon === "1") {
-          l2.classList.add("indent-under-icon");
-        }
+        if (line1?.dataset?.hasIcon === "1") l2.classList.add("indent-under-icon");
         l2.textContent = line2;
         div.appendChild(l2);
       }
@@ -1092,7 +1091,7 @@ async function loadBoard(){
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
-    // Re-check which panels overflow after re-render (when enabled)
+    // After re-render, re-evaluate which panels need scroll
     if (WALL_SCROLL_ENABLED) applyWallScroll(true);
 
     if (warnings.length) {
@@ -1105,20 +1104,18 @@ async function loadBoard(){
   }
 }
 
-/* ✅ Toggle + remember setting */
+/* Toggle + remember setting */
 (function initWallboardToggle(){
   const toggle = document.getElementById("wallScrollToggle");
   if (!toggle) return;
 
   const saved = localStorage.getItem("wallboardScroll") === "1";
   toggle.checked = saved;
-  document.body.classList.toggle("wallboard", saved);
   applyWallScroll(saved);
 
   toggle.addEventListener("change", (e) => {
     const on = !!e.target.checked;
     localStorage.setItem("wallboardScroll", on ? "1" : "0");
-    document.body.classList.toggle("wallboard", on);
     applyWallScroll(on);
   });
 })();
