@@ -2,7 +2,9 @@ import { chromium } from "playwright";
 import fs from "fs/promises";
 
 const OUT_PATH = "data/pa511_map.png";
-const VIEW = { Zoom: 7, Latitude: 41.1115303, Longitude: -78.9237541 };
+
+// Tighter PA-centric framing
+const VIEW = { Zoom: 8, Latitude: 40.95, Longitude: -77.75 };
 
 function buildUrl() {
   const u = new URL("https://www.511pa.com/map");
@@ -12,7 +14,7 @@ function buildUrl() {
   return u.toString();
 }
 
-// ✅ Kill onboarding / walkthrough modals so they can’t block the map
+// Kill onboarding / walkthrough modals so they can’t block the map
 async function killOnboarding(page) {
   await page.waitForTimeout(2500);
   await page.evaluate(() => {
@@ -35,140 +37,145 @@ async function killOnboarding(page) {
   await page.waitForTimeout(800);
 }
 
-/**
- * Try to enable layers using whatever map/app objects exist on the page.
- * This is defensive: it tries multiple strategies and won’t crash the run.
- */
-async function enableDesiredLayers(page) {
-  // Give the app time to initialize its state/store
-  await page.waitForTimeout(2500);
-
-  const result = await page.evaluate(() => {
-    const wantedMatchers = [
-      // major closures
-      (name) => /major/i.test(name) && /closure/i.test(name),
-      // closures layer often called "Major Routes" or similar
-      (name) => /major/i.test(name) && /route/i.test(name) && /closure/i.test(name),
-      // vehicle restrictions
-      (name) => /vehicle/i.test(name) && /restriction/i.test(name),
-      (name) => /truck/i.test(name) && /restriction/i.test(name),
-      (name) => /restriction/i.test(name) && /event/i.test(name),
-    ];
-
-    function norm(x){ return String(x || "").trim(); }
-
-    // Strategy A: if there is a global "store" (redux-ish), try to find layer list
-    // Common patterns: window.store, window.__store__, window.appStore
-    const stores = [window.store, window.__store__, window.appStore].filter(Boolean);
-
-    // helper to toggle layers if store has expected methods
-    const toggled = [];
-    const seen = new Set();
-
-    function matchesWanted(displayName){
-      const n = norm(displayName);
-      if (!n) return false;
-      return wantedMatchers.some(fn => {
-        try { return fn(n); } catch { return false; }
-      });
-    }
-
-    // Try a variety of known-ish state shapes
-    function tryToggleFromState(state, dispatchFn){
-      if (!state) return false;
-
-      // Look for any array of layer-like objects
-      const candidates = [];
-      const queue = [{ path: "root", obj: state }];
-      const visited = new Set();
-
-      while (queue.length) {
-        const { path, obj } = queue.shift();
-        if (!obj || typeof obj !== "object") continue;
-        if (visited.has(obj)) continue;
-        visited.add(obj);
-
-        if (Array.isArray(obj) && obj.length && typeof obj[0] === "object") {
-          // layer arrays are often full of objects with id/name/visible
-          const keys = Object.keys(obj[0] || {});
-          if (keys.some(k => /name|title|label/i.test(k)) && keys.some(k => /id|key/i.test(k))) {
-            candidates.push({ path, arr: obj });
-          }
-        }
-
-        // walk shallowly to avoid giant graphs
-        for (const k of Object.keys(obj)) {
-          const v = obj[k];
-          if (v && typeof v === "object") queue.push({ path: path + "." + k, obj: v });
-        }
-      }
-
-      // From candidates, attempt to toggle those that match
-      let did = false;
-
-      for (const c of candidates) {
-        for (const layer of c.arr) {
-          const name =
-            layer.name ?? layer.title ?? layer.label ?? layer.displayName ?? layer.text ?? "";
-          const id =
-            layer.id ?? layer.key ?? layer.layerId ?? layer.value ?? layer.code ?? name;
-
-          if (!matchesWanted(name)) continue;
-
-          const layerKey = norm(id);
-          if (!layerKey || seen.has(layerKey)) continue;
-          seen.add(layerKey);
-
-          // Try common dispatch actions
-          const actions = [
-            { type: "TOGGLE_LAYER", payload: layerKey },
-            { type: "SET_LAYER_VISIBILITY", payload: { id: layerKey, visible: true } },
-            { type: "LAYER_SET_VISIBLE", payload: { id: layerKey, visible: true } },
-            { type: "layers/setVisible", payload: { id: layerKey, visible: true } },
-          ];
-
-          for (const a of actions) {
-            try {
-              if (typeof dispatchFn === "function") dispatchFn(a);
-              did = true;
-            } catch {}
-          }
-
-          toggled.push({ name: norm(name), id: layerKey });
-        }
-      }
-      return did;
-    }
-
-    // Attempt store dispatch
-    let didSomething = false;
-    for (const st of stores) {
-      try {
-        const state = typeof st.getState === "function" ? st.getState() : (st.state || st.getState?.());
-        const dispatchFn = typeof st.dispatch === "function" ? st.dispatch.bind(st) : null;
-        if (tryToggleFromState(state, dispatchFn)) didSomething = true;
-      } catch {}
-    }
-
-    // Strategy B: localStorage flags (some apps persist selected layers)
-    // We’ll set a generic “selectedLayers” if it exists.
+// Utility: click first visible locator from a list of selectors (best-effort)
+async function clickFirstVisible(page, selectors, opts = {}) {
+  for (const sel of selectors) {
+    const loc = page.locator(sel).first();
     try {
-      const keys = Object.keys(localStorage || {});
-      const selKey = keys.find(k => /selectedlayers/i.test(k));
-      if (selKey) {
-        // If there is already a value, keep it and just return info
-        // (We avoid guessing layer IDs here.)
-        didSomething = didSomething || true;
+      if (await loc.isVisible({ timeout: opts.timeout ?? 800 })) {
+        await loc.click({ timeout: opts.timeout ?? 1200 });
+        if (opts.afterWaitMs) await page.waitForTimeout(opts.afterWaitMs);
+        return true;
       }
     } catch {}
+  }
+  return false;
+}
 
-    return { didSomething, toggled };
-  });
+// Utility: set a checkbox within the Legend panel by its visible label text (best-effort)
+async function setLegendCheckbox(page, labelText, checked) {
+  // Try a few robust patterns:
+  // 1) label:has-text("X") input[type=checkbox]
+  // 2) row containing text then find checkbox in it
+  const label = String(labelText);
 
-  // Give the map time to redraw after toggling
-  await page.waitForTimeout(5000);
+  // Pattern A
+  try {
+    const input = page.locator(`label:has-text("${label}") input[type="checkbox"]`).first();
+    if (await input.count()) {
+      const isChecked = await input.isChecked().catch(() => null);
+      if (isChecked !== null && isChecked !== checked) {
+        await input.click({ timeout: 2000 });
+        await page.waitForTimeout(400);
+      }
+      return true;
+    }
+  } catch {}
 
-  return result;
+  // Pattern B
+  try {
+    const row = page.locator(`*:has-text("${label}")`).filter({ has: page.locator('input[type="checkbox"]') }).first();
+    if (await row.count()) {
+      const input = row.locator('input[type="checkbox"]').first();
+      const isChecked = await input.isChecked().catch(() => null);
+      if (isChecked !== null && isChecked !== checked) {
+        await input.click({ timeout: 2000 });
+        await page.waitForTimeout(400);
+      }
+      return true;
+    }
+  } catch {}
+
+  return false;
+}
+
+async function openLegend(page) {
+  // Legend button in top-right
+  await clickFirstVisible(page, [
+    'button:has-text("Legend")',
+    '[aria-label="Legend"]',
+    'text=Legend'
+  ], { afterWaitMs: 600 });
+}
+
+async function closeWeatherRestrictionUI(page) {
+  // Bottom strip: "Weather Restriction Information" has a close (X) at right in your screenshot
+  // Try common close button patterns inside that container
+  const bottomPanel = page.locator('text=Weather Restriction Information').first();
+  try {
+    if (await bottomPanel.isVisible({ timeout: 800 })) {
+      // Look near it for a close button
+      await clickFirstVisible(page, [
+        'button[aria-label="Close"]',
+        'button[title="Close"]',
+        '.close',
+        '.ui-dialog-titlebar-close',
+        'button:has-text("×")',
+        'button:has-text("X")'
+      ], { afterWaitMs: 600 });
+    }
+  } catch {}
+
+  // Upper-left card: "WEATHER RESTRICTION INFORMATION"
+  // Some builds have a small X or collapse chevron inside that card.
+  try {
+    const card = page.locator('text=WEATHER RESTRICTION INFORMATION').first();
+    if (await card.isVisible({ timeout: 800 })) {
+      // Click any close/collapse control inside the same area
+      await clickFirstVisible(page, [
+        // close buttons often appear as an X icon button
+        'div:has-text("WEATHER RESTRICTION INFORMATION") button[aria-label="Close"]',
+        'div:has-text("WEATHER RESTRICTION INFORMATION") button[title="Close"]',
+        'div:has-text("WEATHER RESTRICTION INFORMATION") .close',
+        'div:has-text("WEATHER RESTRICTION INFORMATION") button:has-text("×")',
+        'div:has-text("WEATHER RESTRICTION INFORMATION") button:has-text("X")',
+        // collapse/chevron
+        'div:has-text("WEATHER RESTRICTION INFORMATION") button[aria-label*="collapse" i]',
+        'div:has-text("WEATHER RESTRICTION INFORMATION") button[aria-label*="minimize" i]'
+      ], { afterWaitMs: 600 });
+    }
+  } catch {}
+}
+
+async function moveMyRoutesIn(page) {
+  // In your screenshot there’s a round chevron/arrow button near the top bar (next to “INFO”)
+  // Clicking it usually collapses/reduces the header/sidebar footprint.
+  await clickFirstVisible(page, [
+    // round button containing an arrow/chevron
+    'button:has(svg)',
+    // sometimes it’s an anchor/div with role button
+    '[role="button"]:has(svg)',
+    // fallback: a button near the top bar that isn’t Legend
+    'button[title*="Collapse" i]',
+    'button[aria-label*="Collapse" i]',
+  ], { afterWaitMs: 800 });
+}
+
+async function configureLayers(page) {
+  // Make sure legend is open so toggles exist
+  await openLegend(page);
+
+  // Desired: Closures -> Major Routes only
+  // Remove: Incidents
+  // Keep: Vehicle Restrictions (so restrictions show)
+  // Optional: keep Weather Restrictions off/on? You didn’t ask to keep it. We’ll leave Weather Restrictions as-is.
+  await setLegendCheckbox(page, "Incidents", false);
+
+  // Some builds have "Closures" as a section header, with sub-items.
+  // Ensure Major Routes is checked, Other Routes unchecked.
+  await setLegendCheckbox(page, "Closures", true).catch?.(() => {});
+  await setLegendCheckbox(page, "Major Routes", true);
+  await setLegendCheckbox(page, "Other Routes", false);
+
+  // Vehicle Restrictions ON (your screenshot shows it, keep it)
+  await setLegendCheckbox(page, "Vehicle Restrictions", true);
+
+  // If you want only major closures + restrictions, these tend to clutter:
+  await setLegendCheckbox(page, "Track My Plow", false);
+  await setLegendCheckbox(page, "Cameras", false);
+
+  // Let the map refresh layers
+  await page.waitForTimeout(1500);
 }
 
 async function main() {
@@ -179,17 +186,17 @@ async function main() {
 
   await page.goto(buildUrl(), { waitUntil: "domcontentloaded", timeout: 120000 });
 
-  // Map canvas
   const map = page.locator("#map-canvas");
   await map.waitFor({ state: "visible", timeout: 60000 });
 
   await killOnboarding(page);
 
-  // Try to enable desired layers programmatically (more reliable than URL params)
-  const info = await enableDesiredLayers(page);
-  console.log("Layer enable attempt:", JSON.stringify(info));
+  // Configure the view/UI
+  await configureLayers(page);
+  await closeWeatherRestrictionUI(page);
+  await moveMyRoutesIn(page);
 
-  // Extra settle time for tiles + overlays
+  // Final settle time so polylines/icons render
   await page.waitForTimeout(6000);
 
   await map.screenshot({ path: OUT_PATH });
