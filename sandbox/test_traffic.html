@@ -517,6 +517,9 @@ function cleanLine(s) {
   t = t.replace(/\s*\|\s*\|\s*/g, " | ");
   t = t.replace(/\s{2,}/g, " ");
 
+    // ✅ NEW: remove trailing route-only column like " | I - 180"
+  t = t.replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*$/gi, "");
+
   return t.trim();
 }
 
