@@ -342,12 +342,25 @@ function isFakeHeaderRow(s) {
 /* ✅ NEW: roadway image path helper (uses your /data/icons/i##small.png files) */
 function getRoadImage(text){
   const s = String(text || "");
-  // prioritize interstate (I-## / I ## / Interstate ## / I##)
-  const mi = s.match(/\b(?:I\s*-\s*|I\s+|I)(\d{1,4})\b/i) || s.match(/\binterstate\s*(\d{1,4})\b/i);
-  if (mi && mi[1]) return `data/icons/i${mi[1]}small.png`;
-  return "";
-}
 
+  // Find Interstate number: I-81, I 81, Interstate 81, I81
+  const mi =
+    s.match(/\bI\s*-\s*(\d{1,4})\b/i) ||
+    s.match(/\bI\s+(\d{1,4})\b/i) ||
+    s.match(/\bI(\d{1,4})\b/i) ||
+    s.match(/\binterstate\s*(\d{1,4})\b/i);
+
+  if (!mi || !mi[1]) return "";
+
+  const num = mi[1];
+
+  // Make the icon path resolve like your JSON paths do (repoBase-safe)
+  const parts = location.pathname.split("/").filter(Boolean);
+  const repoBase = parts.length ? `/${parts[0]}/` : "/";
+
+  // Cache-bust so you immediately see changes
+  return `${repoBase}data/icons/i${num}small.png?v=${Date.now()}`;
+}
 /* ✅ NEW: make a node that includes [bar][image][roadway text] */
 function buildRoadRow(text){
   const wrap = document.createElement("div");
