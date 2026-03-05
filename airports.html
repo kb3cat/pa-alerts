@@ -22,10 +22,7 @@
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --radius:14px;
 
-      /* set at runtime to exact page header height */
-      --stickyTop: 72px;
-
-      /* column widths (must match the table colgroup + the header grid) */
+      /* Column widths (must match table colgroup + header grid) */
       --c1: 32%;
       --c2: 13%;
       --c3: 7%;
@@ -38,11 +35,15 @@
     }
 
     *{ box-sizing:border-box; }
+    html, body{
+      height: 100%;
+    }
     body{
       margin:0;
       background: linear-gradient(180deg, #071022 0%, #050b16 100%);
       color:var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden; /* ✅ we scroll inside the board, not the window */
     }
 
     header{
@@ -117,33 +118,28 @@
     }
     .btn:hover{ filter:brightness(1.1); }
 
-    main{ padding:14px 18px 24px; }
+    /* MAIN board area fills remaining height under header */
+    main{
+      padding:14px 18px 18px;
+      height: calc(100vh - var(--headerH, 72px));
+      overflow: hidden;
+    }
 
-    /* ✅ IMPORTANT: sticky breaks if any ancestor has overflow:hidden.
-       So the OUTER section must be overflow:visible, and we move clipping
-       to an INNER wrapper (.section-inner). */
     .section{
+      height: 100%;
       background: rgba(15,26,46,.72);
       border:1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      overflow: visible;          /* ✅ was hidden */
-      margin-bottom:14px;
-    }
-    .section-inner{
-      border-radius: var(--radius);
-      overflow: hidden;           /* ✅ clipping stays here */
+      overflow: hidden; /* keep rounded corners */
+      display:flex;
+      flex-direction: column;
     }
 
-    /***********************
-     * Sticky header bar in the gray area
-     ***********************/
+    /* ✅ This is your gray header bar area. It NEVER scrolls. */
     .table-head-bar{
-      position: sticky;
-      top: var(--stickyTop);
-      z-index: 900;
+      flex: 0 0 auto;
       background: rgba(12,21,38,.92);
-      backdrop-filter: blur(8px);
       border-bottom: 1px solid rgba(255,255,255,.14);
     }
 
@@ -157,9 +153,17 @@
     .table-head-cell{
       color: var(--muted);
       font-weight: 900;
-      font-size: 16px;
+      font-size: 16px; /* bigger header font */
       letter-spacing: .2px;
       white-space: nowrap;
+    }
+
+    /* ✅ Only THIS area scrolls */
+    .table-scroll{
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
     }
 
     table{
@@ -370,22 +374,24 @@
 
 <main>
   <div class="section">
-    <div class="section-inner">
 
-      <div class="table-head-bar" id="tableHeadBar">
-        <div class="table-head-grid">
-          <div class="table-head-cell">Airport</div>
-          <div class="table-head-cell">Status</div>
-          <div class="table-head-cell">Delay</div>
-          <div class="table-head-cell">Cat</div>
-          <div class="table-head-cell">Ceiling</div>
-          <div class="table-head-cell">Wind</div>
-          <div class="table-head-cell">Vis</div>
-          <div class="table-head-cell">Temp</div>
-          <div class="table-head-cell">Wx</div>
-        </div>
+    <!-- ✅ Locked header bar (never scrolls) -->
+    <div class="table-head-bar">
+      <div class="table-head-grid">
+        <div class="table-head-cell">Airport</div>
+        <div class="table-head-cell">Status</div>
+        <div class="table-head-cell">Delay</div>
+        <div class="table-head-cell">Cat</div>
+        <div class="table-head-cell">Ceiling</div>
+        <div class="table-head-cell">Wind</div>
+        <div class="table-head-cell">Vis</div>
+        <div class="table-head-cell">Temp</div>
+        <div class="table-head-cell">Wx</div>
       </div>
+    </div>
 
+    <!-- ✅ ONLY this area scrolls -->
+    <div class="table-scroll" id="scrollArea">
       <table>
         <colgroup>
           <col style="width: var(--c1)">
@@ -400,8 +406,8 @@
         </colgroup>
         <tbody id="airBody"></tbody>
       </table>
-
     </div>
+
   </div>
 </main>
 
@@ -426,13 +432,19 @@
 </div>
 
 <script>
-  function setStickyTop(){
+  /***********************
+   * Header height → main height calc
+   ***********************/
+  function setHeaderHeightVar(){
     const header = document.getElementById("pageHeader");
     if(!header) return;
-    const h = header.getBoundingClientRect().height;
-    document.documentElement.style.setProperty("--stickyTop", `${Math.ceil(h)}px`);
+    const h = Math.ceil(header.getBoundingClientRect().height);
+    document.documentElement.style.setProperty("--headerH", `${h}px`);
   }
 
+  /***********************
+   * 1) PEMA county → region mapping
+   ***********************/
   const PEMA = {
     Western: new Set([
       "Allegheny","Armstrong","Beaver","Butler","Cambria","Cameron","Clarion","Clearfield",
@@ -459,6 +471,9 @@
     return "Unknown";
   }
 
+  /***********************
+   * 2) Airports list
+   ***********************/
   const airportsPA = [
     { icao:"KPHL", name:"Philadelphia Intl", iata:"PHL", county:"Philadelphia" },
     { icao:"KABE", name:"Lehigh Valley Intl", iata:"ABE", county:"Lehigh" },
@@ -485,6 +500,9 @@
     { icao:"KIDI", name:"Indiana County (Jimmy Stewart Field)", county:"Indiana" }
   ];
 
+  /***********************
+   * 3) Live data store
+   ***********************/
   const liveByIcao = {};
 
   function statusToDotClass(status){
@@ -533,6 +551,9 @@
     return `${mm}/${dd}/${yy} at ${hh}:${mi} hours`;
   }
 
+  /***********************
+   * 4) METAR parsing
+   ***********************/
   function cToF(c){
     if (c === null || c === undefined) return null;
     const f = (c * 9/5) + 32;
@@ -694,6 +715,9 @@
     return { ceilingFt, windTxt, visSM, tempF, wxText };
   }
 
+  /***********************
+   * 5) Rendering
+   ***********************/
   function rowHTML(a){
     const d = liveByIcao[a.icao] || {
       status:"Unknown", delay:"—", cat:"—", raw:"—",
@@ -761,6 +785,9 @@
     document.getElementById("airBody").innerHTML = html;
   }
 
+  /***********************
+   * 6) Live data fetch (every 5 minutes)
+   ***********************/
   async function refreshLive() {
     try {
       const url = `data/airports_live.json?ts=${Date.now()}`;
@@ -802,6 +829,9 @@
     }
   }
 
+  /***********************
+   * 7) Tooltip + modal for METAR raw
+   ***********************/
   const tooltip = document.getElementById("tooltip");
   let tipVisible = false;
 
@@ -823,12 +853,12 @@
   }
 
   const modalBackdrop = document.getElementById("modalBackdrop");
-  const modalTitle = document.getElementById("modalTitle");
-  const modalText = document.getElementById("modalText");
   const mCat = document.getElementById("mCat");
   const mVis = document.getElementById("mVis");
   const mTemp = document.getElementById("mTemp");
   const mWx = document.getElementById("mWx");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalText = document.getElementById("modalText");
 
   document.getElementById("modalClose").addEventListener("click", () => modalBackdrop.classList.remove("show"));
   modalBackdrop.addEventListener("click", (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove("show"); });
@@ -858,26 +888,43 @@
   document.addEventListener("click", (e) => {
     const pill = e.target.closest(".metar-pill");
     if(!pill) return;
-    const icao = pill.getAttribute("data-icao");
-    const cat  = pill.getAttribute("data-cat");
-    const raw  = pill.getAttribute("data-raw");
-    const vis  = pill.getAttribute("data-vis");
-    const temp = pill.getAttribute("data-temp");
-    const wx   = pill.getAttribute("data-wx");
-    openMetarModal(icao, cat, raw, vis, temp, wx);
+    openMetarModal(
+      pill.getAttribute("data-icao"),
+      pill.getAttribute("data-cat"),
+      pill.getAttribute("data-raw"),
+      pill.getAttribute("data-vis"),
+      pill.getAttribute("data-temp"),
+      pill.getAttribute("data-wx")
+    );
   });
 
+  /***********************
+   * 8) Auto-scroll (scrolls the table container, not window)
+   ***********************/
   let autoScrollOn = true;
   const scrollState = document.getElementById("scrollState");
   const autoScrollPill = document.getElementById("autoScrollPill");
+  const scrollArea = document.getElementById("scrollArea");
 
-  const scrollConfig = { pixelsPerTick: 1, tickMs: 18, bottomPauseMs: 1400, topPauseMs: 600, jumpToTopMs: 120 };
+  const scrollConfig = {
+    pixelsPerTick: 1,
+    tickMs: 18,
+    bottomPauseMs: 1400,
+    topPauseMs: 600,
+    jumpToTopMs: 120
+  };
 
   function setScrollState(){ scrollState.textContent = autoScrollOn ? "ON" : "OFF"; }
   setScrollState();
 
-  autoScrollPill.addEventListener("click", () => { autoScrollOn = !autoScrollOn; setScrollState(); });
-  document.getElementById("jumpTop").addEventListener("click", () => { window.scrollTo({ top: 0, behavior: "instant" }); });
+  autoScrollPill.addEventListener("click", () => {
+    autoScrollOn = !autoScrollOn;
+    setScrollState();
+  });
+
+  document.getElementById("jumpTop").addEventListener("click", () => {
+    scrollArea.scrollTop = 0;
+  });
 
   let scrollTimer = null;
   let pauseTimer = null;
@@ -888,12 +935,12 @@
   }
 
   function smoothJumpToTop(durationMs){
-    const start = window.scrollY;
+    const start = scrollArea.scrollTop;
     const startTime = performance.now();
     function step(t){
       const p = Math.min(1, (t - startTime) / durationMs);
       const eased = 1 - Math.pow(1 - p, 3);
-      window.scrollTo(0, Math.round(start * (1 - eased)));
+      scrollArea.scrollTop = Math.round(start * (1 - eased));
       if(p < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
@@ -901,35 +948,52 @@
 
   function startAutoScrollLoop(){
     clearTimers();
+
     scrollTimer = setInterval(() => {
       if(!autoScrollOn) return;
 
-      const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
+      const atBottom = (scrollArea.scrollTop + scrollArea.clientHeight) >= (scrollArea.scrollHeight - 2);
       if(atBottom){
         clearInterval(scrollTimer);
         scrollTimer = null;
 
         pauseTimer = setTimeout(() => {
           if(!autoScrollOn) return;
+
           smoothJumpToTop(scrollConfig.jumpToTopMs);
-          pauseTimer = setTimeout(() => { startAutoScrollLoop(); }, scrollConfig.topPauseMs);
+
+          pauseTimer = setTimeout(() => {
+            startAutoScrollLoop();
+          }, scrollConfig.topPauseMs);
+
         }, scrollConfig.bottomPauseMs);
 
         return;
       }
-      window.scrollBy(0, scrollConfig.pixelsPerTick);
+
+      scrollArea.scrollTop += scrollConfig.pixelsPerTick;
     }, scrollConfig.tickMs);
   }
 
+  /***********************
+   * 9) Start-up
+   ***********************/
   window.addEventListener("load", async () => {
-    setStickyTop();
-    window.addEventListener("resize", setStickyTop);
+    setHeaderHeightVar();
+    window.addEventListener("resize", setHeaderHeightVar);
 
     render();
     await refreshLive();
     setInterval(refreshLive, 5 * 60 * 1000);
     startAutoScrollLoop();
   });
+
+  function setHeaderHeightVar(){
+    const header = document.getElementById("pageHeader");
+    if(!header) return;
+    const h = Math.ceil(header.getBoundingClientRect().height);
+    document.documentElement.style.setProperty("--headerH", `${h}px`);
+  }
 </script>
 
 </body>
