@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PA Airports Status Board</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#0f1a2e;
+      --panel2:#0c1526;
+      --text:#e8eefc;
+      --muted:#a9b7d6;
+      --line:rgba(255,255,255,.12);
+
+      --ok:#2ecc71;
+      --warn:#f1c40f;
+      --bad:#e74c3c;
+      --na:#7f8c8d;
+
+      --pill:#1b2a45;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius:14px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      background: linear-gradient(180deg, #071022 0%, #050b16 100%);
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    header{
+      position:sticky;
+      top:0;
+      z-index:10;
+      background: rgba(7,16,34,.92);
+      backdrop-filter: blur(8px);
+      border-bottom:1px solid var(--line);
+    }
+
+    .header-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 18px;
+      gap:12px;
+    }
+
+    .title{
+      font-size:18px;
+      font-weight:700;
+      letter-spacing:.3px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      white-space:nowrap;
+    }
+
+    .sub{
+      color:var(--muted);
+      font-size:12px;
+      margin-top:2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:56vw;
+    }
+
+    .right-controls{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .pill{
+      background: rgba(27,42,69,.75);
+      border:1px solid var(--line);
+      padding:8px 10px;
+      border-radius:999px;
+      font-size:12px;
+      color:var(--text);
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+    }
+
+    .btn{
+      cursor:pointer;
+      background: rgba(27,42,69,.85);
+      border:1px solid var(--line);
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:10px;
+      font-size:12px;
+      user-select:none;
+    }
+    .btn:hover{ filter:brightness(1.1); }
+
+    main{
+      padding:14px 18px 24px;
+    }
+
+    .section{
+      background: rgba(15,26,46,.72);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      margin-bottom:14px;
+    }
+
+    .section-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:12px 14px;
+      background: rgba(12,21,38,.85);
+      border-bottom:1px solid var(--line);
+    }
+
+    .section-title{
+      font-weight:800;
+      letter-spacing:.25px;
+      font-size:14px;
+    }
+
+    .section-meta{
+      color:var(--muted);
+      font-size:12px;
+      white-space:nowrap;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    thead th{
+      text-align:left;
+      font-size:12px;
+      color:var(--muted);
+      font-weight:700;
+      padding:10px 14px;
+      border-bottom:1px solid var(--line);
+      background: rgba(15,26,46,.55);
+      position: sticky;
+      top: 56px; /* header sticky height-ish */
+      z-index: 5;
+    }
+
+    tbody td{
+      padding:10px 14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      font-size:13px;
+      vertical-align:middle;
+    }
+
+    tbody tr:hover{
+      background: rgba(255,255,255,.04);
+    }
+
+    .airport{
+      font-weight:800;
+      letter-spacing:.2px;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .airport .name{
+      font-weight:600;
+      color:var(--muted);
+      font-size:12px;
+    }
+
+    .status-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(27,42,69,.55);
+      width:fit-content;
+      font-size:12px;
+      font-weight:800;
+    }
+
+    .dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      display:inline-block;
+    }
+    .ok{ background: var(--ok); }
+    .warn{ background: var(--warn); }
+    .bad{ background: var(--bad); }
+    .na{ background: var(--na); }
+
+    .delay{
+      font-variant-numeric: tabular-nums;
+      font-weight:800;
+    }
+
+    .metar-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(27,42,69,.55);
+      font-weight:900;
+      font-size:12px;
+      letter-spacing:.3px;
+      cursor: default;
+      user-select:none;
+      position: relative;
+    }
+
+    .metar-pill[data-cat="VFR"]{ outline: 1px solid rgba(46,204,113,.45); }
+    .metar-pill[data-cat="MVFR"]{ outline: 1px solid rgba(241,196,15,.45); }
+    .metar-pill[data-cat="IFR"],
+    .metar-pill[data-cat="LIFR"]{ outline: 1px solid rgba(231,76,60,.45); }
+
+    /* Tooltip */
+    .tooltip{
+      position: fixed;
+      z-index: 9999;
+      pointer-events:none;
+      background: rgba(0,0,0,.88);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.18);
+      padding: 8px 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      max-width: min(560px, 86vw);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity .08s ease, transform .08s ease;
+      white-space: pre-wrap;
+      line-height: 1.25;
+    }
+    .tooltip.show{
+      opacity:1;
+      transform: translateY(0);
+    }
+
+    /* Modal */
+    .modal-backdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 10000;
+      padding: 18px;
+    }
+    .modal-backdrop.show{ display:flex; }
+
+    .modal{
+      width: min(820px, 96vw);
+      background: rgba(15,26,46,.96);
+      border:1px solid rgba(255,255,255,.18);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .modal-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 14px;
+      background: rgba(12,21,38,.9);
+      border-bottom:1px solid rgba(255,255,255,.14);
+      gap: 10px;
+    }
+    .modal-title{
+      font-weight: 900;
+      letter-spacing:.2px;
+      font-size: 14px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .modal-body{
+      padding: 14px;
+      color: var(--text);
+    }
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 12px;
+      padding: 12px;
+      white-space: pre-wrap;
+      line-height: 1.35;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <div class="title">PA Airports Status Board</div>
+      <div class="sub" id="subtitle">Status + Delay + METAR category (hover/click for raw)</div>
+    </div>
+
+    <div class="right-controls">
+      <div class="pill">Auto-Scroll: <strong id="scrollState">ON</strong></div>
+      <button class="btn" id="toggleScroll">Toggle</button>
+      <button class="btn" id="jumpTop">Top</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">NAS Status PA Airports</div>
+      <div class="section-meta" id="nasMeta">Last Updated: —</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:44%;">Airport</th>
+          <th style="width:22%;">Status</th>
+          <th style="width:12%;">Delay</th>
+          <th style="width:22%;">METAR</th>
+        </tr>
+      </thead>
+      <tbody id="nasBody"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Expanded PA Airports</div>
+      <div class="section-meta" id="expMeta">Last Updated: —</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:44%;">Airport</th>
+          <th style="width:22%;">Status</th>
+          <th style="width:12%;">Delay</th>
+          <th style="width:22%;">METAR</th>
+        </tr>
+      </thead>
+      <tbody id="expBody"></tbody>
+    </table>
+  </div>
+
+</main>
+
+<div class="tooltip" id="tooltip"></div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">METAR</div>
+      <button class="btn" id="modalClose">Close</button>
+    </div>
+    <div class="modal-body">
+      <div class="mono" id="modalText"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /***********************
+   * 1) Airport lists
+   ***********************/
+  const nasPA = [
+    { icao:"KPHL", name:"Philadelphia Intl", iata:"PHL" },
+    { icao:"KPIT", name:"Pittsburgh Intl", iata:"PIT" },
+    { icao:"KMDT", name:"Harrisburg Intl", iata:"MDT" },
+    { icao:"KABE", name:"Lehigh Valley Intl", iata:"ABE" },
+    { icao:"KAVP", name:"Wilkes-Barre/Scranton Intl", iata:"AVP" },
+    { icao:"KERI", name:"Erie Intl", iata:"ERI" },
+    { icao:"KUNV", name:"State College / Univ Park", iata:"SCE" },
+    { icao:"KLBE", name:"Arnold Palmer Regional", iata:"LBE" },
+    { icao:"KJST", name:"John Murtha Johnstown", iata:"JST" },
+    { icao:"KAOO", name:"Altoona–Blair County", iata:"AOO" }
+  ];
+
+  const expandedPA = [
+    // include all NAS list airports too? (you said "both lists show" — leaving lists separate)
+    { icao:"KBFD", name:"Bradford Regional" },
+    { icao:"KDUJ", name:"DuBois Regional" },
+    { icao:"KCXY", name:"Capital City" },
+    { icao:"KLNS", name:"Lancaster" },
+    { icao:"KAGC", name:"Allegheny County" },
+    { icao:"KBTP", name:"Butler County" },
+    { icao:"KFKL", name:"Venango Regional (Franklin)" },
+    { icao:"KIDI", name:"Indiana County (Jimmy Stewart Field)" },
+    { icao:"KHZL", name:"Hazleton Regional" },
+    { icao:"KMUI", name:"Muir AAF (FTIG)" }
+  ];
+
+  /***********************
+   * 2) Stub data (replace later with live NAS + METAR)
+   ***********************/
+  // status: OK / Delay / Ground Stop / Closed / Deicing / Weather / Unknown
+  const stub = {
+    "KPHL": { status:"Delay", delay:"45", cat:"IFR", raw:"KPHL 051751Z 09012KT 2SM -RA BR OVC008 05/04 A2990 RMK AO2" },
+    "KPIT": { status:"OK", delay:"—", cat:"MVFR", raw:"KPIT 051751Z 25008KT 6SM -DZ OVC025 06/04 A2996 RMK AO2" },
+    "KMDT": { status:"OK", delay:"—", cat:"VFR", raw:"KMDT 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
+    "KABE": { status:"OK", delay:"—", cat:"VFR", raw:"KABE 051751Z 23007KT 10SM SCT060 07/01 A3000 RMK AO2" },
+    "KAVP": { status:"Weather", delay:"—", cat:"IFR", raw:"KAVP 051754Z 12009KT 1 1/2SM -SN OVC006 M01/M03 A2988 RMK AO2" },
+    "KERI": { status:"OK", delay:"—", cat:"MVFR", raw:"KERI 051751Z 28011KT 5SM BR BKN020 04/02 A2994 RMK AO2" },
+    "KUNV": { status:"OK", delay:"—", cat:"VFR", raw:"KUNV 051753Z 21005KT 10SM FEW050 06/01 A3003 RMK AO2" },
+    "KLBE": { status:"OK", delay:"—", cat:"VFR", raw:"KLBE 051753Z 23006KT 10SM SCT055 06/02 A3001 RMK AO2" },
+    "KJST": { status:"Deicing", delay:"—", cat:"MVFR", raw:"KJST 051754Z 30010KT 6SM -SN OVC018 00/M02 A2991 RMK AO2" },
+    "KAOO": { status:"OK", delay:"—", cat:"VFR", raw:"KAOO 051753Z 22005KT 10SM SCT060 06/01 A3002 RMK AO2" },
+
+    "KBFD": { status:"OK", delay:"—", cat:"IFR", raw:"KBFD 051755Z 32009KT 2SM -SN OVC009 M02/M04 A2986 RMK AO2" },
+    "KDUJ": { status:"OK", delay:"—", cat:"MVFR", raw:"KDUJ 051754Z 29008KT 5SM BR OVC020 03/01 A2993 RMK AO2" },
+    "KCXY": { status:"OK", delay:"—", cat:"VFR", raw:"KCXY 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
+    "KLNS": { status:"OK", delay:"—", cat:"VFR", raw:"KLNS 051753Z 23006KT 10SM FEW060 07/01 A3000 RMK AO2" },
+    "KAGC": { status:"OK", delay:"—", cat:"MVFR", raw:"KAGC 051751Z 26007KT 6SM -DZ OVC025 05/03 A2997 RMK AO2" },
+    "KBTP": { status:"OK", delay:"—", cat:"VFR", raw:"KBTP 051753Z 25006KT 10SM SCT055 06/02 A3000 RMK AO2" },
+    "KFKL": { status:"OK", delay:"—", cat:"MVFR", raw:"KFKL 051752Z 29010KT 5SM BR BKN018 OVC030 03/01 A2992 RMK AO2" },
+    "KIDI": { status:"OK", delay:"—", cat:"VFR", raw:"KIDI 051753Z 24005KT 10SM SCT060 05/01 A3001 RMK AO2" },
+    "KHZL": { status:"OK", delay:"—", cat:"IFR", raw:"KHZL 051754Z 11007KT 2SM -SN OVC007 00/M02 A2989 RMK AO2" },
+    "KMUI": { status:"OK", delay:"—", cat:"VFR", raw:"KMUI 051756Z 20007KT 10SM SCT050 07/02 A3001 RMK AO2" }
+  };
+
+  function statusToDotClass(status){
+    const s = (status || "").toLowerCase();
+    if (s === "ok") return "ok";
+    if (s.includes("delay") || s.includes("deicing") || s.includes("weather")) return "warn";
+    if (s.includes("ground stop") || s.includes("closed")) return "bad";
+    return "na";
+  }
+
+  /***********************
+   * 3) Render
+   ***********************/
+  function rowHTML(a){
+    const d = stub[a.icao] || { status:"Unknown", delay:"—", cat:"—", raw:"—" };
+    const dot = statusToDotClass(d.status);
+    const displayAirport = `${a.icao}${a.iata ? " ("+a.iata+")" : ""}`;
+    const raw = (d.raw || "—");
+
+    return `
+      <tr>
+        <td>
+          <div class="airport">
+            <div>${displayAirport}</div>
+            <div class="name">${a.name || ""}</div>
+          </div>
+        </td>
+        <td>
+          <span class="status-pill">
+            <span class="dot ${dot}"></span>
+            <span>${d.status || "—"}</span>
+          </span>
+        </td>
+        <td class="delay">${d.delay ?? "—"}</td>
+        <td>
+          <span class="metar-pill"
+                data-cat="${d.cat || "—"}"
+                data-icao="${a.icao}"
+                data-raw="${escapeAttr(raw)}"
+                title="">
+            ${d.cat || "—"}
+          </span>
+        </td>
+      </tr>
+    `;
+  }
+
+  function escapeAttr(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("\"","&quot;")
+      .replaceAll("'","&#39;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  function render(){
+    document.getElementById("nasBody").innerHTML = nasPA.map(rowHTML).join("");
+    document.getElementById("expBody").innerHTML = expandedPA.map(rowHTML).join("");
+
+    const now = new Date();
+    const ts = now.toLocaleString(undefined, { hour12:false });
+    document.getElementById("nasMeta").textContent = `Last Updated: ${ts}`;
+    document.getElementById("expMeta").textContent = `Last Updated: ${ts}`;
+  }
+
+  render();
+
+  /***********************
+   * 4) Tooltip + modal for METAR raw
+   ***********************/
+  const tooltip = document.getElementById("tooltip");
+  let tipVisible = false;
+
+  function showTip(text, x, y){
+    tooltip.textContent = text;
+    tooltip.style.left = (x + 14) + "px";
+    tooltip.style.top  = (y + 14) + "px";
+    tooltip.classList.add("show");
+    tipVisible = true;
+  }
+  function moveTip(x, y){
+    if(!tipVisible) return;
+    tooltip.style.left = (x + 14) + "px";
+    tooltip.style.top  = (y + 14) + "px";
+  }
+  function hideTip(){
+    tooltip.classList.remove("show");
+    tipVisible = false;
+  }
+
+  // Modal
+  const modalBackdrop = document.getElementById("modalBackdrop");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalText = document.getElementById("modalText");
+  document.getElementById("modalClose").addEventListener("click", () => modalBackdrop.classList.remove("show"));
+  modalBackdrop.addEventListener("click", (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove("show"); });
+  window.addEventListener("keydown", (e) => { if(e.key === "Escape") modalBackdrop.classList.remove("show"); });
+
+  function openMetarModal(icao, cat, raw){
+    modalTitle.textContent = `${icao} — ${cat || "—"} METAR`;
+    modalText.textContent = raw || "—";
+    modalBackdrop.classList.add("show");
+  }
+
+  document.addEventListener("mouseover", (e) => {
+    const pill = e.target.closest(".metar-pill");
+    if(!pill) return;
+    const raw = pill.getAttribute("data-raw") || "—";
+    showTip(raw, e.clientX, e.clientY);
+  });
+  document.addEventListener("mousemove", (e) => moveTip(e.clientX, e.clientY));
+  document.addEventListener("mouseout", (e) => {
+    if(e.target.closest(".metar-pill")) hideTip();
+  });
+
+  document.addEventListener("click", (e) => {
+    const pill = e.target.closest(".metar-pill");
+    if(!pill) return;
+    const icao = pill.getAttribute("data-icao");
+    const cat  = pill.getAttribute("data-cat");
+    const raw  = pill.getAttribute("data-raw");
+    openMetarModal(icao, cat, raw);
+  });
+
+  /***********************
+   * 5) Auto-scroll (down → fast to top)
+   ***********************/
+  let autoScrollOn = true;
+  const scrollState = document.getElementById("scrollState");
+
+  const scrollConfig = {
+    // tweak these to match your Hazards feel
+    pixelsPerTick: 1,     // smoothness/speed
+    tickMs: 18,           // ~55fps
+    bottomPauseMs: 1400,  // pause at bottom
+    topPauseMs: 600,      // pause at top
+    jumpToTopMs: 120      // fast jump duration
+  };
+
+  function setScrollState(){
+    scrollState.textContent = autoScrollOn ? "ON" : "OFF";
+  }
+  setScrollState();
+
+  document.getElementById("toggleScroll").addEventListener("click", () => {
+    autoScrollOn = !autoScrollOn;
+    setScrollState();
+  });
+
+  document.getElementById("jumpTop").addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
+
+  let scrollTimer = null;
+  let pauseTimer = null;
+
+  function clearTimers(){
+    if(scrollTimer) { clearInterval(scrollTimer); scrollTimer = null; }
+    if(pauseTimer)  { clearTimeout(pauseTimer); pauseTimer = null; }
+  }
+
+  function smoothJumpToTop(durationMs){
+    const start = window.scrollY;
+    const startTime = performance.now();
+
+    function step(t){
+      const p = Math.min(1, (t - startTime) / durationMs);
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - p, 3);
+      window.scrollTo(0, Math.round(start * (1 - eased)));
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function startAutoScrollLoop(){
+    clearTimers();
+
+    scrollTimer = setInterval(() => {
+      if(!autoScrollOn) return;
+
+      const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
+      if(atBottom){
+        clearInterval(scrollTimer);
+        scrollTimer = null;
+
+        pauseTimer = setTimeout(() => {
+          if(!autoScrollOn) return;
+
+          // fast to top
+          smoothJumpToTop(scrollConfig.jumpToTopMs);
+
+          pauseTimer = setTimeout(() => {
+            startAutoScrollLoop();
+          }, scrollConfig.topPauseMs);
+
+        }, scrollConfig.bottomPauseMs);
+
+        return;
+      }
+
+      window.scrollBy(0, scrollConfig.pixelsPerTick);
+    }, scrollConfig.tickMs);
+  }
+
+  // Start scrolling once layout is ready
+  window.addEventListener("load", startAutoScrollLoop);
+
+  /***********************
+   * 6) Refresh hooks (later)
+   ***********************/
+  // TODO later: fetch NAS + METAR and update "stub" entries, then rerender just the changed cells.
+  // setInterval(async () => { await refreshLive(); }, 60_000);
+</script>
+
+</body>
+</html>
