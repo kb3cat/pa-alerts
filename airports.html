@@ -24,6 +24,17 @@
 
       /* set at runtime to exact page header height */
       --stickyTop: 72px;
+
+      /* column widths (must match the table colgroup + the header grid) */
+      --c1: 32%;
+      --c2: 13%;
+      --c3: 7%;
+      --c4: 7%;
+      --c5: 9%;
+      --c6: 9%;
+      --c7: 8%;
+      --c8: 7%;
+      --c9: 8%;
     }
 
     *{ box-sizing:border-box; }
@@ -118,31 +129,39 @@
       margin-bottom:14px;
     }
 
+    /***********************
+     * ✅ NEW: Sticky header bar that sits in the gray area
+     * above "Western Area" and stays pinned under the page header
+     ***********************/
+    .table-head-bar{
+      position: sticky;
+      top: var(--stickyTop);
+      z-index: 900;
+      background: rgba(12,21,38,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,.14);
+    }
+
+    .table-head-grid{
+      display:grid;
+      grid-template-columns: var(--c1) var(--c2) var(--c3) var(--c4) var(--c5) var(--c6) var(--c7) var(--c8) var(--c9);
+      gap:0;
+      padding: 12px 14px;
+      align-items:center;
+    }
+
+    .table-head-cell{
+      color: var(--muted);
+      font-weight: 900;
+      font-size: 16px; /* bigger like you asked */
+      letter-spacing: .2px;
+      white-space: nowrap;
+    }
+
     table{
       width:100%;
       border-collapse:collapse;
-    }
-
-    /* ✅ THIS is the key fix: sticky on TH (works in Firefox) */
-    thead th{
-      position: sticky;
-      top: var(--stickyTop);
-      z-index: 200;
-      background: rgba(15,26,46,.94);
-      backdrop-filter: blur(6px);
-
-      text-align:left;
-      font-size:16px;         /* bigger */
-      color:var(--muted);
-      font-weight:900;
-      padding:12px 14px;
-      border-bottom:1px solid var(--line);
-      white-space:nowrap;
-    }
-
-    /* subtle separator/shadow under the header row */
-    thead th{
-      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      table-layout: fixed; /* helps alignment with our fixed column widths */
     }
 
     tbody td{
@@ -150,6 +169,9 @@
       border-bottom:1px solid rgba(255,255,255,.06);
       font-size:13px;
       vertical-align:middle;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     tbody tr:hover{ background: rgba(255,255,255,.04); }
@@ -160,6 +182,7 @@
       display:flex;
       flex-direction:column;
       gap:2px;
+      white-space: normal; /* allow airport name + county line */
     }
     .airport .name{
       font-weight:600;
@@ -218,11 +241,12 @@
 
     .group-row td{
       background: rgba(9, 15, 28, .96);
-      border-top: 1px solid rgba(255,255,255,.14);
-      border-bottom: 1px solid rgba(255,255,255,.14);
+      border-top: 1px solid rgba(255,255,255,.18);   /* slightly brighter */
+      border-bottom: 1px solid rgba(255,255,255,.18); /* slightly brighter */
       padding: 10px 14px;
       font-weight: 900;
       letter-spacing: .3px;
+      white-space: normal;
     }
     .group-row .group-meta{
       font-weight: 700;
@@ -315,6 +339,7 @@
     .kv .k{ color: var(--muted); font-size: 12px; font-weight: 700; }
     .kv .v{ font-size: 14px; font-weight: 900; margin-top: 4px; }
     @media (max-width: 760px){
+      .table-head-grid{ grid-template-columns: 1.4fr .8fr .5fr .5fr .6fr .6fr .5fr .5fr .6fr; }
       .modal-grid{ grid-template-columns: 1fr; }
     }
   </style>
@@ -341,20 +366,35 @@
 
 <main>
   <div class="section">
+
+    <!-- ✅ This is the gray area header bar you pointed to -->
+    <div class="table-head-bar" id="tableHeadBar">
+      <div class="table-head-grid">
+        <div class="table-head-cell">Airport</div>
+        <div class="table-head-cell">Status</div>
+        <div class="table-head-cell">Delay</div>
+        <div class="table-head-cell">Cat</div>
+        <div class="table-head-cell">Ceiling</div>
+        <div class="table-head-cell">Wind</div>
+        <div class="table-head-cell">Vis</div>
+        <div class="table-head-cell">Temp</div>
+        <div class="table-head-cell">Wx</div>
+      </div>
+    </div>
+
     <table>
-      <thead>
-        <tr>
-          <th style="width:32%;">Airport</th>
-          <th style="width:13%;">Status</th>
-          <th style="width:7%;">Delay</th>
-          <th style="width:7%;">Cat</th>
-          <th style="width:9%;">Ceiling</th>
-          <th style="width:9%;">Wind</th>
-          <th style="width:8%;">Vis</th>
-          <th style="width:7%;">Temp</th>
-          <th style="width:8%;">Wx</th>
-        </tr>
-      </thead>
+      <!-- keep columns fixed so the header-bar aligns with the table -->
+      <colgroup>
+        <col style="width: var(--c1)">
+        <col style="width: var(--c2)">
+        <col style="width: var(--c3)">
+        <col style="width: var(--c4)">
+        <col style="width: var(--c5)">
+        <col style="width: var(--c6)">
+        <col style="width: var(--c7)">
+        <col style="width: var(--c8)">
+        <col style="width: var(--c9)">
+      </colgroup>
       <tbody id="airBody"></tbody>
     </table>
   </div>
@@ -381,6 +421,9 @@
 </div>
 
 <script>
+  /***********************
+   * Sticky offset = exact page header height
+   ***********************/
   function setStickyTop(){
     const header = document.getElementById("pageHeader");
     if(!header) return;
@@ -388,6 +431,9 @@
     document.documentElement.style.setProperty("--stickyTop", `${Math.ceil(h)}px`);
   }
 
+  /***********************
+   * 1) PEMA county → region mapping
+   ***********************/
   const PEMA = {
     Western: new Set([
       "Allegheny","Armstrong","Beaver","Butler","Cambria","Cameron","Clarion","Clearfield",
@@ -414,12 +460,17 @@
     return "Unknown";
   }
 
+  /***********************
+   * 2) Airports list
+   ***********************/
   const airportsPA = [
+    // Eastern
     { icao:"KPHL", name:"Philadelphia Intl", iata:"PHL", county:"Philadelphia" },
     { icao:"KABE", name:"Lehigh Valley Intl", iata:"ABE", county:"Lehigh" },
     { icao:"KAVP", name:"Wilkes-Barre/Scranton Intl", iata:"AVP", county:"Luzerne" },
     { icao:"KHZL", name:"Hazleton Regional", county:"Luzerne" },
 
+    // Central
     { icao:"KMDT", name:"Harrisburg Intl", iata:"MDT", county:"Dauphin" },
     { icao:"KCXY", name:"Capital City", county:"Dauphin" },
     { icao:"KMUI", name:"Muir AAF (FTIG)", county:"Lebanon" },
@@ -428,6 +479,7 @@
     { icao:"KLNS", name:"Lancaster", county:"Lancaster" },
     { icao:"KIPT", name:"Williamsport Regional", iata:"IPT", county:"Lycoming" },
 
+    // Western
     { icao:"KPIT", name:"Pittsburgh Intl", iata:"PIT", county:"Allegheny" },
     { icao:"KAGC", name:"Allegheny County", county:"Allegheny" },
     { icao:"KLBE", name:"Arnold Palmer Regional", iata:"LBE", county:"Westmoreland" },
@@ -440,7 +492,10 @@
     { icao:"KIDI", name:"Indiana County (Jimmy Stewart Field)", county:"Indiana" }
   ];
 
-  const liveByIcao = {};
+  /***********************
+   * 3) Live data store
+   ***********************/
+  const liveByIcao = {}; // { KXXX: {...} }
 
   function statusToDotClass(status){
     const s = (status || "").toLowerCase();
@@ -478,6 +533,9 @@
     `;
   }
 
+  /***********************
+   * 4) Date formatting (mm/dd/yy at hh:mm hours)
+   ***********************/
   function pad2(n){ return String(n).padStart(2,"0"); }
   function formatLastUpdate(dt){
     const mm = pad2(dt.getMonth()+1);
@@ -488,6 +546,9 @@
     return `${mm}/${dd}/${yy} at ${hh}:${mi} hours`;
   }
 
+  /***********************
+   * 5) METAR parsing
+   ***********************/
   function cToF(c){
     if (c === null || c === undefined) return null;
     const f = (c * 9/5) + 32;
@@ -542,6 +603,7 @@
     if(!s || s === "—") return "—";
     const matches = Array.from(s.matchAll(/\b(BKN|OVC|VV)(\d{3})\b/g));
     if(!matches.length) return "—";
+
     let lowest = null;
     for(const m of matches){
       const hundreds = parseInt(m[2], 10);
@@ -557,9 +619,11 @@
     if(!s || s === "—") return "—";
     const m = s.match(/\b(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT\b/);
     if(!m) return "—";
+
     const dir = m[1];
     const spd = parseInt(m[2], 10);
     const gst = m[4] ? parseInt(m[4], 10) : null;
+
     if(!Number.isFinite(spd)) return "—";
     if(dir === "000" && spd === 0) return "Calm";
     if(dir === "VRB") return gst ? `VRB ${spd}G${gst}` : `VRB ${spd}`;
@@ -637,18 +701,21 @@
 
   function parseMetar(raw){
     const clean = (raw || "").trim();
-    if(!clean || clean === "—") return { ceilingFt:"—", windTxt:"—", visSM:"—", tempF:"—", wxText:"—" };
-
+    if(!clean || clean === "—"){
+      return { ceilingFt:"—", windTxt:"—", visSM:"—", tempF:"—", wxText:"—" };
+    }
     const ceilingFt = parseCeilingFt(clean);
     const windTxt = parseWind(clean);
     const visSM = parseVisibilitySM(clean) || "—";
     const tempC = parseTempC(clean);
     const tempF = (tempC === null) ? "—" : `${cToF(tempC)}°F`;
     const wxText = parseWxText(clean);
-
     return { ceilingFt, windTxt, visSM, tempF, wxText };
   }
 
+  /***********************
+   * 6) Rendering
+   ***********************/
   function rowHTML(a){
     const d = liveByIcao[a.icao] || {
       status:"Unknown", delay:"—", cat:"—", raw:"—",
@@ -716,6 +783,9 @@
     document.getElementById("airBody").innerHTML = html;
   }
 
+  /***********************
+   * 7) Live data fetch (every 5 minutes)
+   ***********************/
   async function refreshLive() {
     try {
       const url = `data/airports_live.json?ts=${Date.now()}`;
@@ -757,6 +827,9 @@
     }
   }
 
+  /***********************
+   * 8) Tooltip + modal for METAR raw
+   ***********************/
   const tooltip = document.getElementById("tooltip");
   let tipVisible = false;
 
@@ -822,17 +895,34 @@
     openMetarModal(icao, cat, raw, vis, temp, wx);
   });
 
+  /***********************
+   * 9) Auto-scroll (down → fast to top)
+   ***********************/
   let autoScrollOn = true;
   const scrollState = document.getElementById("scrollState");
   const autoScrollPill = document.getElementById("autoScrollPill");
 
-  const scrollConfig = { pixelsPerTick: 1, tickMs: 18, bottomPauseMs: 1400, topPauseMs: 600, jumpToTopMs: 120 };
+  const scrollConfig = {
+    pixelsPerTick: 1,
+    tickMs: 18,
+    bottomPauseMs: 1400,
+    topPauseMs: 600,
+    jumpToTopMs: 120
+  };
 
-  function setScrollState(){ scrollState.textContent = autoScrollOn ? "ON" : "OFF"; }
+  function setScrollState(){
+    scrollState.textContent = autoScrollOn ? "ON" : "OFF";
+  }
   setScrollState();
 
-  autoScrollPill.addEventListener("click", () => { autoScrollOn = !autoScrollOn; setScrollState(); });
-  document.getElementById("jumpTop").addEventListener("click", () => { window.scrollTo({ top: 0, behavior: "instant" }); });
+  autoScrollPill.addEventListener("click", () => {
+    autoScrollOn = !autoScrollOn;
+    setScrollState();
+  });
+
+  document.getElementById("jumpTop").addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: "instant" });
+  });
 
   let scrollTimer = null;
   let pauseTimer = null;
@@ -845,6 +935,7 @@
   function smoothJumpToTop(durationMs){
     const start = window.scrollY;
     const startTime = performance.now();
+
     function step(t){
       const p = Math.min(1, (t - startTime) / durationMs);
       const eased = 1 - Math.pow(1 - p, 3);
@@ -856,23 +947,36 @@
 
   function startAutoScrollLoop(){
     clearTimers();
+
     scrollTimer = setInterval(() => {
       if(!autoScrollOn) return;
+
       const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
       if(atBottom){
         clearInterval(scrollTimer);
         scrollTimer = null;
+
         pauseTimer = setTimeout(() => {
           if(!autoScrollOn) return;
+
           smoothJumpToTop(scrollConfig.jumpToTopMs);
-          pauseTimer = setTimeout(() => { startAutoScrollLoop(); }, scrollConfig.topPauseMs);
+
+          pauseTimer = setTimeout(() => {
+            startAutoScrollLoop();
+          }, scrollConfig.topPauseMs);
+
         }, scrollConfig.bottomPauseMs);
+
         return;
       }
+
       window.scrollBy(0, scrollConfig.pixelsPerTick);
     }, scrollConfig.tickMs);
   }
 
+  /***********************
+   * 10) Start-up
+   ***********************/
   window.addEventListener("load", async () => {
     setStickyTop();
     window.addEventListener("resize", setStickyTop);
