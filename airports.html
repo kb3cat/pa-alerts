@@ -329,7 +329,10 @@
   <div class="header-inner">
     <div>
       <div class="title">PA Airports Status Board</div>
-      <div class="sub" id="subtitle">One list, grouped by PEMA region • Status + Delay + METAR category (hover/click for raw)</div>
+      <div class="sub" id="subtitle">
+        Live data from <span class="mono" style="padding:2px 6px;border-radius:8px;">data/airports_live.json</span>
+        • grouped by PEMA region • polls every 5 minutes
+      </div>
     </div>
 
     <div class="right-controls">
@@ -377,8 +380,17 @@
 
 <script>
   /***********************
+   * IMPORTANT:
+   * This page expects a SAME-ORIGIN file at:
+   *   data/airports_live.json
+   *
+   * Your GitHub Action should update that JSON every 5 minutes.
+   * This page fetches it every 5 minutes, too.
+   ***********************/
+
+  /***********************
    * 1) PEMA county → region mapping
-   *    (If you want to provide your exact list later, we can swap this block.)
+   *    If your internal mapping differs, paste your county lists and we’ll swap this block.
    ***********************/
   const PEMA = {
     Western: new Set([
@@ -408,6 +420,7 @@
 
   /***********************
    * 2) One combined list (county added)
+   *    Add/remove airports here whenever you want.
    ***********************/
   const airportsPA = [
     // Eastern
@@ -439,31 +452,10 @@
   ];
 
   /***********************
-   * 3) Stub data (replace later with live NAS + METAR)
+   * 3) Live data store (filled by refreshLive())
+   *    The rendering uses this object.
    ***********************/
-  const stub = {
-    "KPHL": { status:"Delay", delay:"45", cat:"IFR",  raw:"KPHL 051751Z 09012KT 2SM -RA BR OVC008 05/04 A2990 RMK AO2" },
-    "KPIT": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KPIT 051751Z 25008KT 6SM -DZ OVC025 06/04 A2996 RMK AO2" },
-    "KMDT": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KMDT 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
-    "KABE": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KABE 051751Z 23007KT 10SM SCT060 07/01 A3000 RMK AO2" },
-    "KAVP": { status:"Weather", delay:"—", cat:"IFR", raw:"KAVP 051754Z 12009KT 1 1/2SM -SN OVC006 M01/M03 A2988 RMK AO2" },
-    "KERI": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KERI 051751Z 28011KT 5SM BR BKN020 04/02 A2994 RMK AO2" },
-    "KUNV": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KUNV 051753Z 21005KT 10SM FEW050 06/01 A3003 RMK AO2" },
-    "KLBE": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KLBE 051753Z 23006KT 10SM SCT055 06/02 A3001 RMK AO2" },
-    "KJST": { status:"Deicing", delay:"—", cat:"MVFR", raw:"KJST 051754Z 30010KT 6SM -SN OVC018 00/M02 A2991 RMK AO2" },
-    "KAOO": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KAOO 051753Z 22005KT 10SM SCT060 06/01 A3002 RMK AO2" },
-    "KBFD": { status:"OK",    delay:"—",  cat:"IFR",  raw:"KBFD 051755Z 32009KT 2SM -SN OVC009 M02/M04 A2986 RMK AO2" },
-    "KDUJ": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KDUJ 051754Z 29008KT 5SM BR OVC020 03/01 A2993 RMK AO2" },
-    "KCXY": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KCXY 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
-    "KLNS": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KLNS 051753Z 23006KT 10SM FEW060 07/01 A3000 RMK AO2" },
-    "KAGC": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KAGC 051751Z 26007KT 6SM -DZ OVC025 05/03 A2997 RMK AO2" },
-    "KBTP": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KBTP 051753Z 25006KT 10SM SCT055 06/02 A3000 RMK AO2" },
-    "KFKL": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KFKL 051752Z 29010KT 5SM BR BKN018 OVC030 03/01 A2992 RMK AO2" },
-    "KIDI": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KIDI 051753Z 24005KT 10SM SCT060 05/01 A3001 RMK AO2" },
-    "KHZL": { status:"OK",    delay:"—",  cat:"IFR",  raw:"KHZL 051754Z 11007KT 2SM -SN OVC007 00/M02 A2989 RMK AO2" },
-    "KMUI": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KMUI 051756Z 20007KT 10SM SCT050 07/02 A3001 RMK AO2" },
-    "KIPT": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KIPT 051754Z 22005KT 10SM SCT060 06/01 A3002 RMK AO2" }
-  };
+  const liveByIcao = {}; // { KXXX: {status, delay, cat, raw} }
 
   function statusToDotClass(status){
     const s = (status || "").toLowerCase();
@@ -490,7 +482,7 @@
   }
 
   function rowHTML(a){
-    const d = stub[a.icao] || { status:"Unknown", delay:"—", cat:"—", raw:"—" };
+    const d = liveByIcao[a.icao] || { status:"Unknown", delay:"—", cat:"—", raw:"—" };
     const dot = statusToDotClass(d.status);
     const displayAirport = `${a.icao}${a.iata ? " ("+a.iata+")" : ""}`;
 
@@ -542,20 +534,17 @@
   }
 
   function render(){
-    // Build list with computed region
     const list = airportsPA.map(a => ({
       ...a,
       pemaRegion: getPemaRegion(a.county)
     }));
 
-    // Sort by region, then ICAO
     list.sort((a,b) => {
       const go = groupOrder(a.pemaRegion) - groupOrder(b.pemaRegion);
       if(go !== 0) return go;
       return a.icao.localeCompare(b.icao);
     });
 
-    // Grouped render
     const order = ["Western","Central","Eastern","Unknown"];
     let html = "";
     for(const r of order){
@@ -566,16 +555,66 @@
     }
 
     document.getElementById("airBody").innerHTML = html;
-
-    const now = new Date();
-    const ts = now.toLocaleString(undefined, { hour12:false });
-    document.getElementById("airMeta").textContent = `Last Updated: ${ts}`;
   }
 
-  render();
+  /***********************
+   * 4) Live data fetch (every 5 minutes)
+   *
+   * Expected JSON shape:
+   * {
+   *   "generatedAt": "2026-03-05T....Z",
+   *   "airports": {
+   *     "KMDT": { "status":"OK", "delay":"—", "metarCat":"VFR", "metarRaw":"...", ... },
+   *     ...
+   *   }
+   * }
+   ***********************/
+  async function refreshLive() {
+    try {
+      const url = `data/airports_live.json?ts=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const airports = data?.airports || {};
+
+      // Populate liveByIcao
+      for (const [icao, v] of Object.entries(airports)) {
+        liveByIcao[icao] = {
+          status: v.status ?? "Unknown",
+          delay: v.delay ?? "—",
+          cat: v.metarCat ?? v.cat ?? "—",
+          raw: v.metarRaw ?? v.raw ?? "—"
+        };
+      }
+
+      // Render updated view
+      render();
+
+      // Update header timestamp
+      const meta = document.getElementById("airMeta");
+      if (meta) {
+        if (data?.generatedAt) {
+          const dt = new Date(data.generatedAt);
+          meta.textContent = `Last Updated: ${dt.toLocaleString(undefined, { hour12:false })}`;
+        } else {
+          const now = new Date();
+          meta.textContent = `Last Updated: ${now.toLocaleString(undefined, { hour12:false })}`;
+        }
+      }
+    } catch (err) {
+      console.warn("refreshLive failed:", err);
+
+      // Still render something (Unknown rows) if first load fails
+      render();
+
+      const meta = document.getElementById("airMeta");
+      if (meta) meta.textContent = `Last Updated: (live data unavailable)`;
+    }
+  }
 
   /***********************
-   * Tooltip + modal for METAR raw
+   * 5) Tooltip + modal for METAR raw
    ***********************/
   const tooltip = document.getElementById("tooltip");
   let tipVisible = false;
@@ -632,7 +671,7 @@
   });
 
   /***********************
-   * Auto-scroll (down → fast to top)
+   * 6) Auto-scroll (down → fast to top)
    ***********************/
   let autoScrollOn = true;
   const scrollState = document.getElementById("scrollState");
@@ -709,15 +748,22 @@
     }, scrollConfig.tickMs);
   }
 
-  window.addEventListener("load", startAutoScrollLoop);
-
   /***********************
-   * Refresh hooks (later)
+   * 7) Start-up
    ***********************/
-  // TODO: Replace stub data with:
-  // - FAA NAS status for "status" + "delay"
-  // - AviationWeather METAR JSON for "cat" + "raw"
-  // Then call render() or update cells in place.
+  window.addEventListener("load", async () => {
+    // First paint (Unknowns)
+    render();
+
+    // First live fetch
+    await refreshLive();
+
+    // Repeat every 5 minutes
+    setInterval(refreshLive, 5 * 60 * 1000);
+
+    // Start scrolling
+    startAutoScrollLoop();
+  });
 </script>
 
 </body>
