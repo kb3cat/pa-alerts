@@ -22,7 +22,7 @@
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --radius:14px;
 
-      /* Column widths (must match table colgroup + header grid) */
+      /* Column widths (shared colgroup for header + body) */
       --c1: 32%;
       --c2: 13%;
       --c3: 7%;
@@ -32,18 +32,21 @@
       --c7: 8%;
       --c8: 7%;
       --c9: 8%;
+
+      /* set runtime */
+      --headerH: 72px;
+      --sbw: 0px; /* scrollbar width for aligning the header */
     }
 
     *{ box-sizing:border-box; }
-    html, body{
-      height: 100%;
-    }
+    html, body{ height: 100%; }
+
     body{
       margin:0;
       background: linear-gradient(180deg, #071022 0%, #050b16 100%);
       color:var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      overflow: hidden; /* ✅ we scroll inside the board, not the window */
+      overflow: hidden; /* scroll inside board */
     }
 
     header{
@@ -118,10 +121,9 @@
     }
     .btn:hover{ filter:brightness(1.1); }
 
-    /* MAIN board area fills remaining height under header */
     main{
       padding:14px 18px 18px;
-      height: calc(100vh - var(--headerH, 72px));
+      height: calc(100vh - var(--headerH));
       overflow: hidden;
     }
 
@@ -131,45 +133,52 @@
       border:1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
-      overflow: hidden; /* keep rounded corners */
+      overflow: hidden;
       display:flex;
       flex-direction: column;
     }
 
-    /* ✅ This is your gray header bar area. It NEVER scrolls. */
+    /* ===== Locked header bar (real table, not grid) ===== */
     .table-head-bar{
       flex: 0 0 auto;
       background: rgba(12,21,38,.92);
       border-bottom: 1px solid rgba(255,255,255,.14);
-    }
-
-    .table-head-grid{
-      display:grid;
-      grid-template-columns: var(--c1) var(--c2) var(--c3) var(--c4) var(--c5) var(--c6) var(--c7) var(--c8) var(--c9);
-      padding: 12px 14px;
-      align-items:center;
-    }
-
-    .table-head-cell{
-      color: var(--muted);
-      font-weight: 900;
-      font-size: 16px; /* bigger header font */
-      letter-spacing: .2px;
-      white-space: nowrap;
-    }
-
-    /* ✅ Only THIS area scrolls */
-    .table-scroll{
-      flex: 1 1 auto;
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
+      padding-right: var(--sbw); /* ✅ keeps header aligned with body when scrollbar appears */
     }
 
     table{
       width:100%;
       border-collapse:collapse;
       table-layout: fixed;
+    }
+
+    /* shared colgroup widths */
+    col.c1{ width: var(--c1); }
+    col.c2{ width: var(--c2); }
+    col.c3{ width: var(--c3); }
+    col.c4{ width: var(--c4); }
+    col.c5{ width: var(--c5); }
+    col.c6{ width: var(--c6); }
+    col.c7{ width: var(--c7); }
+    col.c8{ width: var(--c8); }
+    col.c9{ width: var(--c9); }
+
+    thead th{
+      text-align:left;
+      color: var(--muted);
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: .2px;
+      padding: 12px 14px;
+      white-space: nowrap;
+    }
+
+    /* scroll area for body */
+    .table-scroll{
+      flex: 1 1 auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
     }
 
     tbody td{
@@ -347,7 +356,7 @@
     .kv .k{ color: var(--muted); font-size: 12px; font-weight: 700; }
     .kv .v{ font-size: 14px; font-weight: 900; margin-top: 4px; }
     @media (max-width: 760px){
-      .table-head-grid{ grid-template-columns: 1.4fr .8fr .5fr .5fr .6fr .6fr .5fr .5fr .6fr; }
+      thead th{ font-size: 14px; }
       .modal-grid{ grid-template-columns: 1fr; }
     }
   </style>
@@ -375,34 +384,33 @@
 <main>
   <div class="section">
 
-    <!-- ✅ Locked header bar (never scrolls) -->
-    <div class="table-head-bar">
-      <div class="table-head-grid">
-        <div class="table-head-cell">Airport</div>
-        <div class="table-head-cell">Status</div>
-        <div class="table-head-cell">Delay</div>
-        <div class="table-head-cell">Cat</div>
-        <div class="table-head-cell">Ceiling</div>
-        <div class="table-head-cell">Wind</div>
-        <div class="table-head-cell">Vis</div>
-        <div class="table-head-cell">Temp</div>
-        <div class="table-head-cell">Wx</div>
-      </div>
+    <!-- ✅ Locked header bar using the SAME colgroup widths -->
+    <div class="table-head-bar" id="headBar">
+      <table id="headTable" aria-hidden="true">
+        <colgroup>
+          <col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Airport</th>
+            <th>Status</th>
+            <th>Delay</th>
+            <th>Cat</th>
+            <th>Ceiling</th>
+            <th>Wind</th>
+            <th>Vis</th>
+            <th>Temp</th>
+            <th>Wx</th>
+          </tr>
+        </thead>
+      </table>
     </div>
 
-    <!-- ✅ ONLY this area scrolls -->
+    <!-- ✅ Only this area scrolls -->
     <div class="table-scroll" id="scrollArea">
-      <table>
+      <table id="bodyTable">
         <colgroup>
-          <col style="width: var(--c1)">
-          <col style="width: var(--c2)">
-          <col style="width: var(--c3)">
-          <col style="width: var(--c4)">
-          <col style="width: var(--c5)">
-          <col style="width: var(--c6)">
-          <col style="width: var(--c7)">
-          <col style="width: var(--c8)">
-          <col style="width: var(--c9)">
+          <col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"><col class="c8"><col class="c9">
         </colgroup>
         <tbody id="airBody"></tbody>
       </table>
@@ -433,13 +441,20 @@
 
 <script>
   /***********************
-   * Header height → main height calc
+   * Header height → main height calc + scrollbar width
    ***********************/
   function setHeaderHeightVar(){
     const header = document.getElementById("pageHeader");
     if(!header) return;
     const h = Math.ceil(header.getBoundingClientRect().height);
     document.documentElement.style.setProperty("--headerH", `${h}px`);
+  }
+
+  function setScrollbarWidthVar(){
+    const scrollArea = document.getElementById("scrollArea");
+    if(!scrollArea) return;
+    const sbw = Math.max(0, scrollArea.offsetWidth - scrollArea.clientWidth);
+    document.documentElement.style.setProperty("--sbw", `${sbw}px`);
   }
 
   /***********************
@@ -786,7 +801,7 @@
   }
 
   /***********************
-   * 6) Live data fetch (every 5 minutes)
+   * 6) Live data fetch
    ***********************/
   async function refreshLive() {
     try {
@@ -815,6 +830,7 @@
       }
 
       render();
+      setScrollbarWidthVar(); // ✅ re-evaluate after render (scrollbar may appear/disappear)
 
       const last = document.getElementById("lastUpdate");
       if (last) {
@@ -824,13 +840,14 @@
     } catch (err) {
       console.warn("refreshLive failed:", err);
       render();
+      setScrollbarWidthVar();
       const last = document.getElementById("lastUpdate");
       if (last) last.textContent = "live data unavailable";
     }
   }
 
   /***********************
-   * 7) Tooltip + modal for METAR raw
+   * 7) Tooltip + modal
    ***********************/
   const tooltip = document.getElementById("tooltip");
   let tipVisible = false;
@@ -899,32 +916,21 @@
   });
 
   /***********************
-   * 8) Auto-scroll (scrolls the table container, not window)
+   * 8) Auto-scroll (scrolls the table container)
    ***********************/
   let autoScrollOn = true;
   const scrollState = document.getElementById("scrollState");
   const autoScrollPill = document.getElementById("autoScrollPill");
   const scrollArea = document.getElementById("scrollArea");
 
-  const scrollConfig = {
-    pixelsPerTick: 1,
-    tickMs: 18,
-    bottomPauseMs: 1400,
-    topPauseMs: 600,
-    jumpToTopMs: 120
-  };
+  const scrollConfig = { pixelsPerTick: 1, tickMs: 18, bottomPauseMs: 1400, topPauseMs: 600, jumpToTopMs: 120 };
 
   function setScrollState(){ scrollState.textContent = autoScrollOn ? "ON" : "OFF"; }
   setScrollState();
 
-  autoScrollPill.addEventListener("click", () => {
-    autoScrollOn = !autoScrollOn;
-    setScrollState();
-  });
+  autoScrollPill.addEventListener("click", () => { autoScrollOn = !autoScrollOn; setScrollState(); });
 
-  document.getElementById("jumpTop").addEventListener("click", () => {
-    scrollArea.scrollTop = 0;
-  });
+  document.getElementById("jumpTop").addEventListener("click", () => { scrollArea.scrollTop = 0; });
 
   let scrollTimer = null;
   let pauseTimer = null;
@@ -948,7 +954,6 @@
 
   function startAutoScrollLoop(){
     clearTimers();
-
     scrollTimer = setInterval(() => {
       if(!autoScrollOn) return;
 
@@ -959,13 +964,9 @@
 
         pauseTimer = setTimeout(() => {
           if(!autoScrollOn) return;
-
           smoothJumpToTop(scrollConfig.jumpToTopMs);
 
-          pauseTimer = setTimeout(() => {
-            startAutoScrollLoop();
-          }, scrollConfig.topPauseMs);
-
+          pauseTimer = setTimeout(() => { startAutoScrollLoop(); }, scrollConfig.topPauseMs);
         }, scrollConfig.bottomPauseMs);
 
         return;
@@ -980,20 +981,14 @@
    ***********************/
   window.addEventListener("load", async () => {
     setHeaderHeightVar();
-    window.addEventListener("resize", setHeaderHeightVar);
+    window.addEventListener("resize", () => { setHeaderHeightVar(); setScrollbarWidthVar(); });
 
     render();
+    setScrollbarWidthVar();
     await refreshLive();
     setInterval(refreshLive, 5 * 60 * 1000);
     startAutoScrollLoop();
   });
-
-  function setHeaderHeightVar(){
-    const header = document.getElementById("pageHeader");
-    if(!header) return;
-    const h = Math.ceil(header.getBoundingClientRect().height);
-    document.documentElement.style.setProperty("--headerH", `${h}px`);
-  }
 </script>
 
 </body>
