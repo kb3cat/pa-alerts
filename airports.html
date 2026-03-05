@@ -238,12 +238,12 @@
 
     /* PEMA region group header row */
     .group-row td{
-      background: rgba(18,30,55,.96);
-      border-top:1px solid rgba(255,255,255,.25);
-      border-bottom:1px solid rgba(255,255,255,.25);
-      font-weight:900;
-      font-size:14px;
-      letter-spacing:.5px;
+      background: rgba(9, 15, 28, .96);
+      border-top: 1px solid rgba(255,255,255,.14);
+      border-bottom: 1px solid rgba(255,255,255,.14);
+      padding: 10px 14px;
+      font-weight: 900;
+      letter-spacing: .3px;
     }
     .group-row .group-meta{
       font-weight: 700;
@@ -378,13 +378,15 @@
     <table>
       <thead>
         <tr>
-          <th style="width:34%;">Airport</th>
-          <th style="width:14%;">Status</th>
+          <th style="width:32%;">Airport</th>
+          <th style="width:13%;">Status</th>
           <th style="width:7%;">Delay</th>
-          <th style="width:9%;">Cat</th>
-          <th style="width:10%;">Vis</th>
-          <th style="width:10%;">Temp</th>
-          <th style="width:16%;">Wx</th>
+          <th style="width:7%;">Cat</th>
+          <th style="width:9%;">Ceiling</th>
+          <th style="width:9%;">Wind</th>
+          <th style="width:8%;">Vis</th>
+          <th style="width:7%;">Temp</th>
+          <th style="width:8%;">Wx</th>
         </tr>
       </thead>
       <tbody id="airBody"></tbody>
@@ -477,7 +479,7 @@
   /***********************
    * 3) Live data store
    ***********************/
-  const liveByIcao = {}; // { KXXX: {status, delay, cat, raw, visSM, tempF, wxText} }
+  const liveByIcao = {}; // { KXXX: {status, delay, cat, raw, ceilingFt, windTxt, visSM, tempF, wxText} }
 
   function statusToDotClass(status){
     const s = (status || "").toLowerCase();
@@ -507,7 +509,7 @@
     const label = `${regionName} Area`;
     return `
       <tr class="group-row">
-        <td colspan="7">
+        <td colspan="9">
           ${label}
           <span class="group-meta">(${count} airport${count === 1 ? "" : "s"})</span>
         </td>
@@ -578,6 +580,44 @@
     const n = Number(token);
     if(Number.isFinite(n)) return `${n} SM`;
     return null;
+  }
+
+  // Ceiling: lowest BKN/OVC/VV layer (feet)
+  function parseCeilingFt(raw){
+    const s = (raw || "").trim();
+    if(!s || s === "—") return "—";
+
+    const matches = Array.from(s.matchAll(/\b(BKN|OVC|VV)(\d{3})\b/g));
+    if(!matches.length) return "—";
+
+    let lowest = null;
+    for(const m of matches){
+      const hundreds = parseInt(m[2], 10);
+      if(!Number.isFinite(hundreds)) continue;
+      const ft = hundreds * 100;
+      if(lowest === null || ft < lowest) lowest = ft;
+    }
+    return (lowest === null) ? "—" : `${lowest} ft`;
+  }
+
+  // Wind: e.g., 27012G20KT, VRB03KT, 00000KT
+  function parseWind(raw){
+    const s = (raw || "").trim();
+    if(!s || s === "—") return "—";
+
+    const m = s.match(/\b(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT\b/);
+    if(!m) return "—";
+
+    const dir = m[1];
+    const spd = parseInt(m[2], 10);
+    const gst = m[4] ? parseInt(m[4], 10) : null;
+
+    if(!Number.isFinite(spd)) return "—";
+
+    // Compact display for board
+    if(dir === "000" && spd === 0) return "Calm";
+    if(dir === "VRB") return gst ? `VRB ${spd}G${gst}` : `VRB ${spd}`;
+    return gst ? `${dir} ${spd}G${gst}` : `${dir} ${spd}`;
   }
 
   // Decode METAR wx into plain English
@@ -658,21 +698,25 @@
       }
     }
 
-    // CHANGE: if none, return dash (not "No significant wx")
+    // dash if nothing
     if(!decoded.length) return "—";
     return decoded.slice(0, 2).join(", ");
   }
 
   function parseMetar(raw){
     const clean = (raw || "").trim();
-    if(!clean || clean === "—") return { visSM:null, tempF:null, wxText:null };
+    if(!clean || clean === "—") return { ceilingFt:null, windTxt:null, visSM:null, tempF:null, wxText:null };
 
+    const ceilingFt = parseCeilingFt(clean);
+    const windTxt = parseWind(clean);
     const vis = parseVisibilitySM(clean);
     const tempC = parseTempC(clean);
     const tempF = (tempC === null) ? null : cToF(tempC);
     const wxText = parseWxText(clean);
 
     return {
+      ceilingFt,
+      windTxt,
       visSM: vis,
       tempF: (tempF === null ? null : `${tempF}°F`),
       wxText
@@ -683,7 +727,10 @@
    * 6) Rendering
    ***********************/
   function rowHTML(a){
-    const d = liveByIcao[a.icao] || { status:"Unknown", delay:"—", cat:"—", raw:"—", visSM:"—", tempF:"—", wxText:"—" };
+    const d = liveByIcao[a.icao] || {
+      status:"Unknown", delay:"—", cat:"—", raw:"—",
+      ceilingFt:"—", windTxt:"—", visSM:"—", tempF:"—", wxText:"—"
+    };
     const dot = statusToDotClass(d.status);
 
     const airportTitle = `${a.name} (${a.icao})`;
@@ -717,6 +764,8 @@
             ${d.cat || "—"}
           </span>
         </td>
+        <td class="mono-inline">${d.ceilingFt || "—"}</td>
+        <td class="mono-inline">${d.windTxt || "—"}</td>
         <td class="mono-inline">${d.visSM || "—"}</td>
         <td class="mono-inline">${d.tempF || "—"}</td>
         <td>${d.wxText || "—"}</td>
@@ -769,6 +818,9 @@
           delay: v.delay ?? "—",
           cat: v.metarCat ?? v.cat ?? "—",
           raw: raw,
+
+          ceilingFt: parsed.ceilingFt || "—",
+          windTxt: parsed.windTxt || "—",
           visSM: parsed.visSM || "—",
           tempF: parsed.tempF || "—",
           wxText: parsed.wxText || "—"
@@ -777,6 +829,7 @@
 
       render();
 
+      // Header last-update in your format
       const last = document.getElementById("lastUpdate");
       if (last) {
         const dt = data?.generatedAt ? new Date(data.generatedAt) : new Date();
@@ -813,6 +866,7 @@
     tipVisible = false;
   }
 
+  // Modal
   const modalBackdrop = document.getElementById("modalBackdrop");
   const modalTitle = document.getElementById("modalTitle");
   const modalText = document.getElementById("modalText");
