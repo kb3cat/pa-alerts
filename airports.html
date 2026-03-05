@@ -22,8 +22,8 @@
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --radius:14px;
 
-      /* dynamically set to the sticky page header height */
-      --stickyTop: 56px;
+      /* will be set at runtime to exact header height */
+      --stickyTop: 72px;
     }
 
     *{ box-sizing:border-box; }
@@ -37,7 +37,7 @@
     header{
       position:sticky;
       top:0;
-      z-index:10;
+      z-index:1000;
       background: rgba(7,16,34,.92);
       backdrop-filter: blur(8px);
       border-bottom:1px solid var(--line);
@@ -92,12 +92,8 @@
       user-select:none;
     }
 
-    .pill.clickable{
-      cursor:pointer;
-    }
-    .pill.clickable:hover{
-      filter:brightness(1.1);
-    }
+    .pill.clickable{ cursor:pointer; }
+    .pill.clickable:hover{ filter:brightness(1.1); }
 
     .btn{
       cursor:pointer;
@@ -111,9 +107,7 @@
     }
     .btn:hover{ filter:brightness(1.1); }
 
-    main{
-      padding:14px 18px 24px;
-    }
+    main{ padding:14px 18px 24px; }
 
     .section{
       background: rgba(15,26,46,.72);
@@ -129,18 +123,26 @@
       border-collapse:collapse;
     }
 
-    /* Bigger table header font + keep sticky under the main page header */
-    thead th{
-      text-align:left;
-      font-size:14px;                 /* was 12px */
-      color:var(--muted);
-      font-weight:800;                /* was 700 */
-      padding:12px 14px;              /* slightly taller */
-      border-bottom:1px solid var(--line);
-      background: rgba(15,26,46,.88); /* a touch more opaque for readability */
+    /* ✅ Sticky header row for the table (locks to top under the page header) */
+    thead tr{
       position: sticky;
       top: var(--stickyTop);
-      z-index: 5;
+      z-index: 50;
+      background: rgba(15,26,46,.92);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 6px 16px rgba(0,0,0,.25);
+    }
+
+    /* ✅ Bigger header font */
+    thead th{
+      text-align:left;
+      font-size:15px;        /* bigger */
+      color:var(--muted);
+      font-weight:900;
+      padding:12px 14px;
+      border-bottom:1px solid var(--line);
+      background: transparent; /* header bg comes from thead tr */
+      white-space:nowrap;
     }
 
     tbody td{
@@ -150,9 +152,7 @@
       vertical-align:middle;
     }
 
-    tbody tr:hover{
-      background: rgba(255,255,255,.04);
-    }
+    tbody tr:hover{ background: rgba(255,255,255,.04); }
 
     .airport{
       font-weight:800;
@@ -180,21 +180,13 @@
       font-weight:800;
     }
 
-    .dot{
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      display:inline-block;
-    }
+    .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
     .ok{ background: var(--ok); }
     .warn{ background: var(--warn); }
     .bad{ background: var(--bad); }
     .na{ background: var(--na); }
 
-    .delay{
-      font-variant-numeric: tabular-nums;
-      font-weight:800;
-    }
+    .delay{ font-variant-numeric: tabular-nums; font-weight:800; }
 
     .metar-pill{
       display:inline-flex;
@@ -224,7 +216,6 @@
       font-weight: 800;
     }
 
-    /* PEMA region group header row */
     .group-row td{
       background: rgba(9, 15, 28, .96);
       border-top: 1px solid rgba(255,255,255,.14);
@@ -240,7 +231,6 @@
       margin-left: 10px;
     }
 
-    /* Tooltip */
     .tooltip{
       position: fixed;
       z-index: 9999;
@@ -259,12 +249,8 @@
       white-space: pre-wrap;
       line-height: 1.25;
     }
-    .tooltip.show{
-      opacity:1;
-      transform: translateY(0);
-    }
+    .tooltip.show{ opacity:1; transform: translateY(0); }
 
-    /* Modal */
     .modal-backdrop{
       position: fixed;
       inset: 0;
@@ -303,10 +289,7 @@
       align-items:center;
       flex-wrap:wrap;
     }
-    .modal-body{
-      padding: 14px;
-      color: var(--text);
-    }
+    .modal-body{ padding: 14px; color: var(--text); }
     .mono{
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       font-size: 12px;
@@ -358,7 +341,6 @@
 
 <main>
   <div class="section">
-    <!-- Removed the section title row entirely -->
     <table>
       <thead>
         <tr>
@@ -400,7 +382,7 @@
 
 <script>
   /***********************
-   * Sticky header height → CSS var for table header sticky top
+   * Make table header sticky directly under the page header
    ***********************/
   function setStickyTop(){
     const header = document.getElementById("pageHeader");
@@ -473,7 +455,7 @@
   /***********************
    * 3) Live data store
    ***********************/
-  const liveByIcao = {}; // { KXXX: {status, delay, cat, raw, ceilingFt, windTxt, visSM, tempF, wxText} }
+  const liveByIcao = {};
 
   function statusToDotClass(status){
     const s = (status || "").toLowerCase();
@@ -511,9 +493,6 @@
     `;
   }
 
-  /***********************
-   * 4) Date formatting (mm/dd/yy at hh:mm hours)
-   ***********************/
   function pad2(n){ return String(n).padStart(2,"0"); }
   function formatLastUpdate(dt){
     const mm = pad2(dt.getMonth()+1);
@@ -524,9 +503,6 @@
     return `${mm}/${dd}/${yy} at ${hh}:${mi} hours`;
   }
 
-  /***********************
-   * 5) METAR parsing helpers
-   ***********************/
   function cToF(c){
     if (c === null || c === undefined) return null;
     const f = (c * 9/5) + 32;
@@ -579,7 +555,6 @@
   function parseCeilingFt(raw){
     const s = (raw || "").trim();
     if(!s || s === "—") return "—";
-
     const matches = Array.from(s.matchAll(/\b(BKN|OVC|VV)(\d{3})\b/g));
     if(!matches.length) return "—";
 
@@ -596,7 +571,6 @@
   function parseWind(raw){
     const s = (raw || "").trim();
     if(!s || s === "—") return "—";
-
     const m = s.match(/\b(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT\b/);
     if(!m) return "—";
 
@@ -685,40 +659,30 @@
       }
     }
 
-    if(!decoded.length) return "—";
-    return decoded.slice(0, 2).join(", ");
+    return decoded.length ? decoded.slice(0, 2).join(", ") : "—";
   }
 
   function parseMetar(raw){
     const clean = (raw || "").trim();
-    if(!clean || clean === "—") return { ceilingFt:null, windTxt:null, visSM:null, tempF:null, wxText:null };
+    if(!clean || clean === "—") return { ceilingFt:"—", windTxt:"—", visSM:"—", tempF:"—", wxText:"—" };
 
     const ceilingFt = parseCeilingFt(clean);
     const windTxt = parseWind(clean);
-    const visSM = parseVisibilitySM(clean);
+    const visSM = parseVisibilitySM(clean) || "—";
     const tempC = parseTempC(clean);
-    const tempF = (tempC === null) ? null : cToF(tempC);
+    const tempF = (tempC === null) ? "—" : `${cToF(tempC)}°F`;
     const wxText = parseWxText(clean);
 
-    return {
-      ceilingFt,
-      windTxt,
-      visSM,
-      tempF: (tempF === null ? null : `${tempF}°F`),
-      wxText
-    };
+    return { ceilingFt, windTxt, visSM, tempF, wxText };
   }
 
-  /***********************
-   * 6) Rendering
-   ***********************/
   function rowHTML(a){
     const d = liveByIcao[a.icao] || {
       status:"Unknown", delay:"—", cat:"—", raw:"—",
       ceilingFt:"—", windTxt:"—", visSM:"—", tempF:"—", wxText:"—"
     };
-    const dot = statusToDotClass(d.status);
 
+    const dot = statusToDotClass(d.status);
     const airportTitle = `${a.name} (${a.icao})`;
     const countyLine = a.county ? `${a.county} County` : "";
     const raw = (d.raw || "—");
@@ -779,9 +743,6 @@
     document.getElementById("airBody").innerHTML = html;
   }
 
-  /***********************
-   * 7) Live data fetch (every 5 minutes)
-   ***********************/
   async function refreshLive() {
     try {
       const url = `data/airports_live.json?ts=${Date.now()}`;
@@ -823,9 +784,6 @@
     }
   }
 
-  /***********************
-   * 8) Tooltip + modal for METAR raw
-   ***********************/
   const tooltip = document.getElementById("tooltip");
   let tipVisible = false;
 
@@ -891,9 +849,6 @@
     openMetarModal(icao, cat, raw, vis, temp, wx);
   });
 
-  /***********************
-   * 9) Auto-scroll (down → fast to top)
-   ***********************/
   let autoScrollOn = true;
   const scrollState = document.getElementById("scrollState");
   const autoScrollPill = document.getElementById("autoScrollPill");
@@ -970,1018 +925,10 @@
     }, scrollConfig.tickMs);
   }
 
-  /***********************
-   * 10) Start-up
-   ***********************/
   window.addEventListener("load", async () => {
     setStickyTop();
     window.addEventListener("resize", setStickyTop);
 
-    render();
-    await refreshLive();
-    setInterval(refreshLive, 5 * 60 * 1000);
-    startAutoScrollLoop();
-  });
-</script>
-
-</body>
-</html><!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PA Airports Status Board</title>
-  <style>
-    :root{
-      --bg:#0b1220;
-      --panel:#0f1a2e;
-      --panel2:#0c1526;
-      --text:#e8eefc;
-      --muted:#a9b7d6;
-      --line:rgba(255,255,255,.12);
-
-      --ok:#2ecc71;
-      --warn:#f1c40f;
-      --bad:#e74c3c;
-      --na:#7f8c8d;
-
-      --pill:#1b2a45;
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-      --radius:14px;
-    }
-
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      background: linear-gradient(180deg, #071022 0%, #050b16 100%);
-      color:var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    }
-
-    header{
-      position:sticky;
-      top:0;
-      z-index:10;
-      background: rgba(7,16,34,.92);
-      backdrop-filter: blur(8px);
-      border-bottom:1px solid var(--line);
-    }
-
-    .header-inner{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:14px 18px;
-      gap:12px;
-    }
-
-    .title{
-      font-size:18px;
-      font-weight:700;
-      letter-spacing:.3px;
-      display:flex;
-      align-items:center;
-      gap:10px;
-      white-space:nowrap;
-    }
-
-    .sub{
-      color:var(--muted);
-      font-size:12px;
-      margin-top:2px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      max-width:60vw;
-    }
-
-    .right-controls{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-
-    .pill{
-      background: rgba(27,42,69,.75);
-      border:1px solid var(--line);
-      padding:8px 10px;
-      border-radius:999px;
-      font-size:12px;
-      color:var(--text);
-      display:inline-flex;
-      gap:8px;
-      align-items:center;
-      user-select:none;
-    }
-
-    .pill.clickable{
-      cursor:pointer;
-    }
-    .pill.clickable:hover{
-      filter:brightness(1.1);
-    }
-
-    .btn{
-      cursor:pointer;
-      background: rgba(27,42,69,.85);
-      border:1px solid var(--line);
-      color:var(--text);
-      padding:8px 12px;
-      border-radius:10px;
-      font-size:12px;
-      user-select:none;
-    }
-    .btn:hover{ filter:brightness(1.1); }
-
-    main{
-      padding:14px 18px 24px;
-    }
-
-    .section{
-      background: rgba(15,26,46,.72);
-      border:1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      margin-bottom:14px;
-    }
-
-    .section-header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:12px 14px;
-      background: rgba(12,21,38,.85);
-      border-bottom:1px solid var(--line);
-    }
-
-    .section-title{
-      font-weight:800;
-      letter-spacing:.25px;
-      font-size:14px;
-    }
-
-    table{
-      width:100%;
-      border-collapse:collapse;
-    }
-
-    thead th{
-      text-align:left;
-      font-size:12px;
-      color:var(--muted);
-      font-weight:700;
-      padding:10px 14px;
-      border-bottom:1px solid var(--line);
-      background: rgba(15,26,46,.55);
-      position: sticky;
-      top: 56px;
-      z-index: 5;
-    }
-
-    tbody td{
-      padding:10px 14px;
-      border-bottom:1px solid rgba(255,255,255,.06);
-      font-size:13px;
-      vertical-align:middle;
-    }
-
-    tbody tr:hover{
-      background: rgba(255,255,255,.04);
-    }
-
-    .airport{
-      font-weight:800;
-      letter-spacing:.2px;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .airport .name{
-      font-weight:600;
-      color:var(--muted);
-      font-size:12px;
-    }
-
-    .status-pill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(27,42,69,.55);
-      width:fit-content;
-      font-size:12px;
-      font-weight:800;
-    }
-
-    .dot{
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      display:inline-block;
-    }
-    .ok{ background: var(--ok); }
-    .warn{ background: var(--warn); }
-    .bad{ background: var(--bad); }
-    .na{ background: var(--na); }
-
-    .delay{
-      font-variant-numeric: tabular-nums;
-      font-weight:800;
-    }
-
-    .metar-pill{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--line);
-      background: rgba(27,42,69,.55);
-      font-weight:900;
-      font-size:12px;
-      letter-spacing:.3px;
-      cursor: default;
-      user-select:none;
-      position: relative;
-      min-width: 56px;
-    }
-
-    .metar-pill[data-cat="VFR"]{ outline: 1px solid rgba(46,204,113,.45); }
-    .metar-pill[data-cat="MVFR"]{ outline: 1px solid rgba(241,196,15,.45); }
-    .metar-pill[data-cat="IFR"],
-    .metar-pill[data-cat="LIFR"]{ outline: 1px solid rgba(231,76,60,.45); }
-
-    .mono-inline{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-variant-numeric: tabular-nums;
-      font-weight: 800;
-    }
-
-    /* PEMA region group header row */
-    .group-row td{
-      background: rgba(9, 15, 28, .96);
-      border-top: 1px solid rgba(255,255,255,.14);
-      border-bottom: 1px solid rgba(255,255,255,.14);
-      padding: 10px 14px;
-      font-weight: 900;
-      letter-spacing: .3px;
-    }
-    .group-row .group-meta{
-      font-weight: 700;
-      color: var(--muted);
-      font-size: 12px;
-      margin-left: 10px;
-    }
-
-    /* Tooltip */
-    .tooltip{
-      position: fixed;
-      z-index: 9999;
-      pointer-events:none;
-      background: rgba(0,0,0,.88);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,.18);
-      padding: 8px 10px;
-      border-radius: 10px;
-      font-size: 12px;
-      max-width: min(560px, 86vw);
-      box-shadow: var(--shadow);
-      opacity: 0;
-      transform: translateY(6px);
-      transition: opacity .08s ease, transform .08s ease;
-      white-space: pre-wrap;
-      line-height: 1.25;
-    }
-    .tooltip.show{
-      opacity:1;
-      transform: translateY(0);
-    }
-
-    /* Modal */
-    .modal-backdrop{
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.55);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index: 10000;
-      padding: 18px;
-    }
-    .modal-backdrop.show{ display:flex; }
-
-    .modal{
-      width: min(900px, 96vw);
-      background: rgba(15,26,46,.96);
-      border:1px solid rgba(255,255,255,.18);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .modal-header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding: 12px 14px;
-      background: rgba(12,21,38,.9);
-      border-bottom:1px solid rgba(255,255,255,.14);
-      gap: 10px;
-    }
-    .modal-title{
-      font-weight: 900;
-      letter-spacing:.2px;
-      font-size: 14px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    .modal-body{
-      padding: 14px;
-      color: var(--text);
-    }
-    .mono{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
-      background: rgba(0,0,0,.25);
-      border:1px solid rgba(255,255,255,.12);
-      border-radius: 12px;
-      padding: 12px;
-      white-space: pre-wrap;
-      line-height: 1.35;
-    }
-    .modal-grid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .kv{
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.18);
-      border-radius: 12px;
-      padding: 10px 12px;
-    }
-    .kv .k{ color: var(--muted); font-size: 12px; font-weight: 700; }
-    .kv .v{ font-size: 14px; font-weight: 900; margin-top: 4px; }
-    @media (max-width: 760px){
-      .modal-grid{ grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-
-<header>
-  <div class="header-inner">
-    <div>
-      <div class="title">PA Airports Status Board</div>
-      <div class="sub" id="subtitle">
-        Updated every 5 minutes. Last update: <span class="mono-inline" id="lastUpdate">—</span>
-      </div>
-    </div>
-
-    <div class="right-controls">
-      <div class="pill clickable" id="autoScrollPill" title="Click to toggle auto-scroll">
-        Auto-Scroll: <strong id="scrollState">ON</strong>
-      </div>
-      <button class="btn" id="jumpTop">Top</button>
-    </div>
-  </div>
-</header>
-
-<main>
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">PA Airports (Grouped by PEMA Area)</div>
-      <!-- source removed -->
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th style="width:32%;">Airport</th>
-          <th style="width:13%;">Status</th>
-          <th style="width:7%;">Delay</th>
-          <th style="width:7%;">Cat</th>
-          <th style="width:9%;">Ceiling</th>
-          <th style="width:9%;">Wind (Degrees/Knots)</th>
-          <th style="width:8%;">Vis</th>
-          <th style="width:7%;">Temp</th>
-          <th style="width:8%;">Wx</th>
-        </tr>
-      </thead>
-      <tbody id="airBody"></tbody>
-    </table>
-  </div>
-</main>
-
-<div class="tooltip" id="tooltip"></div>
-
-<div class="modal-backdrop" id="modalBackdrop">
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal-header">
-      <div class="modal-title" id="modalTitle">METAR</div>
-      <button class="btn" id="modalClose">Close</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-grid">
-        <div class="kv"><div class="k">Category</div><div class="v" id="mCat">—</div></div>
-        <div class="kv"><div class="k">Visibility</div><div class="v" id="mVis">—</div></div>
-        <div class="kv"><div class="k">Temp</div><div class="v" id="mTemp">—</div></div>
-        <div class="kv"><div class="k">Wx Notes</div><div class="v" id="mWx">—</div></div>
-      </div>
-      <div class="mono" id="modalText"></div>
-    </div>
-  </div>
-</div>
-
-<script>
-  /***********************
-   * 1) PEMA county → region mapping
-   ***********************/
-  const PEMA = {
-    Western: new Set([
-      "Allegheny","Armstrong","Beaver","Butler","Cambria","Cameron","Clarion","Clearfield",
-      "Crawford","Elk","Erie","Fayette","Forest","Greene","Indiana","Jefferson","Lawrence",
-      "McKean","Mercer","Somerset","Venango","Warren","Washington","Westmoreland"
-    ]),
-    Central: new Set([
-      "Adams","Bedford","Blair","Bradford","Centre","Clinton","Cumberland","Dauphin",
-      "Franklin","Fulton","Huntingdon","Juniata","Lancaster","Lebanon","Lycoming","Mifflin",
-      "Perry","Potter","Snyder","Sullivan","Tioga","Union","York"
-    ]),
-    Eastern: new Set([
-      "Berks","Bucks","Carbon","Chester","Columbia","Delaware","Lackawanna","Lehigh",
-      "Luzerne","Monroe","Montgomery","Montour","Northampton","Northumberland",
-      "Philadelphia","Pike","Schuylkill","Susquehanna","Wayne","Wyoming"
-    ])
-  };
-
-  function getPemaRegion(county){
-    if(!county) return "Unknown";
-    if(PEMA.Western.has(county)) return "Western";
-    if(PEMA.Central.has(county)) return "Central";
-    if(PEMA.Eastern.has(county)) return "Eastern";
-    return "Unknown";
-  }
-
-  /***********************
-   * 2) Airports list
-   ***********************/
-  const airportsPA = [
-    // Eastern
-    { icao:"KPHL", name:"Philadelphia Intl", iata:"PHL", county:"Philadelphia" },
-    { icao:"KABE", name:"Lehigh Valley Intl", iata:"ABE", county:"Lehigh" },
-    { icao:"KAVP", name:"Wilkes-Barre/Scranton Intl", iata:"AVP", county:"Luzerne" },
-    { icao:"KHZL", name:"Hazleton Regional", county:"Luzerne" },
-
-    // Central
-    { icao:"KMDT", name:"Harrisburg Intl", iata:"MDT", county:"Dauphin" },
-    { icao:"KCXY", name:"Capital City", county:"Dauphin" },
-    { icao:"KMUI", name:"Muir AAF (FTIG)", county:"Lebanon" },
-    { icao:"KUNV", name:"State College / Univ Park", iata:"SCE", county:"Centre" },
-    { icao:"KAOO", name:"Altoona–Blair County", iata:"AOO", county:"Blair" },
-    { icao:"KLNS", name:"Lancaster", county:"Lancaster" },
-    { icao:"KIPT", name:"Williamsport Regional", iata:"IPT", county:"Lycoming" },
-
-    // Western
-    { icao:"KPIT", name:"Pittsburgh Intl", iata:"PIT", county:"Allegheny" },
-    { icao:"KAGC", name:"Allegheny County", county:"Allegheny" },
-    { icao:"KLBE", name:"Arnold Palmer Regional", iata:"LBE", county:"Westmoreland" },
-    { icao:"KJST", name:"John Murtha Johnstown", iata:"JST", county:"Cambria" },
-    { icao:"KERI", name:"Erie Intl", iata:"ERI", county:"Erie" },
-    { icao:"KDUJ", name:"DuBois Regional", county:"Jefferson" },
-    { icao:"KBFD", name:"Bradford Regional", county:"McKean" },
-    { icao:"KBTP", name:"Butler County", county:"Butler" },
-    { icao:"KFKL", name:"Venango Regional (Franklin)", county:"Venango" },
-    { icao:"KIDI", name:"Indiana County (Jimmy Stewart Field)", county:"Indiana" }
-  ];
-
-  /***********************
-   * 3) Live data store
-   ***********************/
-  const liveByIcao = {}; // { KXXX: {status, delay, cat, raw, ceilingFt, windTxt, visSM, tempF, wxText} }
-
-  function statusToDotClass(status){
-    const s = (status || "").toLowerCase();
-    if (s === "ok") return "ok";
-    if (s.includes("delay") || s.includes("deicing") || s.includes("weather")) return "warn";
-    if (s.includes("ground stop") || s.includes("closed")) return "bad";
-    return "na";
-  }
-
-  function escapeAttr(str){
-    return String(str)
-      .replaceAll("&","&amp;")
-      .replaceAll("\"","&quot;")
-      .replaceAll("'","&#39;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;");
-  }
-
-  function groupOrder(region){
-    if(region === "Western") return 1;
-    if(region === "Central") return 2;
-    if(region === "Eastern") return 3;
-    return 9;
-  }
-
-  function groupHeaderHTML(regionName, count){
-    const label = `${regionName} Area`;
-    return `
-      <tr class="group-row">
-        <td colspan="9">
-          ${label}
-          <span class="group-meta">(${count} airport${count === 1 ? "" : "s"})</span>
-        </td>
-      </tr>
-    `;
-  }
-
-  /***********************
-   * 4) Date formatting (mm/dd/yy at hh:mm hours)
-   ***********************/
-  function pad2(n){ return String(n).padStart(2,"0"); }
-  function formatLastUpdate(dt){
-    const mm = pad2(dt.getMonth()+1);
-    const dd = pad2(dt.getDate());
-    const yy = pad2(dt.getFullYear() % 100);
-    const hh = pad2(dt.getHours());
-    const mi = pad2(dt.getMinutes());
-    return `${mm}/${dd}/${yy} at ${hh}:${mi} hours`;
-  }
-
-  /***********************
-   * 5) METAR parsing helpers (best-effort from raw METAR text)
-   ***********************/
-  function cToF(c){
-    if (c === null || c === undefined) return null;
-    const f = (c * 9/5) + 32;
-    return Math.round(f);
-  }
-
-  function parseTempC(raw){
-    const m = raw.match(/\s(M?\d{2})\/(M?\d{2})\s/);
-    if(!m) return null;
-    const t = m[1];
-    const tempC = t.startsWith("M") ? -Number(t.slice(1)) : Number(t);
-    return Number.isFinite(tempC) ? tempC : null;
-  }
-
-  function fracToFloat(frac){
-    const m = frac.match(/^(\d+)\/(\d+)$/);
-    if(!m) return NaN;
-    const a = Number(m[1]);
-    const b = Number(m[2]);
-    if(!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return NaN;
-    return a / b;
-  }
-
-  function parseVisibilitySM(raw){
-    const m = raw.match(/\s(M?\d{1,2}\s\d\/\d|M?\d\/\d|P\d{1,2}|\d{1,2})SM\s/);
-    if(!m) return null;
-    const token = m[1].trim();
-
-    if(token.startsWith("P")) return `>${token.slice(1)} SM`;
-    if(token.startsWith("M")) return `<${token.slice(1)} SM`;
-
-    if(token.includes(" ")){
-      const [whole, frac] = token.split(" ");
-      const val = Number(whole) + fracToFloat(frac);
-      if(Number.isFinite(val)) return `${val} SM`;
-      return `${token} SM`;
-    }
-
-    if(token.includes("/")){
-      const val = fracToFloat(token);
-      if(Number.isFinite(val)) return `${val} SM`;
-      return `${token} SM`;
-    }
-
-    const n = Number(token);
-    if(Number.isFinite(n)) return `${n} SM`;
-    return null;
-  }
-
-  // Ceiling: lowest BKN/OVC/VV layer (feet)
-  function parseCeilingFt(raw){
-    const s = (raw || "").trim();
-    if(!s || s === "—") return "—";
-
-    const matches = Array.from(s.matchAll(/\b(BKN|OVC|VV)(\d{3})\b/g));
-    if(!matches.length) return "—";
-
-    let lowest = null;
-    for(const m of matches){
-      const hundreds = parseInt(m[2], 10);
-      if(!Number.isFinite(hundreds)) continue;
-      const ft = hundreds * 100;
-      if(lowest === null || ft < lowest) lowest = ft;
-    }
-    return (lowest === null) ? "—" : `${lowest} ft`;
-  }
-
-  // Wind: e.g., 27012G20KT, VRB03KT, 00000KT
-  function parseWind(raw){
-    const s = (raw || "").trim();
-    if(!s || s === "—") return "—";
-
-    const m = s.match(/\b(\d{3}|VRB)(\d{2,3})(G(\d{2,3}))?KT\b/);
-    if(!m) return "—";
-
-    const dir = m[1];
-    const spd = parseInt(m[2], 10);
-    const gst = m[4] ? parseInt(m[4], 10) : null;
-
-    if(!Number.isFinite(spd)) return "—";
-
-    // Compact display for board
-    if(dir === "000" && spd === 0) return "Calm";
-    if(dir === "VRB") return gst ? `VRB ${spd}G${gst}` : `VRB ${spd}`;
-    return gst ? `${dir} ${spd}G${gst}` : `${dir} ${spd}`;
-  }
-
-  // Decode METAR wx into plain English
-  function decodeWxToken(tok){
-    let t = (tok || "").trim().toUpperCase();
-    if(!t) return null;
-
-    let intensity = "";
-    if(t.startsWith("+")) { intensity = "Heavy "; t = t.slice(1); }
-    else if(t.startsWith("-")) { intensity = "Light "; t = t.slice(1); }
-
-    const descriptors = {
-      MI:"Shallow", PR:"Partial", BC:"Patches", DR:"Low drifting", BL:"Blowing",
-      SH:"Showers", TS:"Thunderstorms", FZ:"Freezing"
-    };
-
-    const phenomena = {
-      DZ:"Drizzle", RA:"Rain", SN:"Snow", SG:"Snow grains", IC:"Ice crystals",
-      PL:"Ice pellets", GR:"Hail", GS:"Small hail", UP:"Unknown precip",
-
-      BR:"Mist", FG:"Fog", FU:"Smoke", VA:"Volcanic ash", DU:"Dust",
-      SA:"Sand", HZ:"Haze", PY:"Spray"
-    };
-
-    const parts = [];
-    for(let i=0; i<t.length; i+=2) parts.push(t.slice(i,i+2));
-
-    const desc = [];
-    const phen = [];
-    for(const p of parts){
-      if(descriptors[p]) desc.push(descriptors[p]);
-      else if(phenomena[p]) phen.push(phenomena[p]);
-    }
-    if(!desc.length && !phen.length) return null;
-
-    const hasTS = desc.includes("Thunderstorms");
-    const hasSH = desc.includes("Showers");
-    const hasFZ = desc.includes("Freezing");
-
-    let phrase = "";
-    if(hasTS && phen.length){
-      phrase = `Thunderstorms with ${phen.join(" and ").toLowerCase()}`;
-    } else if(hasSH && phen.length === 1){
-      phrase = `${phen[0].toLowerCase()} showers`;
-    } else if(hasFZ && phen.length === 1){
-      phrase = `Freezing ${phen[0].toLowerCase()}`;
-    } else if(phen.length){
-      phrase = phen.join(" and ").toLowerCase();
-    } else {
-      phrase = desc.join(" ").toLowerCase();
-    }
-
-    phrase = phrase.charAt(0).toUpperCase() + phrase.slice(1);
-    return (intensity + phrase).trim();
-  }
-
-  function parseWxText(raw){
-    const tokens = (raw || "").trim().split(/\s+/);
-    const decoded = [];
-    const seen = new Set();
-
-    for(const t of tokens){
-      if(!t) continue;
-      if(!/^[+\-]?[A-Z]{2,8}$/.test(t)) continue;
-
-      // Skip non-wx tokens
-      if(/^(AUTO|COR|RMK|NOSIG)$/.test(t)) continue;
-      if(/^A\d{4}$/.test(t)) continue;
-      if(/^\d{6}Z$/.test(t)) continue;
-      if(/^\d{3}\d{2,3}(G\d{2,3})?KT$/.test(t)) continue;
-      if(/^(P?\d{1,2}SM|M?\d\/\dSM|M?\d{1,2}\s\d\/\dSM)$/.test(t)) continue;
-      if(/^(FEW|SCT|BKN|OVC|VV)\d{3}$/.test(t)) continue;
-
-      const text = decodeWxToken(t);
-      if(text && !seen.has(text)){
-        decoded.push(text);
-        seen.add(text);
-      }
-    }
-
-    // dash if nothing
-    if(!decoded.length) return "—";
-    return decoded.slice(0, 2).join(", ");
-  }
-
-  function parseMetar(raw){
-    const clean = (raw || "").trim();
-    if(!clean || clean === "—") return { ceilingFt:null, windTxt:null, visSM:null, tempF:null, wxText:null };
-
-    const ceilingFt = parseCeilingFt(clean);
-    const windTxt = parseWind(clean);
-    const vis = parseVisibilitySM(clean);
-    const tempC = parseTempC(clean);
-    const tempF = (tempC === null) ? null : cToF(tempC);
-    const wxText = parseWxText(clean);
-
-    return {
-      ceilingFt,
-      windTxt,
-      visSM: vis,
-      tempF: (tempF === null ? null : `${tempF}°F`),
-      wxText
-    };
-  }
-
-  /***********************
-   * 6) Rendering
-   ***********************/
-  function rowHTML(a){
-    const d = liveByIcao[a.icao] || {
-      status:"Unknown", delay:"—", cat:"—", raw:"—",
-      ceilingFt:"—", windTxt:"—", visSM:"—", tempF:"—", wxText:"—"
-    };
-    const dot = statusToDotClass(d.status);
-
-    const airportTitle = `${a.name} (${a.icao})`;
-    const countyLine = a.county ? `${a.county} County` : "";
-
-    const raw = (d.raw || "—");
-
-    return `
-      <tr>
-        <td>
-          <div class="airport">
-            <div>${airportTitle}</div>
-            <div class="name">${countyLine}</div>
-          </div>
-        </td>
-        <td>
-          <span class="status-pill">
-            <span class="dot ${dot}"></span>
-            <span>${d.status || "—"}</span>
-          </span>
-        </td>
-        <td class="delay">${d.delay ?? "—"}</td>
-        <td>
-          <span class="metar-pill"
-                data-cat="${d.cat || "—"}"
-                data-icao="${a.icao}"
-                data-raw="${escapeAttr(raw)}"
-                data-vis="${escapeAttr(d.visSM || "—")}"
-                data-temp="${escapeAttr(d.tempF || "—")}"
-                data-wx="${escapeAttr(d.wxText || "—")}">
-            ${d.cat || "—"}
-          </span>
-        </td>
-        <td class="mono-inline">${d.ceilingFt || "—"}</td>
-        <td class="mono-inline">${d.windTxt || "—"}</td>
-        <td class="mono-inline">${d.visSM || "—"}</td>
-        <td class="mono-inline">${d.tempF || "—"}</td>
-        <td>${d.wxText || "—"}</td>
-      </tr>
-    `;
-  }
-
-  function render(){
-    const list = airportsPA.map(a => ({
-      ...a,
-      pemaRegion: getPemaRegion(a.county)
-    }));
-
-    list.sort((a,b) => {
-      const go = groupOrder(a.pemaRegion) - groupOrder(b.pemaRegion);
-      if(go !== 0) return go;
-      return a.icao.localeCompare(b.icao);
-    });
-
-    const order = ["Western","Central","Eastern","Unknown"];
-    let html = "";
-    for(const r of order){
-      const grp = list.filter(x => x.pemaRegion === r);
-      if(!grp.length) continue;
-      html += groupHeaderHTML(r, grp.length);
-      html += grp.map(rowHTML).join("");
-    }
-
-    document.getElementById("airBody").innerHTML = html;
-  }
-
-  /***********************
-   * 7) Live data fetch (every 5 minutes)
-   ***********************/
-  async function refreshLive() {
-    try {
-      const url = `data/airports_live.json?ts=${Date.now()}`;
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const data = await res.json();
-      const airports = data?.airports || {};
-
-      for (const [icao, v] of Object.entries(airports)) {
-        const raw = v.metarRaw ?? v.raw ?? "—";
-        const parsed = parseMetar(raw);
-
-        liveByIcao[icao] = {
-          status: v.status ?? "Unknown",
-          delay: v.delay ?? "—",
-          cat: v.metarCat ?? v.cat ?? "—",
-          raw: raw,
-
-          ceilingFt: parsed.ceilingFt || "—",
-          windTxt: parsed.windTxt || "—",
-          visSM: parsed.visSM || "—",
-          tempF: parsed.tempF || "—",
-          wxText: parsed.wxText || "—"
-        };
-      }
-
-      render();
-
-      // Header last-update in your format
-      const last = document.getElementById("lastUpdate");
-      if (last) {
-        const dt = data?.generatedAt ? new Date(data.generatedAt) : new Date();
-        last.textContent = formatLastUpdate(dt);
-      }
-    } catch (err) {
-      console.warn("refreshLive failed:", err);
-      render();
-      const last = document.getElementById("lastUpdate");
-      if (last) last.textContent = "live data unavailable";
-    }
-  }
-
-  /***********************
-   * 8) Tooltip + modal for METAR raw
-   ***********************/
-  const tooltip = document.getElementById("tooltip");
-  let tipVisible = false;
-
-  function showTip(text, x, y){
-    tooltip.textContent = text;
-    tooltip.style.left = (x + 14) + "px";
-    tooltip.style.top  = (y + 14) + "px";
-    tooltip.classList.add("show");
-    tipVisible = true;
-  }
-  function moveTip(x, y){
-    if(!tipVisible) return;
-    tooltip.style.left = (x + 14) + "px";
-    tooltip.style.top  = (y + 14) + "px";
-  }
-  function hideTip(){
-    tooltip.classList.remove("show");
-    tipVisible = false;
-  }
-
-  // Modal
-  const modalBackdrop = document.getElementById("modalBackdrop");
-  const modalTitle = document.getElementById("modalTitle");
-  const modalText = document.getElementById("modalText");
-  const mCat = document.getElementById("mCat");
-  const mVis = document.getElementById("mVis");
-  const mTemp = document.getElementById("mTemp");
-  const mWx = document.getElementById("mWx");
-
-  document.getElementById("modalClose").addEventListener("click", () => modalBackdrop.classList.remove("show"));
-  modalBackdrop.addEventListener("click", (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove("show"); });
-  window.addEventListener("keydown", (e) => { if(e.key === "Escape") modalBackdrop.classList.remove("show"); });
-
-  function openMetarModal(icao, cat, raw, vis, temp, wx){
-    modalTitle.textContent = `${icao} — METAR`;
-    mCat.textContent = cat || "—";
-    mVis.textContent = vis || "—";
-    mTemp.textContent = temp || "—";
-    mWx.textContent = wx || "—";
-    modalText.textContent = raw || "—";
-    modalBackdrop.classList.add("show");
-  }
-
-  document.addEventListener("mouseover", (e) => {
-    const pill = e.target.closest(".metar-pill");
-    if(!pill) return;
-    const raw = pill.getAttribute("data-raw") || "—";
-    showTip(raw, e.clientX, e.clientY);
-  });
-  document.addEventListener("mousemove", (e) => moveTip(e.clientX, e.clientY));
-  document.addEventListener("mouseout", (e) => {
-    if(e.target.closest(".metar-pill")) hideTip();
-  });
-
-  document.addEventListener("click", (e) => {
-    const pill = e.target.closest(".metar-pill");
-    if(!pill) return;
-    const icao = pill.getAttribute("data-icao");
-    const cat  = pill.getAttribute("data-cat");
-    const raw  = pill.getAttribute("data-raw");
-    const vis  = pill.getAttribute("data-vis");
-    const temp = pill.getAttribute("data-temp");
-    const wx   = pill.getAttribute("data-wx");
-    openMetarModal(icao, cat, raw, vis, temp, wx);
-  });
-
-  /***********************
-   * 9) Auto-scroll (down → fast to top)
-   ***********************/
-  let autoScrollOn = true;
-  const scrollState = document.getElementById("scrollState");
-  const autoScrollPill = document.getElementById("autoScrollPill");
-
-  const scrollConfig = {
-    pixelsPerTick: 1,
-    tickMs: 18,
-    bottomPauseMs: 1400,
-    topPauseMs: 600,
-    jumpToTopMs: 120
-  };
-
-  function setScrollState(){
-    scrollState.textContent = autoScrollOn ? "ON" : "OFF";
-  }
-  setScrollState();
-
-  autoScrollPill.addEventListener("click", () => {
-    autoScrollOn = !autoScrollOn;
-    setScrollState();
-  });
-
-  document.getElementById("jumpTop").addEventListener("click", () => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  });
-
-  let scrollTimer = null;
-  let pauseTimer = null;
-
-  function clearTimers(){
-    if(scrollTimer) { clearInterval(scrollTimer); scrollTimer = null; }
-    if(pauseTimer)  { clearTimeout(pauseTimer); pauseTimer = null; }
-  }
-
-  function smoothJumpToTop(durationMs){
-    const start = window.scrollY;
-    const startTime = performance.now();
-
-    function step(t){
-      const p = Math.min(1, (t - startTime) / durationMs);
-      const eased = 1 - Math.pow(1 - p, 3);
-      window.scrollTo(0, Math.round(start * (1 - eased)));
-      if(p < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-
-  function startAutoScrollLoop(){
-    clearTimers();
-
-    scrollTimer = setInterval(() => {
-      if(!autoScrollOn) return;
-
-      const atBottom = (window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 2);
-      if(atBottom){
-        clearInterval(scrollTimer);
-        scrollTimer = null;
-
-        pauseTimer = setTimeout(() => {
-          if(!autoScrollOn) return;
-
-          smoothJumpToTop(scrollConfig.jumpToTopMs);
-
-          pauseTimer = setTimeout(() => {
-            startAutoScrollLoop();
-          }, scrollConfig.topPauseMs);
-
-        }, scrollConfig.bottomPauseMs);
-
-        return;
-      }
-
-      window.scrollBy(0, scrollConfig.pixelsPerTick);
-    }, scrollConfig.tickMs);
-  }
-
-  /***********************
-   * 10) Start-up
-   ***********************/
-  window.addEventListener("load", async () => {
     render();
     await refreshLive();
     setInterval(refreshLive, 5 * 60 * 1000);
