@@ -228,6 +228,22 @@
     .metar-pill[data-cat="IFR"],
     .metar-pill[data-cat="LIFR"]{ outline: 1px solid rgba(231,76,60,.45); }
 
+    /* PEMA region group header row */
+    .group-row td{
+      background: rgba(9, 15, 28, .96);
+      border-top: 1px solid rgba(255,255,255,.14);
+      border-bottom: 1px solid rgba(255,255,255,.14);
+      padding: 10px 14px;
+      font-weight: 900;
+      letter-spacing: .3px;
+    }
+    .group-row .group-meta{
+      font-weight: 700;
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: 10px;
+    }
+
     /* Tooltip */
     .tooltip{
       position: fixed;
@@ -313,7 +329,7 @@
   <div class="header-inner">
     <div>
       <div class="title">PA Airports Status Board</div>
-      <div class="sub" id="subtitle">Status + Delay + METAR category (hover/click for raw)</div>
+      <div class="sub" id="subtitle">One list, grouped by PEMA region • Status + Delay + METAR category (hover/click for raw)</div>
     </div>
 
     <div class="right-controls">
@@ -325,11 +341,10 @@
 </header>
 
 <main>
-
   <div class="section">
     <div class="section-header">
-      <div class="section-title">NAS Status PA Airports</div>
-      <div class="section-meta" id="nasMeta">Last Updated: —</div>
+      <div class="section-title">PA Airports (Grouped by PEMA Region)</div>
+      <div class="section-meta" id="airMeta">Last Updated: —</div>
     </div>
 
     <table>
@@ -341,29 +356,9 @@
           <th style="width:22%;">METAR</th>
         </tr>
       </thead>
-      <tbody id="nasBody"></tbody>
+      <tbody id="airBody"></tbody>
     </table>
   </div>
-
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">Expanded PA Airports</div>
-      <div class="section-meta" id="expMeta">Last Updated: —</div>
-    </div>
-
-    <table>
-      <thead>
-        <tr>
-          <th style="width:44%;">Airport</th>
-          <th style="width:22%;">Status</th>
-          <th style="width:12%;">Delay</th>
-          <th style="width:22%;">METAR</th>
-        </tr>
-      </thead>
-      <tbody id="expBody"></tbody>
-    </table>
-  </div>
-
 </main>
 
 <div class="tooltip" id="tooltip"></div>
@@ -382,61 +377,92 @@
 
 <script>
   /***********************
-   * 1) Airport lists
+   * 1) PEMA county → region mapping
+   *    (If you want to provide your exact list later, we can swap this block.)
    ***********************/
-  const nasPA = [
-    { icao:"KPHL", name:"Philadelphia Intl", iata:"PHL" },
-    { icao:"KPIT", name:"Pittsburgh Intl", iata:"PIT" },
-    { icao:"KMDT", name:"Harrisburg Intl", iata:"MDT" },
-    { icao:"KABE", name:"Lehigh Valley Intl", iata:"ABE" },
-    { icao:"KAVP", name:"Wilkes-Barre/Scranton Intl", iata:"AVP" },
-    { icao:"KERI", name:"Erie Intl", iata:"ERI" },
-    { icao:"KUNV", name:"State College / Univ Park", iata:"SCE" },
-    { icao:"KLBE", name:"Arnold Palmer Regional", iata:"LBE" },
-    { icao:"KJST", name:"John Murtha Johnstown", iata:"JST" },
-    { icao:"KAOO", name:"Altoona–Blair County", iata:"AOO" }
-  ];
+  const PEMA = {
+    Western: new Set([
+      "Allegheny","Armstrong","Beaver","Butler","Cambria","Cameron","Clarion","Clearfield",
+      "Crawford","Elk","Erie","Fayette","Forest","Greene","Indiana","Jefferson","Lawrence",
+      "McKean","Mercer","Somerset","Venango","Warren","Washington","Westmoreland"
+    ]),
+    Central: new Set([
+      "Adams","Bedford","Blair","Bradford","Centre","Clinton","Cumberland","Dauphin",
+      "Franklin","Fulton","Huntingdon","Juniata","Lancaster","Lebanon","Lycoming","Mifflin",
+      "Perry","Potter","Snyder","Sullivan","Tioga","Union","York"
+    ]),
+    Eastern: new Set([
+      "Berks","Bucks","Carbon","Chester","Columbia","Delaware","Lackawanna","Lehigh",
+      "Luzerne","Monroe","Montgomery","Montour","Northampton","Northumberland",
+      "Philadelphia","Pike","Schuylkill","Susquehanna","Wayne","Wyoming"
+    ])
+  };
 
-  const expandedPA = [
-    // include all NAS list airports too? (you said "both lists show" — leaving lists separate)
-    { icao:"KBFD", name:"Bradford Regional" },
-    { icao:"KDUJ", name:"DuBois Regional" },
-    { icao:"KCXY", name:"Capital City" },
-    { icao:"KLNS", name:"Lancaster" },
-    { icao:"KAGC", name:"Allegheny County" },
-    { icao:"KBTP", name:"Butler County" },
-    { icao:"KFKL", name:"Venango Regional (Franklin)" },
-    { icao:"KIDI", name:"Indiana County (Jimmy Stewart Field)" },
-    { icao:"KHZL", name:"Hazleton Regional" },
-    { icao:"KMUI", name:"Muir AAF (FTIG)" }
+  function getPemaRegion(county){
+    if(!county) return "Unknown";
+    if(PEMA.Western.has(county)) return "Western";
+    if(PEMA.Central.has(county)) return "Central";
+    if(PEMA.Eastern.has(county)) return "Eastern";
+    return "Unknown";
+  }
+
+  /***********************
+   * 2) One combined list (county added)
+   ***********************/
+  const airportsPA = [
+    // Eastern
+    { icao:"KPHL", name:"Philadelphia Intl", iata:"PHL", county:"Philadelphia" },
+    { icao:"KABE", name:"Lehigh Valley Intl", iata:"ABE", county:"Lehigh" },
+    { icao:"KAVP", name:"Wilkes-Barre/Scranton Intl", iata:"AVP", county:"Luzerne" },
+    { icao:"KHZL", name:"Hazleton Regional", county:"Luzerne" },
+
+    // Central
+    { icao:"KMDT", name:"Harrisburg Intl", iata:"MDT", county:"Dauphin" },
+    { icao:"KCXY", name:"Capital City", county:"Dauphin" },
+    { icao:"KMUI", name:"Muir AAF (FTIG)", county:"Lebanon" },
+    { icao:"KUNV", name:"State College / Univ Park", iata:"SCE", county:"Centre" },
+    { icao:"KAOO", name:"Altoona–Blair County", iata:"AOO", county:"Blair" },
+    { icao:"KLNS", name:"Lancaster", county:"Lancaster" },
+    { icao:"KIPT", name:"Williamsport Regional", iata:"IPT", county:"Lycoming" },
+
+    // Western
+    { icao:"KPIT", name:"Pittsburgh Intl", iata:"PIT", county:"Allegheny" },
+    { icao:"KAGC", name:"Allegheny County", county:"Allegheny" },
+    { icao:"KLBE", name:"Arnold Palmer Regional", iata:"LBE", county:"Westmoreland" },
+    { icao:"KJST", name:"John Murtha Johnstown", iata:"JST", county:"Cambria" },
+    { icao:"KERI", name:"Erie Intl", iata:"ERI", county:"Erie" },
+    { icao:"KDUJ", name:"DuBois Regional", county:"Jefferson" },
+    { icao:"KBFD", name:"Bradford Regional", county:"McKean" },
+    { icao:"KBTP", name:"Butler County", county:"Butler" },
+    { icao:"KFKL", name:"Venango Regional (Franklin)", county:"Venango" },
+    { icao:"KIDI", name:"Indiana County (Jimmy Stewart Field)", county:"Indiana" }
   ];
 
   /***********************
-   * 2) Stub data (replace later with live NAS + METAR)
+   * 3) Stub data (replace later with live NAS + METAR)
    ***********************/
-  // status: OK / Delay / Ground Stop / Closed / Deicing / Weather / Unknown
   const stub = {
-    "KPHL": { status:"Delay", delay:"45", cat:"IFR", raw:"KPHL 051751Z 09012KT 2SM -RA BR OVC008 05/04 A2990 RMK AO2" },
-    "KPIT": { status:"OK", delay:"—", cat:"MVFR", raw:"KPIT 051751Z 25008KT 6SM -DZ OVC025 06/04 A2996 RMK AO2" },
-    "KMDT": { status:"OK", delay:"—", cat:"VFR", raw:"KMDT 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
-    "KABE": { status:"OK", delay:"—", cat:"VFR", raw:"KABE 051751Z 23007KT 10SM SCT060 07/01 A3000 RMK AO2" },
+    "KPHL": { status:"Delay", delay:"45", cat:"IFR",  raw:"KPHL 051751Z 09012KT 2SM -RA BR OVC008 05/04 A2990 RMK AO2" },
+    "KPIT": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KPIT 051751Z 25008KT 6SM -DZ OVC025 06/04 A2996 RMK AO2" },
+    "KMDT": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KMDT 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
+    "KABE": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KABE 051751Z 23007KT 10SM SCT060 07/01 A3000 RMK AO2" },
     "KAVP": { status:"Weather", delay:"—", cat:"IFR", raw:"KAVP 051754Z 12009KT 1 1/2SM -SN OVC006 M01/M03 A2988 RMK AO2" },
-    "KERI": { status:"OK", delay:"—", cat:"MVFR", raw:"KERI 051751Z 28011KT 5SM BR BKN020 04/02 A2994 RMK AO2" },
-    "KUNV": { status:"OK", delay:"—", cat:"VFR", raw:"KUNV 051753Z 21005KT 10SM FEW050 06/01 A3003 RMK AO2" },
-    "KLBE": { status:"OK", delay:"—", cat:"VFR", raw:"KLBE 051753Z 23006KT 10SM SCT055 06/02 A3001 RMK AO2" },
+    "KERI": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KERI 051751Z 28011KT 5SM BR BKN020 04/02 A2994 RMK AO2" },
+    "KUNV": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KUNV 051753Z 21005KT 10SM FEW050 06/01 A3003 RMK AO2" },
+    "KLBE": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KLBE 051753Z 23006KT 10SM SCT055 06/02 A3001 RMK AO2" },
     "KJST": { status:"Deicing", delay:"—", cat:"MVFR", raw:"KJST 051754Z 30010KT 6SM -SN OVC018 00/M02 A2991 RMK AO2" },
-    "KAOO": { status:"OK", delay:"—", cat:"VFR", raw:"KAOO 051753Z 22005KT 10SM SCT060 06/01 A3002 RMK AO2" },
-
-    "KBFD": { status:"OK", delay:"—", cat:"IFR", raw:"KBFD 051755Z 32009KT 2SM -SN OVC009 M02/M04 A2986 RMK AO2" },
-    "KDUJ": { status:"OK", delay:"—", cat:"MVFR", raw:"KDUJ 051754Z 29008KT 5SM BR OVC020 03/01 A2993 RMK AO2" },
-    "KCXY": { status:"OK", delay:"—", cat:"VFR", raw:"KCXY 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
-    "KLNS": { status:"OK", delay:"—", cat:"VFR", raw:"KLNS 051753Z 23006KT 10SM FEW060 07/01 A3000 RMK AO2" },
-    "KAGC": { status:"OK", delay:"—", cat:"MVFR", raw:"KAGC 051751Z 26007KT 6SM -DZ OVC025 05/03 A2997 RMK AO2" },
-    "KBTP": { status:"OK", delay:"—", cat:"VFR", raw:"KBTP 051753Z 25006KT 10SM SCT055 06/02 A3000 RMK AO2" },
-    "KFKL": { status:"OK", delay:"—", cat:"MVFR", raw:"KFKL 051752Z 29010KT 5SM BR BKN018 OVC030 03/01 A2992 RMK AO2" },
-    "KIDI": { status:"OK", delay:"—", cat:"VFR", raw:"KIDI 051753Z 24005KT 10SM SCT060 05/01 A3001 RMK AO2" },
-    "KHZL": { status:"OK", delay:"—", cat:"IFR", raw:"KHZL 051754Z 11007KT 2SM -SN OVC007 00/M02 A2989 RMK AO2" },
-    "KMUI": { status:"OK", delay:"—", cat:"VFR", raw:"KMUI 051756Z 20007KT 10SM SCT050 07/02 A3001 RMK AO2" }
+    "KAOO": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KAOO 051753Z 22005KT 10SM SCT060 06/01 A3002 RMK AO2" },
+    "KBFD": { status:"OK",    delay:"—",  cat:"IFR",  raw:"KBFD 051755Z 32009KT 2SM -SN OVC009 M02/M04 A2986 RMK AO2" },
+    "KDUJ": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KDUJ 051754Z 29008KT 5SM BR OVC020 03/01 A2993 RMK AO2" },
+    "KCXY": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KCXY 051756Z 20006KT 10SM SCT050 07/02 A3001 RMK AO2" },
+    "KLNS": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KLNS 051753Z 23006KT 10SM FEW060 07/01 A3000 RMK AO2" },
+    "KAGC": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KAGC 051751Z 26007KT 6SM -DZ OVC025 05/03 A2997 RMK AO2" },
+    "KBTP": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KBTP 051753Z 25006KT 10SM SCT055 06/02 A3000 RMK AO2" },
+    "KFKL": { status:"OK",    delay:"—",  cat:"MVFR", raw:"KFKL 051752Z 29010KT 5SM BR BKN018 OVC030 03/01 A2992 RMK AO2" },
+    "KIDI": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KIDI 051753Z 24005KT 10SM SCT060 05/01 A3001 RMK AO2" },
+    "KHZL": { status:"OK",    delay:"—",  cat:"IFR",  raw:"KHZL 051754Z 11007KT 2SM -SN OVC007 00/M02 A2989 RMK AO2" },
+    "KMUI": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KMUI 051756Z 20007KT 10SM SCT050 07/02 A3001 RMK AO2" },
+    "KIPT": { status:"OK",    delay:"—",  cat:"VFR",  raw:"KIPT 051754Z 22005KT 10SM SCT060 06/01 A3002 RMK AO2" }
   };
 
   function statusToDotClass(status){
@@ -447,13 +473,34 @@
     return "na";
   }
 
-  /***********************
-   * 3) Render
-   ***********************/
+  function escapeAttr(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("\"","&quot;")
+      .replaceAll("'","&#39;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;");
+  }
+
+  function groupOrder(region){
+    if(region === "Western") return 1;
+    if(region === "Central") return 2;
+    if(region === "Eastern") return 3;
+    return 9;
+  }
+
   function rowHTML(a){
     const d = stub[a.icao] || { status:"Unknown", delay:"—", cat:"—", raw:"—" };
     const dot = statusToDotClass(d.status);
     const displayAirport = `${a.icao}${a.iata ? " ("+a.iata+")" : ""}`;
+
+    const pemaRegion = getPemaRegion(a.county);
+    const locBits = [
+      a.name || "",
+      (a.county ? `${a.county} County` : ""),
+      (pemaRegion !== "Unknown" ? pemaRegion : "")
+    ].filter(Boolean).join(" • ");
+
     const raw = (d.raw || "—");
 
     return `
@@ -461,7 +508,7 @@
         <td>
           <div class="airport">
             <div>${displayAirport}</div>
-            <div class="name">${a.name || ""}</div>
+            <div class="name">${locBits}</div>
           </div>
         </td>
         <td>
@@ -475,8 +522,7 @@
           <span class="metar-pill"
                 data-cat="${d.cat || "—"}"
                 data-icao="${a.icao}"
-                data-raw="${escapeAttr(raw)}"
-                title="">
+                data-raw="${escapeAttr(raw)}">
             ${d.cat || "—"}
           </span>
         </td>
@@ -484,29 +530,52 @@
     `;
   }
 
-  function escapeAttr(str){
-    return String(str)
-      .replaceAll("&","&amp;")
-      .replaceAll("\"","&quot;")
-      .replaceAll("'","&#39;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;");
+  function groupHeaderHTML(regionName, count){
+    return `
+      <tr class="group-row">
+        <td colspan="4">
+          ${regionName}
+          <span class="group-meta">(${count} airport${count === 1 ? "" : "s"})</span>
+        </td>
+      </tr>
+    `;
   }
 
   function render(){
-    document.getElementById("nasBody").innerHTML = nasPA.map(rowHTML).join("");
-    document.getElementById("expBody").innerHTML = expandedPA.map(rowHTML).join("");
+    // Build list with computed region
+    const list = airportsPA.map(a => ({
+      ...a,
+      pemaRegion: getPemaRegion(a.county)
+    }));
+
+    // Sort by region, then ICAO
+    list.sort((a,b) => {
+      const go = groupOrder(a.pemaRegion) - groupOrder(b.pemaRegion);
+      if(go !== 0) return go;
+      return a.icao.localeCompare(b.icao);
+    });
+
+    // Grouped render
+    const order = ["Western","Central","Eastern","Unknown"];
+    let html = "";
+    for(const r of order){
+      const grp = list.filter(x => x.pemaRegion === r);
+      if(!grp.length) continue;
+      html += groupHeaderHTML(r, grp.length);
+      html += grp.map(rowHTML).join("");
+    }
+
+    document.getElementById("airBody").innerHTML = html;
 
     const now = new Date();
     const ts = now.toLocaleString(undefined, { hour12:false });
-    document.getElementById("nasMeta").textContent = `Last Updated: ${ts}`;
-    document.getElementById("expMeta").textContent = `Last Updated: ${ts}`;
+    document.getElementById("airMeta").textContent = `Last Updated: ${ts}`;
   }
 
   render();
 
   /***********************
-   * 4) Tooltip + modal for METAR raw
+   * Tooltip + modal for METAR raw
    ***********************/
   const tooltip = document.getElementById("tooltip");
   let tipVisible = false;
@@ -563,18 +632,17 @@
   });
 
   /***********************
-   * 5) Auto-scroll (down → fast to top)
+   * Auto-scroll (down → fast to top)
    ***********************/
   let autoScrollOn = true;
   const scrollState = document.getElementById("scrollState");
 
   const scrollConfig = {
-    // tweak these to match your Hazards feel
-    pixelsPerTick: 1,     // smoothness/speed
-    tickMs: 18,           // ~55fps
-    bottomPauseMs: 1400,  // pause at bottom
-    topPauseMs: 600,      // pause at top
-    jumpToTopMs: 120      // fast jump duration
+    pixelsPerTick: 1,
+    tickMs: 18,
+    bottomPauseMs: 1400,
+    topPauseMs: 600,
+    jumpToTopMs: 120
   };
 
   function setScrollState(){
@@ -605,8 +673,7 @@
 
     function step(t){
       const p = Math.min(1, (t - startTime) / durationMs);
-      // easeOutCubic
-      const eased = 1 - Math.pow(1 - p, 3);
+      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
       window.scrollTo(0, Math.round(start * (1 - eased)));
       if(p < 1) requestAnimationFrame(step);
     }
@@ -627,7 +694,6 @@
         pauseTimer = setTimeout(() => {
           if(!autoScrollOn) return;
 
-          // fast to top
           smoothJumpToTop(scrollConfig.jumpToTopMs);
 
           pauseTimer = setTimeout(() => {
@@ -643,14 +709,15 @@
     }, scrollConfig.tickMs);
   }
 
-  // Start scrolling once layout is ready
   window.addEventListener("load", startAutoScrollLoop);
 
   /***********************
-   * 6) Refresh hooks (later)
+   * Refresh hooks (later)
    ***********************/
-  // TODO later: fetch NAS + METAR and update "stub" entries, then rerender just the changed cells.
-  // setInterval(async () => { await refreshLive(); }, 60_000);
+  // TODO: Replace stub data with:
+  // - FAA NAS status for "status" + "delay"
+  // - AviationWeather METAR JSON for "cat" + "raw"
+  // Then call render() or update cells in place.
 </script>
 
 </body>
