@@ -635,8 +635,7 @@ function renderList(elId, items, kind) {
     const div = document.createElement("div");
     div.className = `item ${kind || ""}`;
 
-    if (elId === "closuresList") div.appendChild(buildRoadRowWithCounty(text));
-    else div.appendChild(buildRoadRow(text));
+ div.appendChild(buildRoadRow(text));
 
     el.appendChild(div);
   });
