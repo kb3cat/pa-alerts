@@ -53,6 +53,11 @@
   --ctp:#54a24b;
   --bgm:#b279a2;
   --phi:#e39c37;
+
+  --new-row-bg:#222b36;
+  --new-row-border:#4fa3ff;
+  --new-row-hover:#273241;
+  --new-row-active:#313d4f;
 }
 
 *{ box-sizing:border-box; }
@@ -74,7 +79,7 @@ body{
 
 /* HEADER */
 .topbar{
-  flex:0 0 84px;
+  flex:0 0 96px;
   display:flex;
   justify-content:space-between;
   align-items:flex-start;
@@ -114,6 +119,22 @@ body{
   font-weight:600;
   line-height:1.35;
   max-width:560px;
+}
+
+.report-window-line{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.report-update-count{
+  margin-top:4px;
+  font-size:13px;
+  color:var(--muted);
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 /* MAIN */
@@ -352,7 +373,7 @@ body{
   background:var(--panel);
   border-bottom:1px solid var(--border);
   cursor:pointer;
-  transition:background .15s ease;
+  transition:background .15s ease, box-shadow .15s ease;
 }
 
 .report-row:hover{
@@ -362,6 +383,20 @@ body{
 .report-row.active{
   background:#2b2b31;
   outline:1px solid #3a3a40;
+}
+
+.report-row.is-new{
+  background:var(--new-row-bg);
+  box-shadow: inset 3px 0 0 0 var(--new-row-border);
+}
+
+.report-row.is-new:hover{
+  background:var(--new-row-hover);
+}
+
+.report-row.is-new.active{
+  background:var(--new-row-active);
+  outline:1px solid #4a586e;
 }
 
 .report-row > div{
@@ -511,8 +546,13 @@ body{
     <div class="title">Pennsylvania Storm Reports</div>
     <div class="subtitle" id="subtitle">Source: NWS Storm Reports | Updates every 15 minutes | Last updated: loading...</div>
   </div>
-  <div class="header-right" id="reportWindow">
-    Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
+  <div class="header-right">
+    <div class="report-window-line" id="reportWindow">
+      Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
+    </div>
+    <div class="report-update-count" id="reportUpdateCount">
+      Number of storm reports issued since last update: --
+    </div>
   </div>
 </header>
 
@@ -828,6 +868,13 @@ function renderHeader(data){
 
   document.getElementById("reportWindow").textContent =
     `Storm reports from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
+
+  const newCount = Number.isFinite(Number(data.new_reports_since_last_update))
+    ? Number(data.new_reports_since_last_update)
+    : 0;
+
+  document.getElementById("reportUpdateCount").textContent =
+    `Number of storm reports issued since last update: ${newCount}`;
 }
 
 function renderLegend(){
@@ -921,6 +968,7 @@ function renderReports(data){
     for (const r of officeReports){
       const row = document.createElement("div");
       row.className = "report-row";
+      if (r.is_new) row.classList.add("is-new");
       row.dataset.reportId = r.id;
 
       row.innerHTML = `
@@ -1165,6 +1213,8 @@ async function initBoard(){
       "Source: NWS Storm Reports | Updates every 15 minutes | Load failed";
     document.getElementById("reportWindow").textContent =
       "Storm reports failed to load";
+    document.getElementById("reportUpdateCount").textContent =
+      "Number of storm reports issued since last update: --";
     renderLegend();
   }
 }
