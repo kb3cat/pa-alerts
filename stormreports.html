@@ -17,7 +17,6 @@
   --text:#e9e9ea;
   --muted:#a7a7aa;
 
-  /* SPC/NWS-style report colors */
   --tornado:#ff0000;
   --hail:#00b200;
   --windgust:#0033ff;
@@ -49,9 +48,8 @@
 
   --other:#8e8e93;
 
-  /* Office colors */
   --pbz:#4c78a8;
-  --cle:#72b7b2;
+  --cle:#8d96a0;
   --ctp:#54a24b;
   --bgm:#b279a2;
   --phi:#e39c37;
@@ -955,31 +953,31 @@ function toLatLngRing(coords){
 
 function makeMaskCoordinatesFromGeoJSON(geojson){
   const outerRing = [
-    [30, -90],
-    [50, -90],
-    [50, -60],
-    [30, -60]
+    [90, -180],
+    [90, 180],
+    [-90, 180],
+    [-90, -180]
   ];
 
-  const feature = geojson.features[0];
-  const geom = feature.geometry;
+  const coords = [outerRing];
+  for (const feature of geojson.features){
+    const geom = feature.geometry;
+    if (!geom) continue;
 
-  if (geom.type === "Polygon"){
-    const holes = geom.coordinates.map(ring => toLatLngRing(ring));
-    return [outerRing, ...holes];
-  }
-
-  if (geom.type === "MultiPolygon"){
-    const coords = [outerRing];
-    geom.coordinates.forEach(poly => {
-      poly.forEach(ring => {
+    if (geom.type === "Polygon"){
+      for (const ring of geom.coordinates){
         coords.push(toLatLngRing(ring));
-      });
-    });
-    return coords;
+      }
+    } else if (geom.type === "MultiPolygon"){
+      for (const poly of geom.coordinates){
+        for (const ring of poly){
+          coords.push(toLatLngRing(ring));
+        }
+      }
+    }
   }
 
-  throw new Error("Unsupported Pennsylvania boundary geometry.");
+  return coords;
 }
 
 async function loadOfficePolygons(){
@@ -1001,12 +999,11 @@ async function loadOfficePolygons(){
   if (paMaskLayer) paMaskLayer.remove();
   if (officeLayer) officeLayer.remove();
 
-  const maskCoords = makeMaskCoordinatesFromGeoJSON(pa);
-
-  paMaskLayer = L.polygon(maskCoords, {
+  paMaskLayer = L.polygon(makeMaskCoordinatesFromGeoJSON(pa), {
     stroke: false,
     fillColor: "#000",
-    fillOpacity: 0.30,
+    fillOpacity: 0.28,
+    fillRule: "evenodd",
     interactive: false
   }).addTo(map);
 
@@ -1014,8 +1011,8 @@ async function loadOfficePolygons(){
     filter: feature => OFFICE_ORDER.some(o => o.code === feature.properties.office),
     style: feature => ({
       color: officeColors[feature.properties.office] || "#666",
-      weight: 1.5,
-      opacity: 0.55,
+      weight: 1.2,
+      opacity: 0.60,
       fillColor: officeColors[feature.properties.office] || "#666",
       fillOpacity: 0.10
     })
@@ -1051,18 +1048,15 @@ async function initMap(data){
     const color = getEventColor(r.event, r.magnitude);
 
     const marker = L.circleMarker([r.lat, r.lon], {
-      radius:7,
-      color:"#0b0b0c",
-      weight:1.5,
-      fillColor:color,
-      fillOpacity:0.95
+      radius: 7,
+      color: "#0b0b0c",
+      weight: 1.5,
+      fillColor: color,
+      fillOpacity: 0.95
     }).addTo(map);
 
     marker.bindPopup(buildPopupHtml(r), { maxWidth: 320 });
-
-    marker.on("click", () => {
-      highlightReport(r.id);
-    });
+    marker.on("click", () => highlightReport(r.id));
 
     markerLookup[r.id] = marker;
     markers.push(marker);
@@ -1071,6 +1065,8 @@ async function initMap(data){
   if (markers.length){
     const group = L.featureGroup(markers);
     map.fitBounds(group.getBounds().pad(0.18));
+  } else {
+    map.fitBounds([[39.5, -80.7], [42.4, -74.6]]);
   }
 
   setTimeout(() => {
