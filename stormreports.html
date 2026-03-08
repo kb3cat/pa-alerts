@@ -1229,6 +1229,33 @@ async function initBoard(){
 }
 
 initBoard();
+
+function scheduleNextRefresh(){
+  const now = new Date();
+
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+
+  const minutesPastQuarter = minutes % 15;
+
+  let minutesUntilNext = 15 - minutesPastQuarter;
+
+  if (minutesPastQuarter === 0 && seconds < 10){
+    minutesUntilNext = 15;
+  }
+
+  const delay =
+    (minutesUntilNext * 60 * 1000) -
+    (seconds * 1000) +
+    5000; // buffer so the JSON write finishes
+
+  setTimeout(() => {
+    initBoard();
+    scheduleNextRefresh();
+  }, delay);
+}
+
+scheduleNextRefresh();
 </script>
 </body>
 </html>
