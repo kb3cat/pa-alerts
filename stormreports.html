@@ -127,7 +127,7 @@ body{
   flex:0 0 48%;
   min-height:300px;
   display:grid;
-  grid-template-columns: 64% 36%;
+  grid-template-columns: 52% 48%;
   border-bottom:2px solid var(--border);
   overflow:hidden;
   min-width:0;
@@ -179,12 +179,21 @@ body{
   font-weight:700;
   color:var(--text);
   margin-bottom:8px;
-  line-height:1.25;
+  line-height:1.2;
   border-bottom:1px solid var(--border);
   padding-bottom:6px;
 }
 
-.legend-list,
+.legend-grid,
+.type-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:4px 14px;
+  font-size:13px;
+  line-height:1.25;
+  min-width:0;
+}
+
 .summary-list{
   display:flex;
   flex-direction:column;
@@ -195,15 +204,17 @@ body{
 }
 
 .legend-item,
+.type-item,
 .summary-row{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
+  gap:8px;
   min-width:0;
 }
 
 .legend-left,
+.type-left,
 .summary-label{
   display:flex;
   align-items:center;
@@ -224,10 +235,12 @@ body{
   flex:0 0 10px;
 }
 
+.type-value,
 .summary-value{
   font-weight:700;
   color:var(--text);
   white-space:nowrap;
+  flex:0 0 auto;
 }
 
 .total-card{
@@ -242,18 +255,11 @@ body{
 }
 
 .total-number{
-  margin-top:10px;
-  font-size:60px;
+  margin-top:8px;
+  font-size:64px;
   line-height:1;
   font-weight:800;
   color:var(--text);
-}
-
-.total-label{
-  margin-top:8px;
-  font-size:13px;
-  color:var(--muted);
-  font-weight:600;
 }
 
 /* REPORTS AREA */
@@ -449,10 +455,10 @@ body{
 
 @media (max-width: 1400px){
   .top-section{
-    grid-template-columns: 60% 40%;
+    grid-template-columns: 50% 50%;
   }
   .total-number{
-    font-size:52px;
+    font-size:56px;
   }
 }
 
@@ -474,8 +480,14 @@ body{
     padding:9px 10px;
   }
 
+  .legend-grid,
+  .type-grid{
+    gap:3px 10px;
+    font-size:12px;
+  }
+
   .total-number{
-    font-size:46px;
+    font-size:48px;
   }
 }
 </style>
@@ -501,18 +513,17 @@ body{
     <div class="summary-wrap">
       <div class="summary-card">
         <div class="card-title">Map Legend</div>
-        <div class="legend-list" id="legendList"></div>
+        <div class="legend-grid" id="legendList"></div>
       </div>
 
       <div class="summary-card total-card">
         <div class="card-title">Total Storm Reports (Last 24 Hours)</div>
         <div class="total-number" id="totalReports">0</div>
-        <div class="total-label">Reports</div>
       </div>
 
       <div class="summary-card">
         <div class="card-title">Reports by Type</div>
-        <div class="summary-list" id="reportsByType"></div>
+        <div class="type-grid" id="reportsByType"></div>
       </div>
 
       <div class="summary-card">
@@ -962,13 +973,13 @@ function renderSummary(data){
 
   typeOrder.forEach(key => {
     const row = document.createElement("div");
-    row.className = "summary-row";
+    row.className = "type-item";
     row.innerHTML = `
-      <div class="summary-label">
+      <div class="type-left">
         <span class="summary-dot" style="background:${getCssVar(getSummaryTypeColorVar(key))}"></span>
         <span>${escapeHtml(getTypeDisplayLabel(key))}</span>
       </div>
-      <div class="summary-value">${counts.typeBuckets[key]}</div>
+      <div class="type-value">${counts.typeBuckets[key]}</div>
     `;
     typeEl.appendChild(row);
   });
