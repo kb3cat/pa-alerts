@@ -1179,6 +1179,15 @@ async function initMap(data){
 
   setTimeout(() => {
     map.invalidateSize(true);
+
+    if (initialMapCenter && initialMapZoom !== null){
+      map.setView(initialMapCenter, initialMapZoom, { animate: false });
+    } else if (markers.length){
+      const group = L.featureGroup(markers);
+      fitMapToBoard(group.getBounds());
+    } else {
+      fitMapToBoard(defaultPABounds);
+    }
   }, 200);
 }
 
