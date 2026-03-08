@@ -870,9 +870,21 @@ function buildSummaryCounts(data){
 }
 
 function buildBoardSignature(data){
-  const reportIds = (data.reports || []).map(r => r.id).join("|");
+  const reportSignature = (data.reports || []).map(r => [
+    r.id,
+    r.is_new ? 1 : 0,
+    r.event || "",
+    r.magnitude || "",
+    r.location || "",
+    r.county || "",
+    r.source || "",
+    r.remarks || "",
+    r.report_time || ""
+  ].join("~")).join("|");
+
   const newCount = Number(data.new_reports_since_last_update || 0);
-  return `${data.generated_at || ""}__${newCount}__${reportIds}`;
+
+  return `${newCount}__${reportSignature}`;
 }
 
 function renderHeader(data){
