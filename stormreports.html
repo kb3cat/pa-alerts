@@ -17,6 +17,7 @@
   --text:#e9e9ea;
   --muted:#a7a7aa;
 
+  /* SPC/NWS-style report colors */
   --tornado:#ff0000;
   --hail:#00b200;
   --windgust:#0033ff;
@@ -47,6 +48,13 @@
   --icejamflood:#b76e79;
 
   --other:#8e8e93;
+
+  /* Office colors */
+  --pbz:#4c78a8;
+  --cle:#72b7b2;
+  --ctp:#54a24b;
+  --bgm:#b279a2;
+  --phi:#e39c37;
 }
 
 *{ box-sizing:border-box; }
@@ -123,7 +131,7 @@ body{
   flex:0 0 48%;
   min-height:300px;
   display:grid;
-  grid-template-columns: 52% 48%;
+  grid-template-columns:52% 48%;
   border-bottom:2px solid var(--border);
   overflow:hidden;
   min-width:0;
@@ -151,8 +159,8 @@ body{
   background:var(--bg);
   padding:10px;
   display:grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
   gap:10px;
   min-width:0;
   min-height:0;
@@ -183,7 +191,7 @@ body{
 .legend-grid,
 .type-grid{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:1fr 1fr;
   gap:4px 14px;
   font-size:13px;
   line-height:1.25;
@@ -258,6 +266,12 @@ body{
   color:var(--text);
 }
 
+.office-pbz{ color:var(--pbz); }
+.office-cle{ color:var(--cle); }
+.office-ctp{ color:var(--ctp); }
+.office-bgm{ color:var(--bgm); }
+.office-phi{ color:var(--phi); }
+
 /* REPORTS AREA */
 .reports-shell{
   flex:1 1 auto;
@@ -270,7 +284,7 @@ body{
 .column-header{
   flex:0 0 auto;
   display:grid;
-  grid-template-columns: 90px 165px 90px 170px 130px 150px 1fr;
+  grid-template-columns:90px 165px 90px 170px 130px 150px 1fr;
   gap:0;
   background:var(--panel-dark);
   border-bottom:2px solid var(--border);
@@ -316,7 +330,7 @@ body{
 
 .report-row{
   display:grid;
-  grid-template-columns: 90px 165px 90px 170px 130px 150px 1fr;
+  grid-template-columns:90px 165px 90px 170px 130px 150px 1fr;
   gap:0;
   background:var(--panel);
   border-bottom:1px solid var(--border);
@@ -434,33 +448,22 @@ body{
   font-weight:700;
 }
 
-.wfo-label{
-  background:rgba(24,24,26,.88);
-  color:var(--text);
-  border:1px solid var(--border);
-  padding:2px 6px;
-  border-radius:4px;
-  font-size:11px;
-  font-weight:700;
-  white-space:nowrap;
-}
-
-@media (max-width: 1400px){
+@media (max-width:1400px){
   .top-section{
-    grid-template-columns: 50% 50%;
+    grid-template-columns:50% 50%;
   }
   .total-number{
     font-size:56px;
   }
 }
 
-@media (max-width: 1200px){
+@media (max-width:1200px){
   .title{ font-size:24px; }
   .header-right{ font-size:13px; max-width:430px; }
 
   .column-header,
   .report-row{
-    grid-template-columns: 80px 150px 80px 150px 120px 135px 1fr;
+    grid-template-columns:80px 150px 80px 150px 120px 135px 1fr;
   }
 
   .summary-wrap{
@@ -558,39 +561,13 @@ const officeDisplayName = {
   PHI: "Mount Holly"
 };
 
-/* Placeholder boxes until real boundaries are loaded */
-const officeBoxes = [
-  {
-    code:"PBZ",
-    name:"Pittsburgh (PBZ)",
-    bounds:[[39.70,-80.90],[41.10,-78.20]],
-    label:[40.45,-79.55]
-  },
-  {
-    code:"CLE",
-    name:"Cleveland (CLE)",
-    bounds:[[41.00,-81.00],[42.30,-79.30]],
-    label:[41.65,-80.15]
-  },
-  {
-    code:"CTP",
-    name:"State College (CTP)",
-    bounds:[[39.50,-78.80],[41.60,-76.00]],
-    label:[40.65,-77.20]
-  },
-  {
-    code:"BGM",
-    name:"Binghamton (BGM)",
-    bounds:[[41.55,-76.25],[42.65,-74.25]],
-    label:[42.10,-75.25]
-  },
-  {
-    code:"PHI",
-    name:"Mount Holly (PHI)",
-    bounds:[[39.55,-76.20],[40.55,-74.10]],
-    label:[40.00,-75.10]
-  }
-];
+const officeColors = {
+  PBZ: getComputedStyle(document.documentElement).getPropertyValue("--pbz").trim(),
+  CLE: getComputedStyle(document.documentElement).getPropertyValue("--cle").trim(),
+  CTP: getComputedStyle(document.documentElement).getPropertyValue("--ctp").trim(),
+  BGM: getComputedStyle(document.documentElement).getPropertyValue("--bgm").trim(),
+  PHI: getComputedStyle(document.documentElement).getPropertyValue("--phi").trim()
+};
 
 const legendItems = [
   { label:"Tornado", colorVar:"--tornado" },
@@ -605,8 +582,10 @@ const legendItems = [
 ];
 
 let map;
-const markerLookup = {};
 let mapInitialized = false;
+let officeLayer = null;
+let paMaskLayer = null;
+const markerLookup = {};
 
 function formatDateTimeHeader(dateStr){
   const d = new Date(dateStr);
@@ -881,7 +860,7 @@ function renderSummary(data){
     const row = document.createElement("div");
     row.className = "summary-row";
     row.innerHTML = `
-      <div class="summary-label">${escapeHtml(office.name)} (${escapeHtml(office.code)})</div>
+      <div class="summary-label office-${office.code.toLowerCase()}">${escapeHtml(office.name)} (${escapeHtml(office.code)})</div>
       <div class="summary-value">${counts.byOffice[office.code] || 0}</div>
     `;
     officeEl.appendChild(row);
@@ -970,7 +949,80 @@ function buildPopupHtml(r){
   `;
 }
 
-function initMap(data){
+function toLatLngRing(coords){
+  return coords.map(coord => [coord[1], coord[0]]);
+}
+
+function makeMaskCoordinatesFromGeoJSON(geojson){
+  const outerRing = [
+    [30, -90],
+    [50, -90],
+    [50, -60],
+    [30, -60]
+  ];
+
+  const feature = geojson.features[0];
+  const geom = feature.geometry;
+
+  if (geom.type === "Polygon"){
+    const holes = geom.coordinates.map(ring => toLatLngRing(ring));
+    return [outerRing, ...holes];
+  }
+
+  if (geom.type === "MultiPolygon"){
+    const coords = [outerRing];
+    geom.coordinates.forEach(poly => {
+      poly.forEach(ring => {
+        coords.push(toLatLngRing(ring));
+      });
+    });
+    return coords;
+  }
+
+  throw new Error("Unsupported Pennsylvania boundary geometry.");
+}
+
+async function loadOfficePolygons(){
+  const [paResp, cwaResp] = await Promise.all([
+    fetch(`data/pa_boundary.geojson?ts=${Date.now()}`, { cache: "no-store" }),
+    fetch(`data/cwa_boundaries.geojson?ts=${Date.now()}`, { cache: "no-store" })
+  ]);
+
+  if (!paResp.ok){
+    throw new Error(`Failed to load pa_boundary.geojson (${paResp.status})`);
+  }
+  if (!cwaResp.ok){
+    throw new Error(`Failed to load cwa_boundaries.geojson (${cwaResp.status})`);
+  }
+
+  const pa = await paResp.json();
+  const cwas = await cwaResp.json();
+
+  if (paMaskLayer) paMaskLayer.remove();
+  if (officeLayer) officeLayer.remove();
+
+  const maskCoords = makeMaskCoordinatesFromGeoJSON(pa);
+
+  paMaskLayer = L.polygon(maskCoords, {
+    stroke: false,
+    fillColor: "#000",
+    fillOpacity: 0.30,
+    interactive: false
+  }).addTo(map);
+
+  officeLayer = L.geoJSON(cwas, {
+    filter: feature => OFFICE_ORDER.some(o => o.code === feature.properties.office),
+    style: feature => ({
+      color: officeColors[feature.properties.office] || "#666",
+      weight: 1.5,
+      opacity: 0.55,
+      fillColor: officeColors[feature.properties.office] || "#666",
+      fillOpacity: 0.10
+    })
+  }).addTo(map);
+}
+
+async function initMap(data){
   if (mapInitialized && map){
     map.remove();
     map = null;
@@ -990,60 +1042,7 @@ function initMap(data){
     attribution: "&copy; OpenStreetMap contributors"
   }).addTo(map);
 
-const officeColors = {
-  PBZ: "#4c78a8",
-  CLE: "#72b7b2",
-  CTP: "#54a24b",
-  BGM: "#b279a2",
-  PHI: "#e39c37"
-};
-
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 18,
-  attribution: "&copy; OpenStreetMap contributors"
-}).addTo(map);
-
-loadOfficePolygons();
-async function loadOfficePolygons() {
-
-  const pa = await fetch("data/pa_boundary.geojson").then(r=>r.json());
-  const cwas = await fetch("data/cwa_boundaries.geojson").then(r=>r.json());
-
-  /* Pennsylvania mask */
-
-  const outer = [
-    [-90,30],
-    [-90,50],
-    [-60,50],
-    [-60,30]
-  ];
-
-  const paCoords = pa.features[0].geometry.coordinates[0];
-
-  const maskCoords = [
-    outer,
-    paCoords.map(c => [c[1],c[0]])
-  ];
-
-  L.polygon(maskCoords,{
-    stroke:false,
-    fillColor:"#000",
-    fillOpacity:0.30
-  }).addTo(map);
-
-
-  /* NWS office polygons */
-
-  L.geoJSON(cwas,{
-    style: f => ({
-      color: officeColors[f.properties.office],
-      weight: 2,
-      fillColor: officeColors[f.properties.office],
-      fillOpacity: 0.08
-    })
-  }).addTo(map);
-
-}
+  await loadOfficePolygons();
 
   const markers = [];
   (data.reports || []).forEach(r => {
@@ -1103,11 +1102,11 @@ async function initBoard(){
     renderLegend();
     renderSummary(boardData);
     renderReports(boardData);
-    initMap(boardData);
+    await initMap(boardData);
   } catch (err) {
     console.error("Storm reports board failed to load:", err);
     document.getElementById("subtitle").textContent =
-      `Source: NWS Storm Reports | Updates every 15 minutes | Load failed`;
+      "Source: NWS Storm Reports | Updates every 15 minutes | Load failed";
     document.getElementById("reportWindow").textContent =
       "Storm reports failed to load";
     renderLegend();
