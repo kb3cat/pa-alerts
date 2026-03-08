@@ -1312,9 +1312,27 @@ async function loadBoardData(){
 async function initBoard(force = false){
   try {
     const boardData = await loadBoardData();
+
+    // Save current map view before any DOM updates
+    const hadMap = !!map;
+    const currentCenter = hadMap ? map.getCenter() : null;
+    const currentZoom = hadMap ? map.getZoom() : null;
+
+    // Always update header + summary quietly
+    renderHeader(boardData);
+    renderSummary(boardData);
+
     const newSignature = buildBoardSignature(boardData);
 
+    // If the actual report content didn't change, do not rebuild table/map
     if (!force && newSignature === lastBoardSignature){
+      if (hadMap && currentCenter && currentZoom !== null){
+        requestAnimationFrame(() => {
+          map.invalidateSize({ pan: false, animate: false });
+          map.setView(currentCenter, currentZoom, { animate: false });
+        });
+      }
+      updateScrollToggleUI();
       return;
     }
 
@@ -1322,8 +1340,6 @@ async function initBoard(force = false){
     const previousScrollTop = scrollEl ? scrollEl.scrollTop : 0;
     const wasAutoScrolling = autoScrollEnabled;
 
-    renderHeader(boardData);
-    renderSummary(boardData);
     renderReports(boardData);
     await initMap(boardData);
 
@@ -1336,6 +1352,14 @@ async function initBoard(force = false){
       startAutoScroll();
     } else {
       updateScrollToggleUI();
+    }
+
+    // Re-lock the map view after DOM/layout settles
+    if (hadMap && currentCenter && currentZoom !== null){
+      requestAnimationFrame(() => {
+        map.invalidateSize({ pan: false, animate: false });
+        map.setView(currentCenter, currentZoom, { animate: false });
+      });
     }
 
     lastBoardSignature = newSignature;
