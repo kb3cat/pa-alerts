@@ -680,7 +680,7 @@ const markerLookup = {};
 let autoScrollEnabled = false;
 let autoScrollTimer = null;
 let autoScrollPauseUntil = 0;
-let suppressScrollHandler = false;
+let ignoreScrollEventsUntil = 0;
 let lastBoardSignature = "";
 
 const AUTO_SCROLL_STEP = 1;
@@ -870,21 +870,18 @@ function buildSummaryCounts(data){
 }
 
 function buildBoardSignature(data){
-  const reportSignature = (data.reports || []).map(r => [
-    r.id,
-    r.is_new ? 1 : 0,
+  return (data.reports || []).map(r => [
+    r.id || "",
     r.event || "",
     r.magnitude || "",
     r.location || "",
     r.county || "",
     r.source || "",
     r.remarks || "",
-    r.report_time || ""
+    r.report_time || "",
+    typeof r.lat === "number" ? r.lat : "",
+    typeof r.lon === "number" ? r.lon : ""
   ].join("~")).join("|");
-
-  const newCount = Number(data.new_reports_since_last_update || 0);
-
-  return `${newCount}__${reportSignature}`;
 }
 
 function renderHeader(data){
@@ -1118,6 +1115,10 @@ function stopAutoScroll(updateUI = true){
   if (updateUI) updateScrollToggleUI();
 }
 
+function ignoreProgrammaticScroll(ms = 150){
+  ignoreScrollEventsUntil = Date.now() + ms;
+}
+
 function startAutoScroll(){
   const el = document.getElementById("reportsScroll");
   if (!el) return;
@@ -1142,16 +1143,14 @@ function startAutoScroll(){
     }
 
     if (el.scrollTop >= maxScrollTop - 1){
-      suppressScrollHandler = true;
+      ignoreProgrammaticScroll();
       el.scrollTop = 0;
-      suppressScrollHandler = false;
       autoScrollPauseUntil = Date.now() + AUTO_SCROLL_TOP_PAUSE_MS;
       return;
     }
 
-    suppressScrollHandler = true;
+    ignoreProgrammaticScroll();
     el.scrollTop = Math.min(el.scrollTop + AUTO_SCROLL_STEP, maxScrollTop);
-    suppressScrollHandler = false;
 
     if (el.scrollTop >= maxScrollTop - 1){
       autoScrollPauseUntil = Date.now() + AUTO_SCROLL_BOTTOM_PAUSE_MS;
@@ -1189,7 +1188,7 @@ function attachScrollHandlers(){
   });
 
   el.addEventListener("scroll", () => {
-    if (suppressScrollHandler) return;
+    if (Date.now() < ignoreScrollEventsUntil) return;
     if (autoScrollEnabled){
       stopAutoScroll(true);
     }
@@ -1313,25 +1312,12 @@ async function initBoard(force = false){
   try {
     const boardData = await loadBoardData();
 
-    // Save current map view before any DOM updates
-    const hadMap = !!map;
-    const currentCenter = hadMap ? map.getCenter() : null;
-    const currentZoom = hadMap ? map.getZoom() : null;
-
-    // Always update header + summary quietly
     renderHeader(boardData);
     renderSummary(boardData);
 
     const newSignature = buildBoardSignature(boardData);
 
-    // If the actual report content didn't change, do not rebuild table/map
     if (!force && newSignature === lastBoardSignature){
-      if (hadMap && currentCenter && currentZoom !== null){
-        requestAnimationFrame(() => {
-          map.invalidateSize({ pan: false, animate: false });
-          map.setView(currentCenter, currentZoom, { animate: false });
-        });
-      }
       updateScrollToggleUI();
       return;
     }
@@ -1345,6 +1331,7 @@ async function initBoard(force = false){
 
     const newScrollEl = document.getElementById("reportsScroll");
     if (newScrollEl && !wasAutoScrolling){
+      ignoreProgrammaticScroll(250);
       newScrollEl.scrollTop = previousScrollTop;
     }
 
@@ -1352,14 +1339,6 @@ async function initBoard(force = false){
       startAutoScroll();
     } else {
       updateScrollToggleUI();
-    }
-
-    // Re-lock the map view after DOM/layout settles
-    if (hadMap && currentCenter && currentZoom !== null){
-      requestAnimationFrame(() => {
-        map.invalidateSize({ pan: false, animate: false });
-        map.setView(currentCenter, currentZoom, { animate: false });
-      });
     }
 
     lastBoardSignature = newSignature;
