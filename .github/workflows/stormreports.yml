@@ -6,15 +6,19 @@ on:
 permissions:
   contents: write
 
-jobs:
+concurrency:
+  group: stormreports
+  cancel-in-progress: true
 
+jobs:
   stormreports:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -24,37 +28,34 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests geopandas shapely fiona pyogrio
-
-      # --------------------------------------------------------
-      # Generate storm report JSON
-      # --------------------------------------------------------
+          pip install requests
 
       - name: Generate storm report data
         run: |
           python scripts/build_stormreports.py
 
-      # --------------------------------------------------------
-      # Build Pennsylvania + NWS office boundary GeoJSON
-      # --------------------------------------------------------
-
-      - name: Build boundary GeoJSON
+      - name: Show generated file
         run: |
-          python scripts/build_boundaries.py
+          ls -l data
+          echo "---- stormreports.json ----"
+          head -40 data/stormreports.json || true
 
-      # --------------------------------------------------------
-      # Commit updated data
-      # --------------------------------------------------------
-
-      - name: Commit updated files
+      - name: Commit updated JSON
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           git add data/stormreports.json
-          git add data/cwa_boundaries.geojson
-          git add data/pa_boundary.geojson
 
-          git commit -m "Update storm reports and boundaries" || echo "No changes"
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
 
-          git push
+          git commit -m "Update storm reports"
+
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin main && break
+            echo "Push failed, retrying in 5 seconds..."
+            sleep 5
+          done
