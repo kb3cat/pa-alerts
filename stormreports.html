@@ -58,6 +58,9 @@
   --new-row-border:#4fa3ff;
   --new-row-hover:#273241;
   --new-row-active:#313d4f;
+
+  --scroll-on:#4fa3ff;
+  --scroll-off:#8f9399;
 }
 
 *{ box-sizing:border-box; }
@@ -79,7 +82,7 @@ body{
 
 /* HEADER */
 .topbar{
-  flex:0 0 96px;
+  flex:0 0 84px;
   display:flex;
   justify-content:space-between;
   align-items:flex-start;
@@ -122,16 +125,6 @@ body{
 }
 
 .report-window-line{
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.report-update-count{
-  margin-top:4px;
-  font-size:13px;
-  color:var(--muted);
-  font-weight:700;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -285,18 +278,21 @@ body{
   flex:0 0 auto;
 }
 
-.total-card{
+.total-card,
+.update-card{
   align-items:center;
   justify-content:center;
   text-align:center;
 }
 
-.total-card .card-title{
+.total-card .card-title,
+.update-card .card-title{
   width:100%;
   text-align:center;
 }
 
-.total-number{
+.total-number,
+.update-number{
   margin-top:8px;
   font-size:64px;
   line-height:1;
@@ -322,12 +318,13 @@ body{
 .column-header{
   flex:0 0 auto;
   display:grid;
-  grid-template-columns:90px 165px 90px 170px 130px 150px 1fr;
+  grid-template-columns:90px 165px 90px 170px 130px 150px minmax(0,1fr) 130px;
   gap:0;
   background:var(--panel-dark);
   border-bottom:2px solid var(--border);
   border-top:1px solid var(--border);
   padding-right:12px;
+  align-items:center;
 }
 
 .column-header div{
@@ -340,12 +337,38 @@ body{
   text-overflow:ellipsis;
 }
 
+.scroll-toggle-wrap{
+  text-align:right;
+  padding-right:10px;
+}
+
+.scroll-toggle{
+  background:none;
+  border:none;
+  padding:0;
+  margin:0;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  color:var(--scroll-off);
+  letter-spacing:.2px;
+}
+
+.scroll-toggle:hover{
+  color:var(--text);
+}
+
+.scroll-toggle.is-on{
+  color:var(--scroll-on);
+}
+
 .reports-scroll{
   flex:1 1 auto;
   min-height:0;
   overflow-y:auto;
   overflow-x:hidden;
   background:var(--bg);
+  scroll-behavior:auto;
 }
 
 .office-header{
@@ -504,7 +527,8 @@ body{
   .top-section{
     grid-template-columns:50% 50%;
   }
-  .total-number{
+  .total-number,
+  .update-number{
     font-size:56px;
   }
 }
@@ -513,7 +537,10 @@ body{
   .title{ font-size:24px; }
   .header-right{ font-size:13px; max-width:430px; }
 
-  .column-header,
+  .column-header{
+    grid-template-columns:80px 150px 80px 150px 120px 135px minmax(0,1fr) 118px;
+  }
+
   .report-row{
     grid-template-columns:80px 150px 80px 150px 120px 135px 1fr;
   }
@@ -533,7 +560,8 @@ body{
     font-size:12px;
   }
 
-  .total-number{
+  .total-number,
+  .update-number{
     font-size:48px;
   }
 }
@@ -550,9 +578,6 @@ body{
     <div class="report-window-line" id="reportWindow">
       Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
     </div>
-    <div class="report-update-count" id="reportUpdateCount">
-      Number of storm reports issued since last update: --
-    </div>
   </div>
 </header>
 
@@ -564,18 +589,18 @@ body{
     </div>
 
     <div class="summary-wrap">
-      <div class="summary-card">
-        <div class="card-title">Map Legend</div>
-        <div class="legend-grid" id="legendList"></div>
-      </div>
-
       <div class="summary-card total-card">
         <div class="card-title">Total Storm Reports (Last 24 Hours)</div>
         <div class="total-number" id="totalReports">0</div>
       </div>
 
+      <div class="summary-card update-card">
+        <div class="card-title">Storm Reports Issued Since Last Update</div>
+        <div class="update-number" id="reportsSinceUpdate">0</div>
+      </div>
+
       <div class="summary-card">
-        <div class="card-title">Reports by Type</div>
+        <div class="card-title">Reports by Type / Map Legend</div>
         <div class="type-grid" id="reportsByType"></div>
       </div>
 
@@ -595,6 +620,9 @@ body{
       <div>County</div>
       <div>Source</div>
       <div>Remarks</div>
+      <div class="scroll-toggle-wrap">
+        <button id="scrollToggle" class="scroll-toggle" type="button" aria-pressed="false">Auto Scroll: OFF</button>
+      </div>
     </div>
 
     <div class="reports-scroll" id="reportsScroll"></div>
@@ -628,15 +656,15 @@ const officeColors = {
 };
 
 const legendItems = [
-  { label:"Tornado", colorVar:"--tornado" },
-  { label:"Hail", colorVar:"--hail" },
-  { label:"Wind Gust", colorVar:"--windgust" },
-  { label:"Wind Damage", colorVar:"--winddmg" },
-  { label:"Flash Flood", colorVar:"--flashflood" },
-  { label:"Flood", colorVar:"--flood" },
-  { label:"Snow", colorVar:"--snow" },
-  { label:"Freezing Rain", colorVar:"--freezingrain" },
-  { label:"Other", colorVar:"--other" }
+  { key:"tornado", label:"Tornado", colorVar:"--tornado" },
+  { key:"hail", label:"Hail", colorVar:"--hail" },
+  { key:"windgust", label:"Wind Gust", colorVar:"--windgust" },
+  { key:"winddmg", label:"Wind Damage", colorVar:"--winddmg" },
+  { key:"flashflood", label:"Flash Flood", colorVar:"--flashflood" },
+  { key:"flood", label:"Flood", colorVar:"--flood" },
+  { key:"snow", label:"Snow", colorVar:"--snow" },
+  { key:"freezingrain", label:"Freezing Rain", colorVar:"--freezingrain" },
+  { key:"other", label:"Other", colorVar:"--other" }
 ];
 
 const defaultPABounds = [
@@ -652,6 +680,16 @@ let paMaskLayer = null;
 let initialMapCenter = null;
 let initialMapZoom = null;
 const markerLookup = {};
+
+let autoScrollEnabled = false;
+let autoScrollTimer = null;
+let autoScrollPauseUntil = 0;
+let suppressScrollHandler = false;
+
+const AUTO_SCROLL_STEP = 1;
+const AUTO_SCROLL_INTERVAL_MS = 45;
+const AUTO_SCROLL_TOP_PAUSE_MS = 1800;
+const AUTO_SCROLL_BOTTOM_PAUSE_MS = 1800;
 
 function formatDateTimeHeader(dateStr){
   const d = new Date(dateStr);
@@ -807,23 +845,11 @@ function getTypeDisplayLabel(key){
   return labels[key] || key;
 }
 
-function getSummaryTypeColorVar(key){
-  const map = {
-    tornado: "--tornado",
-    hail: "--hail",
-    windgust: "--windgust",
-    winddmg: "--winddmg",
-    flashflood: "--flashflood",
-    flood: "--flood",
-    snow: "--snow",
-    freezingrain: "--freezingrain",
-    other: "--other"
-  };
-  return map[key] || "--other";
-}
-
 function buildSummaryCounts(data){
   const total = Array.isArray(data.reports) ? data.reports.length : 0;
+  const newReports = Number.isFinite(Number(data.new_reports_since_last_update))
+    ? Number(data.new_reports_since_last_update)
+    : 0;
 
   const byOffice = {};
   OFFICE_ORDER.forEach(o => { byOffice[o.code] = 0; });
@@ -858,7 +884,7 @@ function buildSummaryCounts(data){
     else typeBuckets.other += 1;
   });
 
-  return { total, byOffice, typeBuckets };
+  return { total, newReports, byOffice, typeBuckets };
 }
 
 function renderHeader(data){
@@ -868,60 +894,26 @@ function renderHeader(data){
 
   document.getElementById("reportWindow").textContent =
     `Storm reports from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
-
-  const newCount = Number.isFinite(Number(data.new_reports_since_last_update))
-    ? Number(data.new_reports_since_last_update)
-    : 0;
-
-  document.getElementById("reportUpdateCount").textContent =
-    `Number of storm reports issued since last update: ${newCount}`;
-}
-
-function renderLegend(){
-  const legend = document.getElementById("legendList");
-  legend.innerHTML = "";
-
-  legendItems.forEach(item => {
-    const row = document.createElement("div");
-    row.className = "legend-item";
-    row.innerHTML = `
-      <div class="legend-left">
-        <span class="legend-dot" style="background:${getCssVar(item.colorVar)}"></span>
-        <span>${escapeHtml(item.label)}</span>
-      </div>
-    `;
-    legend.appendChild(row);
-  });
 }
 
 function renderSummary(data){
   const counts = buildSummaryCounts(data);
+
   document.getElementById("totalReports").textContent = counts.total;
+  document.getElementById("reportsSinceUpdate").textContent = counts.newReports;
 
   const typeEl = document.getElementById("reportsByType");
   typeEl.innerHTML = "";
 
-  const typeOrder = [
-    "tornado",
-    "hail",
-    "windgust",
-    "winddmg",
-    "flashflood",
-    "flood",
-    "snow",
-    "freezingrain",
-    "other"
-  ];
-
-  typeOrder.forEach(key => {
+  legendItems.forEach(item => {
     const row = document.createElement("div");
     row.className = "type-item";
     row.innerHTML = `
       <div class="type-left">
-        <span class="summary-dot" style="background:${getCssVar(getSummaryTypeColorVar(key))}"></span>
-        <span>${escapeHtml(getTypeDisplayLabel(key))}</span>
+        <span class="summary-dot" style="background:${getCssVar(item.colorVar)}"></span>
+        <span>${escapeHtml(item.label)}</span>
       </div>
-      <div class="type-value">${counts.typeBuckets[key]}</div>
+      <div class="type-value">${counts.typeBuckets[item.key] || 0}</div>
     `;
     typeEl.appendChild(row);
   });
@@ -984,6 +976,7 @@ function renderReports(data){
       `;
 
       row.addEventListener("click", () => {
+        stopAutoScroll(false);
         highlightReport(r.id);
         if (markerLookup[r.id]){
           map.flyTo([r.lat, r.lon], Math.max(map.getZoom(), 9), { duration: 0.75 });
@@ -1103,6 +1096,106 @@ function fitMapToBoard(bounds){
   });
 }
 
+function updateScrollToggleUI(){
+  const btn = document.getElementById("scrollToggle");
+  if (!btn) return;
+
+  btn.textContent = `Auto Scroll: ${autoScrollEnabled ? "ON" : "OFF"}`;
+  btn.classList.toggle("is-on", autoScrollEnabled);
+  btn.setAttribute("aria-pressed", autoScrollEnabled ? "true" : "false");
+}
+
+function clearAutoScrollTimer(){
+  if (autoScrollTimer){
+    clearInterval(autoScrollTimer);
+    autoScrollTimer = null;
+  }
+}
+
+function stopAutoScroll(updateUI = true){
+  autoScrollEnabled = false;
+  clearAutoScrollTimer();
+  if (updateUI) updateScrollToggleUI();
+}
+
+function startAutoScroll(){
+  const el = document.getElementById("reportsScroll");
+  if (!el) return;
+
+  clearAutoScrollTimer();
+  autoScrollEnabled = true;
+  autoScrollPauseUntil = Date.now() + AUTO_SCROLL_TOP_PAUSE_MS;
+  updateScrollToggleUI();
+
+  if (el.scrollHeight <= el.clientHeight + 2){
+    return;
+  }
+
+  autoScrollTimer = setInterval(() => {
+    if (!autoScrollEnabled) return;
+
+    const maxScrollTop = el.scrollHeight - el.clientHeight;
+    if (maxScrollTop <= 0) return;
+
+    if (Date.now() < autoScrollPauseUntil){
+      return;
+    }
+
+    if (el.scrollTop >= maxScrollTop - 1){
+      suppressScrollHandler = true;
+      el.scrollTop = 0;
+      suppressScrollHandler = false;
+      autoScrollPauseUntil = Date.now() + AUTO_SCROLL_TOP_PAUSE_MS;
+      return;
+    }
+
+    suppressScrollHandler = true;
+    el.scrollTop = Math.min(el.scrollTop + AUTO_SCROLL_STEP, maxScrollTop);
+    suppressScrollHandler = false;
+
+    if (el.scrollTop >= maxScrollTop - 1){
+      autoScrollPauseUntil = Date.now() + AUTO_SCROLL_BOTTOM_PAUSE_MS;
+    }
+  }, AUTO_SCROLL_INTERVAL_MS);
+}
+
+function toggleAutoScroll(){
+  if (autoScrollEnabled){
+    stopAutoScroll(true);
+  } else {
+    startAutoScroll();
+  }
+}
+
+function attachScrollHandlers(){
+  const el = document.getElementById("reportsScroll");
+  const toggle = document.getElementById("scrollToggle");
+  if (!el || !toggle) return;
+
+  toggle.addEventListener("click", () => {
+    toggleAutoScroll();
+  });
+
+  el.addEventListener("wheel", () => {
+    stopAutoScroll(true);
+  }, { passive: true });
+
+  el.addEventListener("touchstart", () => {
+    stopAutoScroll(true);
+  }, { passive: true });
+
+  el.addEventListener("mousedown", () => {
+    stopAutoScroll(true);
+  });
+
+  el.addEventListener("scroll", () => {
+    if (suppressScrollHandler) return;
+    if (autoScrollEnabled){
+      stopAutoScroll(true);
+    }
+  }, { passive: true });
+}
+
 async function initMap(data){
   if (mapInitialized && map){
     map.remove();
@@ -1146,7 +1239,10 @@ async function initMap(data){
     }).addTo(map);
 
     marker.bindPopup(buildPopupHtml(r), { maxWidth: 320 });
-    marker.on("click", () => highlightReport(r.id));
+    marker.on("click", () => {
+      stopAutoScroll(true);
+      highlightReport(r.id);
+    });
 
     markerLookup[r.id] = marker;
     markers.push(marker);
@@ -1212,30 +1308,30 @@ async function initBoard(){
   try {
     const boardData = await loadBoardData();
     renderHeader(boardData);
-    renderLegend();
     renderSummary(boardData);
     renderReports(boardData);
     await initMap(boardData);
+    updateScrollToggleUI();
   } catch (err) {
     console.error("Storm reports board failed to load:", err);
     document.getElementById("subtitle").textContent =
       "Source: NWS Storm Reports | Updates every 15 minutes | Load failed";
     document.getElementById("reportWindow").textContent =
       "Storm reports failed to load";
-    document.getElementById("reportUpdateCount").textContent =
-      "Number of storm reports issued since last update: --";
-    renderLegend();
+    document.getElementById("totalReports").textContent = "0";
+    document.getElementById("reportsSinceUpdate").textContent = "0";
+    updateScrollToggleUI();
   }
 }
 
+attachScrollHandlers();
+updateScrollToggleUI();
 initBoard();
 
 function scheduleNextRefresh(){
   const now = new Date();
-
   const minutes = now.getMinutes();
   const seconds = now.getSeconds();
-
   const minutesPastQuarter = minutes % 15;
 
   let minutesUntilNext = 15 - minutesPastQuarter;
@@ -1247,7 +1343,7 @@ function scheduleNextRefresh(){
   const delay =
     (minutesUntilNext * 60 * 1000) -
     (seconds * 1000) +
-    5000; // buffer so the JSON write finishes
+    5000;
 
   setTimeout(() => {
     initBoard();
