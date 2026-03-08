@@ -1076,7 +1076,7 @@ function buildPopupHtml(r){
 }
 
 async function loadBoardData(){
-  const response = await fetch("stormreports.json", { cache: "no-store" });
+  const response = await fetch("data/stormreports.json?ts=" + Date.now()), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to load stormreports.json (${response.status})`);
   }
