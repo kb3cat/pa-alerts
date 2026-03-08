@@ -1061,13 +1061,18 @@ async function initMap(data){
     markerLookup[r.id] = marker;
     markers.push(marker);
   });
-
-  if (markers.length){
-    const group = L.featureGroup(markers);
-    map.fitBounds(group.getBounds().pad(0.18));
-  } else {
-    map.fitBounds([[39.5, -80.7], [42.4, -74.6]]);
-  }
+if (markers.length){
+  const group = L.featureGroup(markers);
+  map.fitBounds(group.getBounds(), {
+    paddingTopLeft: [40, 20],
+    paddingBottomRight: [240, 60]
+  });
+} else {
+  map.fitBounds([[39.5, -80.7], [42.4, -74.6]], {
+    paddingTopLeft: [40, 20],
+    paddingBottomRight: [240, 60]
+  });
+}
 
   setTimeout(() => {
     map.invalidateSize(true);
