@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>NWS/Pennsylvania Storm Reports</title>
+<title>Pennsylvania Storm Reports</title>
 
 <link
   rel="stylesheet"
@@ -95,11 +95,14 @@ body{
   letter-spacing:.2px;
 }
 
-.last-updated{
+.subtitle{
   margin-top:6px;
   font-size:14px;
   color:var(--muted);
   font-weight:600;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .header-right{
@@ -126,6 +129,8 @@ body{
   display:grid;
   grid-template-columns: 64% 36%;
   border-bottom:2px solid var(--border);
+  overflow:hidden;
+  min-width:0;
 }
 
 /* MAP */
@@ -134,10 +139,13 @@ body{
   background:var(--panel);
   border-right:2px solid var(--border);
   min-width:0;
+  min-height:0;
   overflow:hidden;
 }
 
 #map{
+  position:absolute;
+  inset:0;
   width:100%;
   height:100%;
 }
@@ -151,6 +159,8 @@ body{
   grid-template-rows: 1fr 1fr;
   gap:10px;
   min-width:0;
+  min-height:0;
+  overflow:hidden;
 }
 
 .summary-card{
@@ -158,6 +168,7 @@ body{
   border:1px solid var(--border);
   padding:10px 12px;
   min-width:0;
+  min-height:0;
   display:flex;
   flex-direction:column;
   overflow:hidden;
@@ -473,8 +484,8 @@ body{
 
 <header class="topbar">
   <div class="header-left">
-    <div class="title">NWS/Pennsylvania Storm Reports</div>
-    <div class="last-updated" id="lastUpdated">Last Updated: --/--/-- --:-- hours</div>
+    <div class="title">Pennsylvania Storm Reports</div>
+    <div class="subtitle" id="subtitle">Source: NWS Storm Reports | Updates every 15 minutes | Last updated: --/--/-- --:-- hours</div>
   </div>
   <div class="header-right" id="reportWindow">
     Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
@@ -904,8 +915,9 @@ function buildSummaryCounts(data){
 }
 
 function renderHeader(data){
-  document.getElementById("lastUpdated").textContent =
-    `Last Updated: ${formatDateTimeHeader(data.generated_at)}`;
+  const updated = formatDateTimeHeader(data.generated_at);
+  document.getElementById("subtitle").textContent =
+    `Source: NWS Storm Reports | Updates every 15 minutes | Last updated: ${updated}`;
 
   document.getElementById("reportWindow").textContent =
     `Storm reports from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
@@ -1134,12 +1146,12 @@ function initMap(data){
 
   if (markers.length){
     const group = L.featureGroup(markers);
-    map.fitBounds(group.getBounds().pad(0.12));
+    map.fitBounds(group.getBounds().pad(0.18));
   }
 
   setTimeout(() => {
-    map.invalidateSize();
-  }, 100);
+    map.invalidateSize(true);
+  }, 200);
 }
 
 function buildPopupHtml(r){
