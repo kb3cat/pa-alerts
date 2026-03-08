@@ -134,6 +134,7 @@ body{
   background:var(--panel);
   border-right:2px solid var(--border);
   min-width:0;
+  overflow:hidden;
 }
 
 #map{
@@ -202,7 +203,8 @@ body{
   white-space:nowrap;
 }
 
-.legend-dot{
+.legend-dot,
+.summary-dot{
   width:10px;
   height:10px;
   border-radius:50%;
@@ -226,13 +228,6 @@ body{
 .total-card .card-title{
   width:100%;
   text-align:center;
-}
-
-.total-subtitle{
-  font-size:13px;
-  color:var(--muted);
-  font-weight:600;
-  margin-top:2px;
 }
 
 .total-number{
@@ -781,7 +776,7 @@ function getEventKey(eventName, magnitude){
   if (e.includes("AVALANCHE")) return "avalanche";
   if (e.includes("SLEET")) return "sleet";
   if (e.includes("SNOW/ICE DMG") || e.includes("SNOW ICE DMG") || e.includes("ICE DAMAGE")) return "snowicedmg";
-  if (e.includes("SNOW")) return "snow";
+  if (e.includes("SNOW") || e.includes("HEAVY SNOW")) return "snow";
 
   if (e.includes("DEBRIS FLOW")) return "debrisflow";
   if (e.includes("LANDSLIDE")) return "landslide";
@@ -843,10 +838,8 @@ function getTypeDisplayLabel(key){
   const labels = {
     tornado: "Tornado",
     hail: "Hail",
-    sighail: "Sig Hail",
     windgust: "Wind Gust",
     winddmg: "Wind Damage",
-    sigwind: "Sig Wind",
     flashflood: "Flash Flood",
     flood: "Flood",
     snow: "Snow",
@@ -854,6 +847,21 @@ function getTypeDisplayLabel(key){
     other: "Other"
   };
   return labels[key] || key;
+}
+
+function getSummaryTypeColorVar(key){
+  const map = {
+    tornado: "--tornado",
+    hail: "--hail",
+    windgust: "--windgust",
+    winddmg: "--winddmg",
+    flashflood: "--flashflood",
+    flood: "--flood",
+    snow: "--snow",
+    freezingrain: "--freezingrain",
+    other: "--other"
+  };
+  return map[key] || "--other";
 }
 
 function buildSummaryCounts(data){
@@ -944,7 +952,10 @@ function renderSummary(data){
     const row = document.createElement("div");
     row.className = "summary-row";
     row.innerHTML = `
-      <div class="summary-label">${escapeHtml(getTypeDisplayLabel(key))}</div>
+      <div class="summary-label">
+        <span class="summary-dot" style="background:${getCssVar(getSummaryTypeColorVar(key))}"></span>
+        <span>${escapeHtml(getTypeDisplayLabel(key))}</span>
+      </div>
       <div class="summary-value">${counts.typeBuckets[key]}</div>
     `;
     typeEl.appendChild(row);
@@ -1123,8 +1134,12 @@ function initMap(data){
 
   if (markers.length){
     const group = L.featureGroup(markers);
-    map.fitBounds(group.getBounds().pad(0.18));
+    map.fitBounds(group.getBounds().pad(0.12));
   }
+
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 100);
 }
 
 function buildPopupHtml(r){
