@@ -20,11 +20,36 @@
   --text:#e9e9ea;
   --muted:#a7a7aa;
 
-  --wind:#00bfff;
-  --hail:#29d36a;
-  --tornado:#ff3b30;
-  --flood:#ff9f0a;
-  --winter:#b06cff;
+  /* SPC/NWS-style colors */
+  --tornado:#ff0000;
+  --hail:#00b200;
+  --windgust:#0033ff;
+  --winddmg:#66b2ff;
+  --sighail:#007000;
+  --sigwind:#000099;
+
+  --snow:#19d7e6;
+  --snowsquall:#0b7da7;
+  --blizzard:#800080;
+  --freezingrain:#ff8c00;
+  --avalanche:#c9a0ff;
+  --sleet:#e6e600;
+  --snowicedmg:#ff00ff;
+
+  --rain:#4f8f00;
+  --flood:#7cff00;
+  --flashflood:#00ff00;
+  --debrisflow:#d8a060;
+  --landslide:#b8925c;
+  --lakeshoreflood:#001a66;
+
+  --wildfire:#8b4513;
+  --drought:#c8a200;
+  --fog:#808000;
+  --volcanicash:#9370db;
+  --icejam:#6b1f1f;
+  --icejamflood:#b76e79;
+
   --other:#8e8e93;
 }
 
@@ -83,7 +108,7 @@ body{
   color:var(--text);
   font-weight:600;
   line-height:1.35;
-  max-width:520px;
+  max-width:560px;
 }
 
 /* MAIN */
@@ -113,18 +138,19 @@ body{
   right:12px;
   bottom:12px;
   z-index:500;
-  background:rgba(24,24,26,.92);
+  background:rgba(24,24,26,.94);
   border:1px solid var(--border);
   border-radius:8px;
   padding:8px 10px;
   font-size:12px;
-  line-height:1.5;
+  line-height:1.45;
   box-shadow:0 2px 8px rgba(0,0,0,.35);
+  min-width:160px;
 }
 
 .map-legend .legend-title{
   font-weight:700;
-  margin-bottom:4px;
+  margin-bottom:6px;
   color:var(--text);
 }
 
@@ -133,13 +159,16 @@ body{
   align-items:center;
   gap:7px;
   color:var(--text);
+  margin:2px 0;
 }
 
 .legend-dot{
   width:10px;
   height:10px;
   border-radius:50%;
+  border:1px solid #111;
   display:inline-block;
+  flex:0 0 10px;
 }
 
 /* REPORTS AREA */
@@ -151,30 +180,29 @@ body{
   background:var(--bg);
 }
 
-/* locked row */
+/* Locked column labels */
 .column-header{
   flex:0 0 auto;
   display:grid;
-  grid-template-columns: 90px 160px 90px 170px 130px 150px 1fr;
+  grid-template-columns: 90px 165px 90px 170px 130px 150px 1fr;
   gap:0;
   background:var(--panel-dark);
   border-bottom:2px solid var(--border);
   border-top:1px solid var(--border);
-  padding-right:12px; /* helps align with scroll area */
+  padding-right:12px;
 }
 
 .column-header div{
   padding:10px 10px;
   font-size:13px;
   font-weight:700;
-  text-transform:none;
   color:var(--text);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
-/* scrolling content */
+/* Scrolling content */
 .reports-scroll{
   flex:1 1 auto;
   min-height:0;
@@ -183,7 +211,7 @@ body{
   background:var(--bg);
 }
 
-/* office sections */
+/* Office rows */
 .office-header{
   background:var(--office);
   border-top:1px solid var(--border);
@@ -204,7 +232,7 @@ body{
 
 .report-row{
   display:grid;
-  grid-template-columns: 90px 160px 90px 170px 130px 150px 1fr;
+  grid-template-columns: 90px 165px 90px 170px 130px 150px 1fr;
   gap:0;
   background:var(--panel);
   border-bottom:1px solid var(--border);
@@ -246,15 +274,44 @@ body{
   font-size:11px;
   font-weight:700;
   line-height:1.2;
+  border:1px solid rgba(0,0,0,.45);
   color:#fff;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
-.event-wind{ background:var(--wind); color:#00151d; }
-.event-hail{ background:var(--hail); color:#041a0b; }
-.event-tornado{ background:var(--tornado); }
-.event-flood{ background:var(--flood); color:#241500; }
-.event-winter{ background:var(--winter); }
-.event-other{ background:var(--other); }
+.event-tornado{ background:var(--tornado); color:#fff; }
+.event-hail{ background:var(--hail); color:#001900; }
+.event-sighail{ background:var(--sighail); color:#fff; }
+.event-windgust{ background:var(--windgust); color:#fff; }
+.event-winddmg{ background:var(--winddmg); color:#00151d; }
+.event-sigwind{ background:var(--sigwind); color:#fff; }
+
+.event-snow{ background:var(--snow); color:#002428; }
+.event-snowsquall{ background:var(--snowsquall); color:#fff; }
+.event-blizzard{ background:var(--blizzard); color:#fff; }
+.event-freezingrain{ background:var(--freezingrain); color:#241500; }
+.event-avalanche{ background:var(--avalanche); color:#241532; }
+.event-sleet{ background:var(--sleet); color:#222; }
+.event-snowicedmg{ background:var(--snowicedmg); color:#fff; }
+
+.event-rain{ background:var(--rain); color:#f3ffe6; }
+.event-flood{ background:var(--flood); color:#102400; }
+.event-flashflood{ background:var(--flashflood); color:#002200; }
+.event-debrisflow{ background:var(--debrisflow); color:#2b1a00; }
+.event-landslide{ background:var(--landslide); color:#211200; }
+.event-lakeshoreflood{ background:var(--lakeshoreflood); color:#fff; }
+
+.event-wildfire{ background:var(--wildfire); color:#fff2e8; }
+.event-drought{ background:var(--drought); color:#241d00; }
+.event-fog{ background:var(--fog); color:#fff; }
+.event-volcanicash{ background:var(--volcanicash); color:#fff; }
+.event-icejam{ background:var(--icejam); color:#fff; }
+.event-icejamflood{ background:var(--icejamflood); color:#1d0d0d; }
+
+.event-other{ background:var(--other); color:#fff; }
 
 .remarks{
   white-space:normal;
@@ -262,7 +319,7 @@ body{
   text-overflow:unset;
 }
 
-/* Leaflet popup cleanup */
+/* Leaflet popup */
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip{
   background:#1d1d1f;
@@ -293,9 +350,9 @@ body{
   font-weight:700;
 }
 
-/* WFO label style */
+/* WFO labels */
 .wfo-label{
-  background:rgba(24,24,26,.86);
+  background:rgba(24,24,26,.88);
   color:var(--text);
   border:1px solid var(--border);
   padding:2px 6px;
@@ -307,62 +364,61 @@ body{
 
 @media (max-width: 1200px){
   .title{ font-size:24px; }
-  .header-right{ font-size:13px; max-width:420px; }
+  .header-right{ font-size:13px; max-width:430px; }
   .column-header,
   .report-row{
-    grid-template-columns: 80px 145px 80px 150px 120px 135px 1fr;
+    grid-template-columns: 80px 150px 80px 150px 120px 135px 1fr;
   }
 }
 </style>
 </head>
 <body>
 
-  <header class="topbar">
-    <div class="header-left">
-      <div class="title">NWS/Pennsylvania Storm Reports</div>
-      <div class="last-updated" id="lastUpdated">Last Updated: --/--/-- --:-- hours</div>
+<header class="topbar">
+  <div class="header-left">
+    <div class="title">NWS/Pennsylvania Storm Reports</div>
+    <div class="last-updated" id="lastUpdated">Last Updated: --/--/-- --:-- hours</div>
+  </div>
+  <div class="header-right" id="reportWindow">
+    Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
+  </div>
+</header>
+
+<main class="main">
+  <section class="map-wrap">
+    <div id="map"></div>
+
+    <div class="map-legend">
+      <div class="legend-title">Report Types</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--tornado)"></span> Tornado</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--hail)"></span> Hail</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--windgust)"></span> Wind Gust</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--winddmg)"></span> Wind Damage</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--flashflood)"></span> Flash Flood</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--flood)"></span> Flood</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--snow)"></span> Snow</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--freezingrain)"></span> Freezing Rain</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--other)"></span> Other</div>
     </div>
-    <div class="header-right" id="reportWindow">
-      Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
+  </section>
+
+  <section class="reports-shell">
+    <div class="column-header">
+      <div>Time</div>
+      <div>Event</div>
+      <div>Mag</div>
+      <div>Location</div>
+      <div>County</div>
+      <div>Source</div>
+      <div>Remarks</div>
     </div>
-  </header>
 
-  <main class="main">
-    <section class="map-wrap">
-      <div id="map"></div>
-
-      <div class="map-legend">
-        <div class="legend-title">Report Types</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--wind)"></span> Wind</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--hail)"></span> Hail</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--tornado)"></span> Tornado</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--flood)"></span> Flood</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--winter)"></span> Winter</div>
-        <div class="legend-item"><span class="legend-dot" style="background:var(--other)"></span> Other</div>
-      </div>
-    </section>
-
-    <section class="reports-shell">
-      <div class="column-header">
-        <div>Time</div>
-        <div>Event</div>
-        <div>Mag</div>
-        <div>Location</div>
-        <div>County</div>
-        <div>Source</div>
-        <div>Remarks</div>
-      </div>
-
-      <div class="reports-scroll" id="reportsScroll"></div>
-    </section>
-  </main>
+    <div class="reports-scroll" id="reportsScroll"></div>
+  </section>
+</main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* -------------------------------------------------------
-   MOCK DATA
-   Replace this later with your generated JSON feed.
-------------------------------------------------------- */
 const boardData = {
   generated_at: "2026-03-07T21:15:00-05:00",
   window_start: "2026-03-06T21:15:00-05:00",
@@ -372,7 +428,7 @@ const boardData = {
       id: "PIT-001",
       office: "PIT",
       office_name: "Pittsburgh",
-      event: "Tstm Wnd Dmg",
+      event: "TSTM WND DMG",
       magnitude: "",
       location: "Zelienople",
       county: "Butler",
@@ -386,7 +442,7 @@ const boardData = {
       id: "PIT-002",
       office: "PIT",
       office_name: "Pittsburgh",
-      event: "Hail",
+      event: "HAIL",
       magnitude: '1.00"',
       location: "Beaver Falls",
       county: "Beaver",
@@ -400,12 +456,12 @@ const boardData = {
       id: "CLE-001",
       office: "CLE",
       office_name: "Cleveland",
-      event: "Tstm Wnd Dmg",
-      magnitude: "",
+      event: "TSTM WND GST",
+      magnitude: "58 mph",
       location: "Conneautville",
       county: "Crawford",
       source: "911 Center",
-      remarks: "Multiple trees down in township. Time estimated by radar.",
+      remarks: "Measured gust relayed through county dispatch.",
       report_time: "2026-03-07T18:16:00-05:00",
       lat: 41.758,
       lon: -80.367
@@ -414,12 +470,12 @@ const boardData = {
       id: "CTP-001",
       office: "CTP",
       office_name: "State College",
-      event: "Tstm Wnd Gst",
-      magnitude: "58 mph",
+      event: "TSTM WND DMG",
+      magnitude: "",
       location: "Carlisle",
       county: "Cumberland",
-      source: "ASOS/AWOS",
-      remarks: "Peak thunderstorm wind gust measured at airport.",
+      source: "Emergency Manager",
+      remarks: "Tree and wire damage reported near borough line.",
       report_time: "2026-03-07T18:42:00-05:00",
       lat: 40.193,
       lon: -77.189
@@ -428,7 +484,7 @@ const boardData = {
       id: "CTP-002",
       office: "CTP",
       office_name: "State College",
-      event: "Flood",
+      event: "FLASH FLOOD",
       magnitude: "",
       location: "Harrisburg",
       county: "Dauphin",
@@ -442,7 +498,7 @@ const boardData = {
       id: "BGM-001",
       office: "BGM",
       office_name: "Binghamton",
-      event: "Heavy Snow",
+      event: "HEAVY SNOW",
       magnitude: '2.0"',
       location: "Montrose",
       county: "Susquehanna",
@@ -456,7 +512,7 @@ const boardData = {
       id: "PHI-001",
       office: "PHI",
       office_name: "Mount Holly",
-      event: "Tornado",
+      event: "TORNADO",
       magnitude: "EF0",
       location: "Pottstown",
       county: "Montgomery",
@@ -469,9 +525,6 @@ const boardData = {
   ]
 };
 
-/* -------------------------------------------------------
-   CONFIG
-------------------------------------------------------- */
 const OFFICE_ORDER = [
   { code:"PIT", name:"Pittsburgh" },
   { code:"CLE", name:"Cleveland" },
@@ -488,8 +541,7 @@ const officeDisplayName = {
   PHI: "Mount Holly"
 };
 
-/* Placeholder office boundary rectangles.
-   Replace later with actual GeoJSON boundary data. */
+/* Placeholder WFO boxes until real boundaries are loaded */
 const officeBoxes = [
   {
     code:"PIT",
@@ -523,12 +575,9 @@ const officeBoxes = [
   }
 ];
 
-/* -------------------------------------------------------
-   HELPERS
-------------------------------------------------------- */
 function formatDateTimeHeader(dateStr){
   const d = new Date(dateStr);
-  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const mm = String(d.getMonth() + 1).padStart(2,"0");
   const dd = String(d.getDate()).padStart(2,"0");
   const yy = String(d.getFullYear()).slice(-2);
   const hh = String(d.getHours()).padStart(2,"0");
@@ -538,7 +587,7 @@ function formatDateTimeHeader(dateStr){
 
 function formatWindowText(dateStr){
   const d = new Date(dateStr);
-  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const mm = String(d.getMonth() + 1).padStart(2,"0");
   const dd = String(d.getDate()).padStart(2,"0");
   const yy = String(d.getFullYear()).slice(-2);
   const hh = String(d.getHours()).padStart(2,"0");
@@ -562,33 +611,109 @@ function escapeHtml(str){
     .replaceAll("'","&#039;");
 }
 
-function getEventClass(eventName){
-  const e = (eventName || "").toLowerCase();
-  if (e.includes("tornado") || e.includes("funnel")) return "tornado";
-  if (e.includes("hail")) return "hail";
-  if (e.includes("flood")) return "flood";
-  if (e.includes("snow") || e.includes("ice") || e.includes("winter") || e.includes("blizzard") || e.includes("sleet")) return "winter";
-  if (e.includes("wind")) return "wind";
+function normalizeEventName(eventName){
+  return String(eventName || "").trim().toUpperCase();
+}
+
+function getEventKey(eventName, magnitude){
+  const e = normalizeEventName(eventName);
+  const mag = String(magnitude || "").toUpperCase();
+
+  if (e.includes("TORNADO") || e.includes("FUNNEL")) return "tornado";
+
+  if (e.includes("HAIL")){
+    const numeric = parseFloat(String(magnitude).replace(/[^0-9.]/g, ""));
+    if (!Number.isNaN(numeric) && numeric >= 2.00) return "sighail";
+    if (mag.includes("SIG")) return "sighail";
+    return "hail";
+  }
+
+  if (e.includes("TSTM WND GST") || e.includes("THUNDERSTORM WIND GUST") || e === "NON-TSTM WND GST" || e.includes("NON TSTM WND GST")){
+    const numeric = parseFloat(String(magnitude).replace(/[^0-9.]/g, ""));
+    if (!Number.isNaN(numeric) && numeric >= 75) return "sigwind";
+    if (mag.includes("SIG")) return "sigwind";
+    return "windgust";
+  }
+
+  if (
+    e.includes("TSTM WND DMG") ||
+    e.includes("THUNDERSTORM WIND DAMAGE") ||
+    e.includes("NON-TSTM WND DMG") ||
+    e.includes("NON TSTM WND DMG") ||
+    e.includes("WIND DAMAGE")
+  ) return "winddmg";
+
+  if (e.includes("SIG WIND")) return "sigwind";
+
+  if (e.includes("FLASH FLOOD")) return "flashflood";
+  if (e.includes("LAKESHORE FLD")) return "lakeshoreflood";
+  if (e.includes("FLOOD")) return "flood";
+  if (e === "RAIN" || e.includes("HEAVY RAIN")) return "rain";
+
+  if (e.includes("SNOW SQUALL")) return "snowsquall";
+  if (e.includes("BLIZZARD")) return "blizzard";
+  if (e.includes("FREEZING RAIN")) return "freezingrain";
+  if (e.includes("AVALANCHE")) return "avalanche";
+  if (e.includes("SLEET")) return "sleet";
+  if (e.includes("SNOW/ICE DMG") || e.includes("SNOW ICE DMG") || e.includes("ICE DAMAGE")) return "snowicedmg";
+  if (e.includes("SNOW")) return "snow";
+
+  if (e.includes("DEBRIS FLOW")) return "debrisflow";
+  if (e.includes("LANDSLIDE")) return "landslide";
+
+  if (e.includes("WILDFIRE")) return "wildfire";
+  if (e.includes("DROUGHT")) return "drought";
+  if (e === "FOG" || e.includes("DENSE FOG")) return "fog";
+  if (e.includes("VOLCANIC ASH")) return "volcanicash";
+  if (e.includes("ICE JAM FLOOD")) return "icejamflood";
+  if (e.includes("ICE JAM")) return "icejam";
+
   return "other";
 }
 
-function getEventColor(eventName){
-  const cls = getEventClass(eventName);
-  if (cls === "tornado") return getCssVar("--tornado");
-  if (cls === "hail") return getCssVar("--hail");
-  if (cls === "flood") return getCssVar("--flood");
-  if (cls === "winter") return getCssVar("--winter");
-  if (cls === "wind") return getCssVar("--wind");
-  return getCssVar("--other");
+function getEventCssClass(eventName, magnitude){
+  return `event-${getEventKey(eventName, magnitude)}`;
 }
 
 function getCssVar(name){
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-/* -------------------------------------------------------
-   HEADER
-------------------------------------------------------- */
+function getEventColor(eventName, magnitude){
+  const key = getEventKey(eventName, magnitude);
+
+  const colorMap = {
+    tornado: "--tornado",
+    hail: "--hail",
+    sighail: "--sighail",
+    windgust: "--windgust",
+    winddmg: "--winddmg",
+    sigwind: "--sigwind",
+    snow: "--snow",
+    snowsquall: "--snowsquall",
+    blizzard: "--blizzard",
+    freezingrain: "--freezingrain",
+    avalanche: "--avalanche",
+    sleet: "--sleet",
+    snowicedmg: "--snowicedmg",
+    rain: "--rain",
+    flood: "--flood",
+    flashflood: "--flashflood",
+    debrisflow: "--debrisflow",
+    landslide: "--landslide",
+    lakeshoreflood: "--lakeshoreflood",
+    wildfire: "--wildfire",
+    drought: "--drought",
+    fog: "--fog",
+    volcanicash: "--volcanicash",
+    icejam: "--icejam",
+    icejamflood: "--icejamflood",
+    other: "--other"
+  };
+
+  return getCssVar(colorMap[key] || "--other");
+}
+
 function renderHeader(data){
   document.getElementById("lastUpdated").textContent =
     `Last Updated: ${formatDateTimeHeader(data.generated_at)}`;
@@ -597,16 +722,13 @@ function renderHeader(data){
     `Storm reports from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
 }
 
-/* -------------------------------------------------------
-   REPORTS
-------------------------------------------------------- */
 function renderReports(data){
   const scroll = document.getElementById("reportsScroll");
   scroll.innerHTML = "";
 
   const reportLookup = {};
 
-  const sortedReports = [...data.reports].sort((a,b) =>
+  const sortedReports = [...data.reports].sort((a, b) =>
     new Date(b.report_time) - new Date(a.report_time)
   );
 
@@ -634,7 +756,7 @@ function renderReports(data){
       row.innerHTML = `
         <div class="col-time">${escapeHtml(formatRowTime(r.report_time))}</div>
         <div class="col-event">
-          <span class="event-pill event-${getEventClass(r.event)}">${escapeHtml(r.event)}</span>
+          <span class="event-pill ${getEventCssClass(r.event, r.magnitude)}">${escapeHtml(r.event)}</span>
         </div>
         <div class="col-mag">${escapeHtml(r.magnitude || "—")}</div>
         <div class="col-location">${escapeHtml(r.location || "—")}</div>
@@ -668,9 +790,6 @@ function highlightReport(reportId){
   }
 }
 
-/* -------------------------------------------------------
-   MAP
-------------------------------------------------------- */
 let map;
 const markerLookup = {};
 
@@ -685,7 +804,6 @@ function initMap(data){
     attribution: "&copy; OpenStreetMap contributors"
   }).addTo(map);
 
-  // Placeholder WFO boundary boxes
   officeBoxes.forEach(box => {
     L.rectangle(box.bounds, {
       color:"#5f6670",
@@ -706,12 +824,11 @@ function initMap(data){
     }).addTo(map);
   });
 
-  // Report markers
   const markers = [];
   data.reports.forEach(r => {
     if (typeof r.lat !== "number" || typeof r.lon !== "number") return;
 
-    const color = getEventColor(r.event);
+    const color = getEventColor(r.event, r.magnitude);
 
     const marker = L.circleMarker([r.lat, r.lon], {
       radius:7,
@@ -752,9 +869,6 @@ function buildPopupHtml(r){
   `;
 }
 
-/* -------------------------------------------------------
-   INIT
-------------------------------------------------------- */
 renderHeader(boardData);
 renderReports(boardData);
 initMap(boardData);
