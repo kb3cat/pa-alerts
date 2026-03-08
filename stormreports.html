@@ -550,112 +550,6 @@ body{
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const boardData = {
-  generated_at: "2026-03-07T21:15:00-05:00",
-  window_start: "2026-03-06T21:15:00-05:00",
-  window_end: "2026-03-07T21:15:00-05:00",
-  reports: [
-    {
-      id: "PIT-001",
-      office: "PIT",
-      office_name: "Pittsburgh",
-      event: "TSTM WND DMG",
-      magnitude: "",
-      location: "Zelienople",
-      county: "Butler",
-      source: "Public",
-      remarks: "Trees reported down near Route 19.",
-      report_time: "2026-03-07T20:54:00-05:00",
-      lat: 40.794,
-      lon: -80.136
-    },
-    {
-      id: "PIT-002",
-      office: "PIT",
-      office_name: "Pittsburgh",
-      event: "HAIL",
-      magnitude: '1.00"',
-      location: "Beaver Falls",
-      county: "Beaver",
-      source: "Trained Spotter",
-      remarks: "Quarter size hail reported.",
-      report_time: "2026-03-07T19:42:00-05:00",
-      lat: 40.752,
-      lon: -80.320
-    },
-    {
-      id: "CLE-001",
-      office: "CLE",
-      office_name: "Cleveland",
-      event: "TSTM WND GST",
-      magnitude: "58 mph",
-      location: "Conneautville",
-      county: "Crawford",
-      source: "911 Center",
-      remarks: "Measured gust relayed through county dispatch.",
-      report_time: "2026-03-07T18:16:00-05:00",
-      lat: 41.758,
-      lon: -80.367
-    },
-    {
-      id: "CTP-001",
-      office: "CTP",
-      office_name: "State College",
-      event: "TSTM WND DMG",
-      magnitude: "",
-      location: "Carlisle",
-      county: "Cumberland",
-      source: "Emergency Manager",
-      remarks: "Tree and wire damage reported near borough line.",
-      report_time: "2026-03-07T18:42:00-05:00",
-      lat: 40.193,
-      lon: -77.189
-    },
-    {
-      id: "CTP-002",
-      office: "CTP",
-      office_name: "State College",
-      event: "FLASH FLOOD",
-      magnitude: "",
-      location: "Harrisburg",
-      county: "Dauphin",
-      source: "Emergency Manager",
-      remarks: "Water over roadway reported at several low-lying intersections.",
-      report_time: "2026-03-07T17:58:00-05:00",
-      lat: 40.273,
-      lon: -76.886
-    },
-    {
-      id: "BGM-001",
-      office: "BGM",
-      office_name: "Binghamton",
-      event: "HEAVY SNOW",
-      magnitude: '2.0"',
-      location: "Montrose",
-      county: "Susquehanna",
-      source: "Co-Op Observer",
-      remarks: "Snowfall measured in one hour with heavier bursts continuing.",
-      report_time: "2026-03-07T09:26:00-05:00",
-      lat: 41.833,
-      lon: -75.877
-    },
-    {
-      id: "PHI-001",
-      office: "PHI",
-      office_name: "Mount Holly",
-      event: "TORNADO",
-      magnitude: "EF0",
-      location: "Pottstown",
-      county: "Montgomery",
-      source: "NWS Storm Survey",
-      remarks: "Brief tornado confirmed with minor tree damage.",
-      report_time: "2026-03-07T16:31:00-05:00",
-      lat: 40.245,
-      lon: -75.649
-    }
-  ]
-};
-
 const OFFICE_ORDER = [
   { code:"PIT", name:"Pittsburgh" },
   { code:"CLE", name:"Cleveland" },
@@ -672,6 +566,7 @@ const officeDisplayName = {
   PHI: "Mount Holly"
 };
 
+/* Keep these as placeholders until real CWA boundaries are loaded */
 const officeBoxes = [
   {
     code:"PIT",
@@ -1180,11 +1075,30 @@ function buildPopupHtml(r){
   `;
 }
 
-renderHeader(boardData);
-renderLegend();
-renderSummary(boardData);
-renderReports(boardData);
-initMap(boardData);
+async function loadBoardData(){
+  const response = await fetch("stormreports.json", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to load stormreports.json (${response.status})`);
+  }
+  return await response.json();
+}
+
+async function initBoard(){
+  try {
+    const boardData = await loadBoardData();
+    renderHeader(boardData);
+    renderLegend();
+    renderSummary(boardData);
+    renderReports(boardData);
+    initMap(boardData);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("subtitle").textContent =
+      "Source: NWS Storm Reports | Updates every 15 minutes | Last updated: unavailable";
+  }
+}
+
+initBoard();
 </script>
 </body>
 </html>
