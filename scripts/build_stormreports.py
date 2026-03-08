@@ -78,7 +78,7 @@ def parse_row2(line: str) -> tuple[str, str, str, str, str] | None:
     Typical examples:
     03/08/2026  1.00 INCH  BEAVER            PA  TRAINED SPOTTER
     03/08/2026             BUTLER            PA  PUBLIC
-    03/08/2026  58 MPH     CRAWFORD          PA  911 CENTER
+    03/08/2026  58 MPH     CRAWFORD          PA  911 CALL CENTER
     """
     parts = re.split(r"\s{2,}", line.strip())
 
@@ -142,11 +142,27 @@ def fetch_product_text(product_id: str) -> str:
     return payload.get("productText", "") or payload.get("text", "")
 
 
+def build_report_id(
+    office: str,
+    report_dt: datetime,
+    location: str,
+    county: str,
+    lat: float,
+    lon: float,
+) -> str:
+    safe_loc = re.sub(r"[^A-Za-z0-9]+", "-", location.strip().lower()).strip("-")
+    safe_county = re.sub(r"[^A-Za-z0-9]+", "-", county.strip().lower()).strip("-")
+    safe_loc = safe_loc[:24] if safe_loc else "loc"
+    safe_county = safe_county[:24] if safe_county else "county"
+    lat_part = str(lat).replace("-", "m").replace(".", "")
+    lon_part = str(lon).replace("-", "m").replace(".", "")
+    return f"{office}-{report_dt.strftime('%Y%m%d-%H%M')}-{safe_county}-{safe_loc}-{lat_part}-{lon_part}"
+
+
 def parse_lsr_text(text: str, office: str) -> list[dict]:
     lines = text.splitlines()
     results = []
     idx = 0
-    row_num = 0
 
     while idx < len(lines) - 1:
         line1 = lines[idx].rstrip()
@@ -158,8 +174,6 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
         if not m1 or not row2:
             idx += 1
             continue
-
-        row_num += 1
 
         time_str = clean_spaces(m1.group("time"))
         event = clean_spaces(m1.group("event"))
@@ -203,7 +217,7 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
             remarks = remarks.lstrip(". ").strip()
 
         results.append({
-            "id": f"{office}-{report_dt.strftime('%Y%m%d-%H%M')}-{row_num}",
+            "id": build_report_id(office, report_dt, location, county, lat, lon),
             "office": office,
             "office_name": OFFICES[office],
             "event": event,
