@@ -998,6 +998,12 @@ const officeColors = {
   PHI: "#e39c37"
 };
 
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 18,
+  attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+
+loadOfficePolygons();
 async function loadOfficePolygons() {
 
   const pa = await fetch("data/pa_boundary.geojson").then(r=>r.json());
