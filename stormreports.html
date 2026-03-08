@@ -681,6 +681,7 @@ let autoScrollEnabled = false;
 let autoScrollTimer = null;
 let autoScrollPauseUntil = 0;
 let suppressScrollHandler = false;
+let lastBoardSignature = "";
 
 const AUTO_SCROLL_STEP = 1;
 const AUTO_SCROLL_INTERVAL_MS = 45;
@@ -866,6 +867,12 @@ function buildSummaryCounts(data){
   });
 
   return { total, newReports, byOffice, typeBuckets };
+}
+
+function buildBoardSignature(data){
+  const reportIds = (data.reports || []).map(r => r.id).join("|");
+  const newCount = Number(data.new_reports_since_last_update || 0);
+  return `${data.generated_at || ""}__${newCount}__${reportIds}`;
 }
 
 function renderHeader(data){
@@ -1290,14 +1297,36 @@ async function loadBoardData(){
   return data;
 }
 
-async function initBoard(){
+async function initBoard(force = false){
   try {
     const boardData = await loadBoardData();
+    const newSignature = buildBoardSignature(boardData);
+
+    if (!force && newSignature === lastBoardSignature){
+      return;
+    }
+
+    const scrollEl = document.getElementById("reportsScroll");
+    const previousScrollTop = scrollEl ? scrollEl.scrollTop : 0;
+    const wasAutoScrolling = autoScrollEnabled;
+
     renderHeader(boardData);
     renderSummary(boardData);
     renderReports(boardData);
     await initMap(boardData);
-    updateScrollToggleUI();
+
+    const newScrollEl = document.getElementById("reportsScroll");
+    if (newScrollEl && !wasAutoScrolling){
+      newScrollEl.scrollTop = previousScrollTop;
+    }
+
+    if (wasAutoScrolling){
+      startAutoScroll();
+    } else {
+      updateScrollToggleUI();
+    }
+
+    lastBoardSignature = newSignature;
   } catch (err) {
     console.error("Storm reports board failed to load:", err);
     document.getElementById("subtitle").textContent =
@@ -1312,7 +1341,7 @@ async function initBoard(){
 
 attachScrollHandlers();
 updateScrollToggleUI();
-initBoard();
+initBoard(true);
 
 function scheduleNextRefresh(){
   const now = new Date();
@@ -1332,7 +1361,7 @@ function scheduleNextRefresh(){
     5000;
 
   setTimeout(() => {
-    initBoard();
+    initBoard(false);
     scheduleNextRefresh();
   }, delay);
 }
