@@ -1,4 +1,4 @@
-name: stormreports
+name: Storm Reports
 
 on:
   workflow_dispatch:
@@ -7,11 +7,13 @@ permissions:
   contents: write
 
 jobs:
-  build-stormreports:
+
+  stormreports:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -21,23 +23,38 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          python -m pip install --upgrade pip
+          pip install requests geopandas shapely fiona pyogrio
 
-      - name: Build storm reports JSON
+      # --------------------------------------------------------
+      # Generate storm report JSON
+      # --------------------------------------------------------
+
+      - name: Generate storm report data
         run: |
           python scripts/build_stormreports.py
 
-      - name: Commit updated JSON
+      # --------------------------------------------------------
+      # Build Pennsylvania + NWS office boundary GeoJSON
+      # --------------------------------------------------------
+
+      - name: Build boundary GeoJSON
+        run: |
+          python scripts/build_boundaries.py
+
+      # --------------------------------------------------------
+      # Commit updated data
+      # --------------------------------------------------------
+
+      - name: Commit updated files
         run: |
           git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.email "github-actions@github.com"
 
           git add data/stormreports.json
+          git add data/cwa_boundaries.geojson
+          git add data/pa_boundary.geojson
 
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
+          git commit -m "Update storm reports and boundaries" || echo "No changes"
 
-          git commit -m "Update storm reports"
           git push
