@@ -275,7 +275,44 @@ def filter_last_24_hours(reports: list[dict]) -> tuple[list[dict], datetime, dat
     return filtered, window_start, now_local
 
 
-def build_payload() -> dict:
+def load_previous_payload() -> dict:
+    if not os.path.exists(OUTPUT_FILE):
+        return {}
+
+    try:
+        with open(OUTPUT_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as exc:
+        print(f"Failed to read previous {OUTPUT_FILE}: {exc}")
+        return {}
+
+
+def mark_new_reports(reports: list[dict], previous_payload: dict) -> tuple[list[dict], int]:
+    previous_reports = previous_payload.get("reports", []) if isinstance(previous_payload, dict) else []
+    previous_ids = {
+        report.get("id")
+        for report in previous_reports
+        if isinstance(report, dict) and report.get("id")
+    }
+
+    new_count = 0
+    marked = []
+
+    for report in reports:
+        updated = dict(report)
+        is_new = updated.get("id") not in previous_ids
+        updated["is_new"] = is_new
+        if is_new:
+            new_count += 1
+        marked.append(updated)
+
+    return marked, new_count
+
+
+def build_payload(previous_payload: dict | None = None) -> dict:
+    if previous_payload is None:
+        previous_payload = {}
+
     all_reports = []
 
     for office in OFFICES:
@@ -296,23 +333,29 @@ def build_payload() -> dict:
 
     all_reports = dedupe_reports(all_reports)
     reports, window_start, window_end = filter_last_24_hours(all_reports)
+    reports, new_reports_since_last_update = mark_new_reports(reports, previous_payload)
 
     return {
         "generated_at": window_end.isoformat(timespec="seconds"),
+        "previous_generated_at": previous_payload.get("generated_at"),
         "window_start": window_start.isoformat(timespec="seconds"),
         "window_end": window_end.isoformat(timespec="seconds"),
+        "new_reports_since_last_update": new_reports_since_last_update,
         "reports": reports,
     }
 
 
 def main() -> None:
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
-    payload = build_payload()
+
+    previous_payload = load_previous_payload()
+    payload = build_payload(previous_payload)
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
     print(f"Wrote {len(payload['reports'])} reports to {OUTPUT_FILE}")
+    print(f"New reports since last update: {payload['new_reports_since_last_update']}")
 
 
 if __name__ == "__main__":
