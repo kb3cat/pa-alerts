@@ -1112,10 +1112,13 @@ async function initMap(data){
   }
 
   const resetButton = document.getElementById("mapReset");
-  resetButton.onclick = () => {
-    mapMovedByUser = false;
-    fitMapToBoard(defaultPABounds);
-  };
+resetButton.onclick = () => {
+  mapMovedByUser = false;
+  map.setView([40.9, -77.7], 7, {
+    animate: true,
+    duration: 0.6
+  });
+};
 
   setTimeout(() => {
     map.invalidateSize(true);
