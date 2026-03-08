@@ -813,6 +813,40 @@ function initMap(data){
       dashArray:"4 4"
     }).addTo(map);
 
+    /* --- Pennsylvania focus mask --- */
+
+const paBounds = [
+  [39.70, -80.55],
+  [42.50, -74.70]
+];
+
+const outerBounds = [
+  [24, -130],
+  [50, -60]
+];
+
+const mask = L.polygon([
+  [
+    [outerBounds[0][0], outerBounds[0][1]],
+    [outerBounds[0][0], outerBounds[1][1]],
+    [outerBounds[1][0], outerBounds[1][1]],
+    [outerBounds[1][0], outerBounds[0][1]]
+  ],
+  [
+    [paBounds[0][0], paBounds[0][1]],
+    [paBounds[0][0], paBounds[1][1]],
+    [paBounds[1][0], paBounds[1][1]],
+    [paBounds[1][0], paBounds[0][1]]
+  ]
+],{
+  stroke:false,
+  fillColor:"#000",
+  fillOpacity:0.28,
+  interactive:false
+});
+
+mask.addTo(map);
+
     L.marker(box.label, {
       interactive:false,
       icon: L.divIcon({
@@ -850,7 +884,7 @@ function initMap(data){
 
   if (markers.length){
     const group = L.featureGroup(markers);
-    map.fitBounds(group.getBounds().pad(0.30));
+    map.fitBounds(group.getBounds().pad(0.18));
   }
 }
 
