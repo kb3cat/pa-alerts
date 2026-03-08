@@ -36,14 +36,6 @@ ROW1_RE = re.compile(
     r"(?P<lon>\d{2,3}\.\d{2}[EW])\s*$"
 )
 
-ROW2_RE = re.compile(
-    r"^(?P<date>\d{2}/\d{2}/\d{4})\s+"
-    r"(?P<mag>.{1,16}?)\s+"
-    r"(?P<county>.{1,18}?)\s+"
-    r"(?P<state>[A-Z]{2})\s+"
-    r"(?P<source>.{1,18}?)\s*$"
-)
-
 
 def clean_spaces(value: str) -> str:
     return re.sub(r"\s+", " ", (value or "").strip())
@@ -77,6 +69,38 @@ def parse_lsr_datetime(time_str: str, date_str: str) -> datetime:
             hour += 12
 
     return datetime(year, month, day, hour, minute, tzinfo=LOCAL_TZ)
+
+
+def parse_row2(line: str) -> tuple[str, str, str, str, str] | None:
+    """
+    Parse the second LSR row by splitting on 2+ spaces.
+
+    Typical examples:
+    03/08/2026  1.00 INCH  BEAVER            PA  TRAINED SPOTTER
+    03/08/2026             BUTLER            PA  PUBLIC
+    03/08/2026  58 MPH     CRAWFORD          PA  911 CENTER
+    """
+    parts = re.split(r"\s{2,}", line.strip())
+
+    if len(parts) < 4:
+        return None
+
+    date_str = parts[0].strip()
+    state = parts[-2].strip()
+    source = parts[-1].strip()
+    middle = parts[1:-2]
+
+    if not middle:
+        return None
+
+    if len(middle) == 1:
+        magnitude = ""
+        county = middle[0].strip()
+    else:
+        magnitude = middle[0].strip()
+        county = " ".join(p.strip() for p in middle[1:]).strip()
+
+    return date_str, magnitude, county, state, source
 
 
 def fetch_json(url: str) -> dict:
@@ -129,9 +153,9 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
         line2 = lines[idx + 1].rstrip()
 
         m1 = ROW1_RE.match(line1)
-        m2 = ROW2_RE.match(line2)
+        row2 = parse_row2(line2)
 
-        if not (m1 and m2):
+        if not m1 or not row2:
             idx += 1
             continue
 
@@ -143,11 +167,17 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
         lat = latlon_to_float(m1.group("lat"))
         lon = latlon_to_float(m1.group("lon"))
 
-        date_str = clean_spaces(m2.group("date"))
-        magnitude = clean_spaces(m2.group("mag"))
-        county = clean_spaces(m2.group("county"))
-        state = clean_spaces(m2.group("state"))
-        source = clean_spaces(m2.group("source"))
+        date_str, magnitude, county, state, source = row2
+        date_str = clean_spaces(date_str)
+        magnitude = clean_spaces(magnitude)
+        county = clean_spaces(county)
+        state = clean_spaces(state)
+        source = clean_spaces(source)
+
+        # Pennsylvania-only board
+        if state != "PA":
+            idx += 2
+            continue
 
         try:
             report_dt = parse_lsr_datetime(time_str, date_str)
@@ -177,7 +207,7 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
             "office": office,
             "office_name": OFFICES[office],
             "event": event,
-            "magnitude": "" if magnitude.upper() == "UNK" else magnitude,
+            "magnitude": "" if not magnitude or magnitude.upper() == "UNK" else magnitude,
             "location": location,
             "county": county,
             "source": source,
