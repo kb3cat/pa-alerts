@@ -609,6 +609,8 @@ let mapInitialized = false;
 let mapMovedByUser = false;
 let officeLayer = null;
 let paMaskLayer = null;
+let initialMapCenter = null;
+let initialMapZoom = null;
 const markerLookup = {};
 
 function formatDateTimeHeader(dateStr){
@@ -1048,8 +1050,8 @@ async function loadOfficePolygons(){
 
 function fitMapToBoard(bounds){
   map.fitBounds(bounds, {
-    paddingTopLeft: [40, 20],
-    paddingBottomRight: [240, 60]
+    paddingTopLeft: [30, 20],
+    paddingBottomRight: [30, 55]
   });
 }
 
@@ -1109,16 +1111,23 @@ async function initMap(data){
     } else {
       fitMapToBoard(defaultPABounds);
     }
+
+    initialMapCenter = map.getCenter();
+    initialMapZoom = map.getZoom();
   }
 
   const resetButton = document.getElementById("mapReset");
-resetButton.onclick = () => {
-  mapMovedByUser = false;
-  map.setView([40.9, -77.7], 7, {
-    animate: true,
-    duration: 0.6
-  });
-};
+  resetButton.onclick = () => {
+    mapMovedByUser = false;
+
+    if (initialMapCenter && initialMapZoom !== null){
+      map.setView(initialMapCenter, initialMapZoom, {
+        animate: true
+      });
+    } else {
+      fitMapToBoard(defaultPABounds);
+    }
+  };
 
   setTimeout(() => {
     map.invalidateSize(true);
