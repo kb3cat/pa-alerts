@@ -795,12 +795,23 @@ function alertFreshnessMs(p){
 function refreshMap(){
   const img = document.getElementById("wwaMap");
   const fb = document.getElementById("wwaMapFallback");
-  if (fb) fb.style.display = "none";
-  if (img){
+  if (!img) return;
+
+  const nextUrl = MAP_URL + "?t=" + Date.now();
+  const preloader = new Image();
+
+  preloader.onload = () => {
+    if (fb) fb.style.display = "none";
     img.style.display = "block";
-    img.style.visibility = "hidden";
-    img.src = MAP_URL + "?t=" + Date.now();
-  }
+    img.style.visibility = "visible";
+    img.src = nextUrl;
+  };
+
+  preloader.onerror = () => {
+    mapError();
+  };
+
+  preloader.src = nextUrl;
 }
 
 /* ==============================
