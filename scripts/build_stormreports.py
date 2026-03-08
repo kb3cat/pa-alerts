@@ -14,7 +14,7 @@ OUTPUT_FILE = "data/stormreports.json"
 LOCAL_TZ = ZoneInfo("America/New_York")
 
 OFFICES = {
-    "PIT": "Pittsburgh",
+    "PBZ": "Pittsburgh",
     "CLE": "Cleveland",
     "CTP": "State College",
     "BGM": "Binghamton",
