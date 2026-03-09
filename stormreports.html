@@ -1266,29 +1266,20 @@ async function initMap(data){
   });
 
   if (firstLoad){
-    if (markers.length){
-      const group = L.featureGroup(markers);
-      fitMapToBoard(group.getBounds());
+  fitMapToBoard(defaultPABounds);
+
+  initialMapCenter = map.getCenter();
+  initialMapZoom = map.getZoom();
+
+  setTimeout(() => {
+    map.invalidateSize(true);
+
+    if (initialMapCenter && initialMapZoom !== null){
+      map.setView(initialMapCenter, initialMapZoom, { animate: false });
     } else {
       fitMapToBoard(defaultPABounds);
     }
-
-    initialMapCenter = map.getCenter();
-    initialMapZoom = map.getZoom();
-
-    setTimeout(() => {
-      map.invalidateSize(true);
-
-      if (initialMapCenter && initialMapZoom !== null){
-        map.setView(initialMapCenter, initialMapZoom, { animate: false });
-      } else if (markers.length){
-        const group = L.featureGroup(markers);
-        fitMapToBoard(group.getBounds());
-      } else {
-        fitMapToBoard(defaultPABounds);
-      }
-    }, 200);
-  }
+  }, 200);
 }
 
 async function loadBoardData(){
