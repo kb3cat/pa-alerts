@@ -71,6 +71,22 @@ def parse_lsr_datetime(time_str: str, date_str: str) -> datetime:
     return datetime(year, month, day, hour, minute, tzinfo=LOCAL_TZ)
 
 
+def parse_api_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+
+    try:
+        value = value.strip()
+        if value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=LOCAL_TZ)
+        return dt.astimezone(LOCAL_TZ)
+    except Exception:
+        return None
+
+
 def parse_row2(line: str) -> tuple[str, str, str, str, str] | None:
     """
     Parse the second LSR row by splitting on 2+ spaces.
@@ -136,14 +152,47 @@ def get_product_ids_for_office(office: str) -> list[str]:
     return unique
 
 
-def fetch_product_text(product_id: str) -> str:
+def fetch_product_payload(product_id: str) -> dict:
     url = f"{API_BASE}/products/{product_id}"
-    payload = fetch_json(url)
-    return payload.get("productText", "") or payload.get("text", "")
+    return fetch_json(url)
+
+
+def extract_product_text(payload: dict) -> str:
+    return payload.get("productText", "") or payload.get("text", "") or ""
+
+
+def extract_product_issued_time(payload: dict) -> datetime | None:
+    candidate_fields = [
+        "issuanceTime",
+        "issueTime",
+        "effectiveTime",
+        "sent",
+        "created",
+        "updateTime",
+        "date",
+    ]
+
+    for field in candidate_fields:
+        dt = parse_api_datetime(payload.get(field))
+        if dt is not None:
+            return dt
+
+    graph = payload.get("@graph")
+    if isinstance(graph, list):
+        for item in graph:
+            if not isinstance(item, dict):
+                continue
+            for field in candidate_fields:
+                dt = parse_api_datetime(item.get(field))
+                if dt is not None:
+                    return dt
+
+    return None
 
 
 def build_report_id(
     office: str,
+    issued_dt: datetime,
     report_dt: datetime,
     location: str,
     county: str,
@@ -156,10 +205,15 @@ def build_report_id(
     safe_county = safe_county[:24] if safe_county else "county"
     lat_part = str(lat).replace("-", "m").replace(".", "")
     lon_part = str(lon).replace("-", "m").replace(".", "")
-    return f"{office}-{report_dt.strftime('%Y%m%d-%H%M')}-{safe_county}-{safe_loc}-{lat_part}-{lon_part}"
+    return (
+        f"{office}-"
+        f"{issued_dt.strftime('%Y%m%d-%H%M')}-"
+        f"{report_dt.strftime('%Y%m%d-%H%M')}-"
+        f"{safe_county}-{safe_loc}-{lat_part}-{lon_part}"
+    )
 
 
-def parse_lsr_text(text: str, office: str) -> list[dict]:
+def parse_lsr_text(text: str, office: str, issued_dt: datetime) -> list[dict]:
     lines = text.splitlines()
     results = []
     idx = 0
@@ -217,7 +271,7 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
             remarks = remarks.lstrip(". ").strip()
 
         results.append({
-            "id": build_report_id(office, report_dt, location, county, lat, lon),
+            "id": build_report_id(office, issued_dt, report_dt, location, county, lat, lon),
             "office": office,
             "office_name": OFFICES[office],
             "event": event,
@@ -226,6 +280,7 @@ def parse_lsr_text(text: str, office: str) -> list[dict]:
             "county": county,
             "source": source,
             "remarks": remarks,
+            "issued_time": issued_dt.isoformat(timespec="seconds"),
             "report_time": report_dt.isoformat(timespec="seconds"),
             "lat": lat,
             "lon": lon,
@@ -246,6 +301,7 @@ def dedupe_reports(reports: list[dict]) -> list[dict]:
             report["event"],
             report["location"],
             report["county"],
+            report.get("issued_time"),
             report["report_time"],
             report["lat"],
             report["lon"],
@@ -258,20 +314,20 @@ def dedupe_reports(reports: list[dict]) -> list[dict]:
     return output
 
 
-def filter_last_24_hours(reports: list[dict]) -> tuple[list[dict], datetime, datetime]:
+def filter_last_24_hours_by_issued_time(reports: list[dict]) -> tuple[list[dict], datetime, datetime]:
     now_local = datetime.now(LOCAL_TZ)
     window_start = now_local - timedelta(hours=24)
 
     filtered = []
     for report in reports:
         try:
-            dt = datetime.fromisoformat(report["report_time"])
+            issued_dt = datetime.fromisoformat(report["issued_time"])
         except Exception:
             continue
-        if window_start <= dt <= now_local:
+        if window_start <= issued_dt <= now_local:
             filtered.append(report)
 
-    filtered.sort(key=lambda r: r["report_time"], reverse=True)
+    filtered.sort(key=lambda r: (r["issued_time"], r["report_time"]), reverse=True)
     return filtered, window_start, now_local
 
 
@@ -324,15 +380,25 @@ def build_payload(previous_payload: dict | None = None) -> dict:
 
         for product_id in product_ids:
             try:
-                text = fetch_product_text(product_id)
-                if text:
-                    all_reports.extend(parse_lsr_text(text, office))
+                payload = fetch_product_payload(product_id)
+                text = extract_product_text(payload)
+                issued_dt = extract_product_issued_time(payload)
+
+                if not text:
+                    continue
+
+                if issued_dt is None:
+                    print(f"[{office}] product {product_id} missing issued time; skipping")
+                    continue
+
+                all_reports.extend(parse_lsr_text(text, office, issued_dt))
                 time.sleep(0.15)
+
             except Exception as exc:
                 print(f"[{office}] failed to parse product {product_id}: {exc}")
 
     all_reports = dedupe_reports(all_reports)
-    reports, window_start, window_end = filter_last_24_hours(all_reports)
+    reports, window_start, window_end = filter_last_24_hours_by_issued_time(all_reports)
     reports, new_reports_since_last_update = mark_new_reports(reports, previous_payload)
 
     return {
