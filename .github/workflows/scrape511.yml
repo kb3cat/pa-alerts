@@ -3,14 +3,14 @@ name: scrape
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 
 permissions:
   contents: write
 
 concurrency:
   group: scrape511
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scrape:
@@ -50,10 +50,11 @@ jobs:
           npm i playwright
           npx playwright install --with-deps chromium
 
+      - name: Brief delay before scrape
+        run: sleep 20
+
       - name: Run scraper
         run: node ./scripts/scrape_511.mjs
-
-      # Map snapshot REMOVED
 
       - name: Write last run timestamp
         run: |
@@ -65,10 +66,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # JSON feeds + flags
           git add data/*.json 2>/dev/null || true
-
-          # existing debug images
           git add debug/*.png 2>/dev/null || true
 
           git status --porcelain
