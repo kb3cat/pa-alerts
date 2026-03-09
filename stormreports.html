@@ -314,7 +314,7 @@ body{
 .column-header{
   flex:0 0 auto;
   display:grid;
-  grid-template-columns:90px 165px 90px 170px 130px 150px minmax(0,1fr) 130px;
+  grid-template-columns:115px 115px 165px 90px 170px 130px 150px minmax(0,1fr) 130px;
   gap:0;
   background:var(--panel-dark);
   border-bottom:2px solid var(--border);
@@ -387,7 +387,7 @@ body{
 
 .report-row{
   display:grid;
-  grid-template-columns:90px 165px 90px 170px 130px 150px 1fr;
+  grid-template-columns:115px 115px 165px 90px 170px 130px 150px 1fr;
   gap:0;
   background:var(--panel);
   border-bottom:1px solid var(--border);
@@ -426,6 +426,7 @@ body{
   text-overflow:ellipsis;
 }
 
+.col-issued,
 .col-time,
 .col-mag,
 .col-county{
@@ -534,11 +535,11 @@ body{
   .header-right{ font-size:13px; max-width:430px; }
 
   .column-header{
-    grid-template-columns:80px 150px 80px 150px 120px 135px minmax(0,1fr) 118px;
+    grid-template-columns:105px 105px 145px 80px 145px 115px 130px minmax(0,1fr) 118px;
   }
 
   .report-row{
-    grid-template-columns:80px 150px 80px 150px 120px 135px 1fr;
+    grid-template-columns:105px 105px 145px 80px 145px 115px 130px 1fr;
   }
 
   .summary-wrap{
@@ -571,7 +572,7 @@ body{
   </div>
   <div class="header-right">
     <div class="report-window-line" id="reportWindow">
-      Storm reports from --/--/-- at --:-- hours to --/--/-- at --:-- hours
+      Storm reports issued from --/--/-- at --:-- hours to --/--/-- at --:-- hours
     </div>
   </div>
 </header>
@@ -585,7 +586,7 @@ body{
 
     <div class="summary-wrap">
       <div class="summary-card total-card">
-        <div class="card-title">Total Storm Reports (Last 24 Hours)</div>
+        <div class="card-title">Total Storm Reports Issued (Last 24 Hours)</div>
         <div class="total-number" id="totalReports">0</div>
       </div>
 
@@ -608,7 +609,8 @@ body{
 
   <section class="reports-shell">
     <div class="column-header">
-      <div>Time</div>
+      <div>Issued</div>
+      <div>Report Time</div>
       <div>Event</div>
       <div>Mag</div>
       <div>Location</div>
@@ -708,11 +710,13 @@ function formatWindowText(dateStr){
   return `${mm}/${dd}/${yy} at ${hh}:${min} hours`;
 }
 
-function formatRowTime(dateStr){
+function formatRowDateTime(dateStr){
   const d = new Date(dateStr);
+  const mm = String(d.getMonth() + 1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
   const hh = String(d.getHours()).padStart(2,"0");
   const min = String(d.getMinutes()).padStart(2,"0");
-  return `${hh}:${min}`;
+  return `${mm}/${dd} ${hh}:${min}`;
 }
 
 function escapeHtml(str){
@@ -872,13 +876,14 @@ function buildSummaryCounts(data){
 function buildBoardSignature(data){
   return (data.reports || []).map(r => [
     r.id || "",
+    r.issued_time || "",
+    r.report_time || "",
     r.event || "",
     r.magnitude || "",
     r.location || "",
     r.county || "",
     r.source || "",
     r.remarks || "",
-    r.report_time || "",
     typeof r.lat === "number" ? r.lat : "",
     typeof r.lon === "number" ? r.lon : ""
   ].join("~")).join("|");
@@ -890,7 +895,7 @@ function renderHeader(data){
     `Source: NWS Storm Reports | Updates every 15 minutes | Last updated: ${updated}`;
 
   document.getElementById("reportWindow").textContent =
-    `Storm reports from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
+    `Storm reports issued from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
 }
 
 function renderSummary(data){
@@ -934,9 +939,11 @@ function renderReports(data){
   scroll.innerHTML = "";
 
   const reportLookup = {};
-  const sortedReports = [...(data.reports || [])].sort((a, b) =>
-    new Date(b.report_time) - new Date(a.report_time)
-  );
+  const sortedReports = [...(data.reports || [])].sort((a, b) => {
+    const issuedDiff = new Date(b.issued_time) - new Date(a.issued_time);
+    if (issuedDiff !== 0) return issuedDiff;
+    return new Date(b.report_time) - new Date(a.report_time);
+  });
 
   for (const office of OFFICE_ORDER){
     const officeReports = sortedReports.filter(r => r.office === office.code);
@@ -949,7 +956,7 @@ function renderReports(data){
     if (!officeReports.length){
       const empty = document.createElement("div");
       empty.className = "office-empty";
-      empty.textContent = "No storm reports in the last 24 hours";
+      empty.textContent = "No storm reports issued in the last 24 hours";
       scroll.appendChild(empty);
       continue;
     }
@@ -961,7 +968,8 @@ function renderReports(data){
       row.dataset.reportId = r.id;
 
       row.innerHTML = `
-        <div class="col-time">${escapeHtml(formatRowTime(r.report_time))}</div>
+        <div class="col-issued">${escapeHtml(formatRowDateTime(r.issued_time))}</div>
+        <div class="col-time">${escapeHtml(formatRowDateTime(r.report_time))}</div>
         <div class="col-event">
           <span class="event-pill ${getEventCssClass(r.event, r.magnitude)}">${escapeHtml(r.event)}</span>
         </div>
@@ -1002,7 +1010,8 @@ function buildPopupHtml(r){
   return `
     <div class="popup-title">${escapeHtml(r.event || "Storm Report")}</div>
     <div class="popup-grid">
-      <div class="popup-label">Time</div><div>${escapeHtml(formatDateTimeHeader(r.report_time))}</div>
+      <div class="popup-label">Issued</div><div>${escapeHtml(formatDateTimeHeader(r.issued_time))}</div>
+      <div class="popup-label">Report Time</div><div>${escapeHtml(formatDateTimeHeader(r.report_time))}</div>
       <div class="popup-label">Location</div><div>${escapeHtml(r.location || "—")}</div>
       <div class="popup-label">County</div><div>${escapeHtml(r.county || "—")}</div>
       <div class="popup-label">Office</div><div>${escapeHtml((officeDisplayName[r.office] || r.office_name || r.office || "—") + " (" + (r.office || "—") + ")")}</div>
@@ -1202,8 +1211,8 @@ async function initMap(data){
     mapMovedByUser = false;
 
     map = L.map("map", {
-      zoomControl:true,
-      attributionControl:true
+      zoomControl: true,
+      attributionControl: true
     }).setView([40.9, -77.7], 7);
 
     mapInitialized = true;
@@ -1255,7 +1264,7 @@ async function initMap(data){
       fillOpacity: 0.95
     }).addTo(reportMarkerLayer);
 
-    marker.bindPopup(buildPopupHtml(r), { maxWidth: 320 });
+    marker.bindPopup(buildPopupHtml(r), { maxWidth: 340 });
     marker.on("click", () => {
       stopAutoScroll(true);
       highlightReport(r.id);
@@ -1266,22 +1275,23 @@ async function initMap(data){
   });
 
   if (firstLoad){
-  fitMapToBoard(defaultPABounds);
+    fitMapToBoard(defaultPABounds);
 
-  initialMapCenter = map.getCenter();
-  initialMapZoom = map.getZoom();
+    initialMapCenter = map.getCenter();
+    initialMapZoom = map.getZoom();
 
-  setTimeout(() => {
-    map.invalidateSize(true);
+    setTimeout(() => {
+      map.invalidateSize(true);
 
-    if (initialMapCenter && initialMapZoom !== null){
-      map.setView(initialMapCenter, initialMapZoom, { animate: false });
-    } else {
-      fitMapToBoard(defaultPABounds);
-    }
-  }, 200);
+      if (initialMapCenter && initialMapZoom !== null){
+        map.setView(initialMapCenter, initialMapZoom, { animate: false });
+      } else {
+        fitMapToBoard(defaultPABounds);
+      }
+    }, 200);
+  }
 }
-}
+
 async function loadBoardData(){
   const url = `data/stormreports.json?ts=${Date.now()}`;
   const response = await fetch(url, { cache: "no-store" });
