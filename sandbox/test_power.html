@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pennsylvania Power Outage Status Board</title>
+
+<style>
+:root{
+  --bg:#0f0f10;
+  --panel:#1d1d1f;
+  --panel2:#232326;
+  --border:#2a2a2d;
+  --text:#e9e9ea;
+  --muted:#a7a7aa;
+
+  --green:#29d36a;
+  --yellow:#ffe600;
+  --orange:#ffb000;
+  --red:#ff2b2b;
+  --blue:#00bfff;
+
+  --shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 8px 24px rgba(0,0,0,0.28);
+}
+
+*{ box-sizing:border-box; }
+
+html,body{
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+body{
+  padding:14px;
+}
+
+.board{
+  display:grid;
+  grid-template-rows:auto auto 1fr auto auto;
+  gap:14px;
+  min-height:100vh;
+}
+
+/* HEADER */
+.topbar{
+  background:#222;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 18px;
+  box-shadow:var(--shadow);
+}
+
+.topbar-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  flex-wrap:wrap;
+}
+
+.title-wrap h1{
+  margin:0;
+  font-size:28px;
+  line-height:1.1;
+  letter-spacing:.3px;
+}
+
+.title-wrap p{
+  margin:6px 0 0 0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.updated{
+  color:var(--muted);
+  font-size:13px;
+  white-space:nowrap;
+}
+
+/* STAT ROWS */
+.stats-grid{
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:14px;
+}
+
+.region-grid{
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:14px;
+}
+
+.stat-card,
+.region-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 16px;
+  box-shadow:var(--shadow);
+}
+
+.stat-label,
+.region-label{
+  color:var(--muted);
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:.6px;
+  margin-bottom:8px;
+}
+
+.stat-value{
+  font-size:34px;
+  font-weight:700;
+  line-height:1;
+}
+
+.region-value{
+  font-size:28px;
+  font-weight:700;
+  line-height:1;
+}
+
+.region-sub{
+  margin-top:8px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* MAIN GRID */
+.main-grid{
+  display:grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap:14px;
+}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+.panel-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 16px;
+  background:#202023;
+  border-bottom:1px solid var(--border);
+}
+
+.panel-title{
+  margin:0;
+  font-size:18px;
+  font-weight:700;
+}
+
+.panel-subtitle{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.panel-body{
+  padding:14px 16px;
+}
+
+/* MAP PLACEHOLDER */
+.map-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.map-placeholder{
+  min-height:430px;
+  border:1px dashed #3b3b40;
+  border-radius:10px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)),
+    repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.02),
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 28px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.02),
+      rgba(255,255,255,0.02) 1px,
+      transparent 1px,
+      transparent 28px
+    );
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:20px;
+  color:var(--muted);
+  font-size:18px;
+  line-height:1.5;
+}
+
+.legend{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.legend-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  color:var(--text);
+}
+
+.legend-swatch{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  flex:0 0 12px;
+}
+
+.swatch-green{ background:var(--green); }
+.swatch-yellow{ background:var(--yellow); }
+.swatch-orange{ background:var(--orange); }
+.swatch-red{ background:var(--red); }
+.swatch-darkred{ background:#8b0000; }
+
+/* LISTS */
+.ranked-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.rank-row{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:10px;
+  align-items:center;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+}
+
+.rank-left{
+  min-width:0;
+}
+
+.rank-county{
+  font-size:15px;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+.rank-meta{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.rank-right{
+  font-size:18px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.sev-minor{ color:var(--yellow); }
+.sev-moderate{ color:var(--orange); }
+.sev-significant{ color:var(--red); }
+.sev-major{ color:#ff6b6b; }
+
+.small-note{
+  margin-top:10px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* LOWER GRID */
+.lower-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:14px;
+}
+
+.table-like{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.table-row{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:10px;
+  align-items:center;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+}
+
+.table-left{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.table-main{
+  font-size:15px;
+  font-weight:700;
+}
+
+.table-sub{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.table-right{
+  font-size:18px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+/* TICKER */
+.ticker-panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+
+.ticker-header{
+  padding:12px 16px;
+  background:#202023;
+  border-bottom:1px solid var(--border);
+  font-size:18px;
+  font-weight:700;
+}
+
+.ticker-body{
+  padding:14px 16px;
+}
+
+.ticker-line{
+  color:var(--text);
+  font-size:18px;
+  line-height:1.5;
+}
+
+.ticker-line .minor{ color:var(--yellow); font-weight:700; }
+.ticker-line .moderate{ color:var(--orange); font-weight:700; }
+.ticker-line .significant{ color:var(--red); font-weight:700; }
+.ticker-line .major{ color:#ff6b6b; font-weight:700; }
+
+/* RESPONSIVE */
+@media (max-width: 1100px){
+  .main-grid,
+  .lower-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media (max-width: 800px){
+  .stats-grid,
+  .region-grid{
+    grid-template-columns:1fr;
+  }
+
+  .topbar-row{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .title-wrap h1{
+    font-size:24px;
+  }
+
+  .stat-value{
+    font-size:30px;
+  }
+
+  .region-value{
+    font-size:24px;
+  }
+
+  .ticker-line{
+    font-size:16px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="board">
+
+  <!-- HEADER -->
+  <section class="topbar">
+    <div class="topbar-row">
+      <div class="title-wrap">
+        <h1>⚡ Pennsylvania Power Outage Status Board</h1>
+        <p>County outage severity, regional rollups, and trend monitoring</p>
+      </div>
+      <div class="updated">Last Updated: 03/17/26 18:45 EDT</div>
+    </div>
+  </section>
+
+  <!-- PRIMARY STATS -->
+  <section class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Statewide Out</div>
+      <div class="stat-value">22,369</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Counties &gt; 1%</div>
+      <div class="stat-value">6</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Largest Increase</div>
+      <div class="stat-value">+812</div>
+    </div>
+  </section>
+
+  <!-- REGIONAL ROLLUPS -->
+  <section class="region-grid">
+    <div class="region-card">
+      <div class="region-label">Western Area</div>
+      <div class="region-value">5,914</div>
+      <div class="region-sub">PEMA western area total outages</div>
+    </div>
+
+    <div class="region-card">
+      <div class="region-label">Central Area</div>
+      <div class="region-value">8,237</div>
+      <div class="region-sub">PEMA central area total outages</div>
+    </div>
+
+    <div class="region-card">
+      <div class="region-label">Eastern Area</div>
+      <div class="region-value">8,218</div>
+      <div class="region-sub">PEMA eastern area total outages</div>
+    </div>
+  </section>
+
+  <!-- MAIN GRID -->
+  <section class="main-grid">
+
+    <!-- MAP -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">County Outage Map</h2>
+          <div class="panel-subtitle">Placeholder map area for county shading by percent out</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="map-wrap">
+          <div class="map-placeholder">
+            Pennsylvania county map goes here<br>
+            shaded by outage percentage<br><br>
+            Green &lt; 1%<br>
+            Yellow 1–3%<br>
+            Orange 3–5%<br>
+            Red 5–10%<br>
+            Dark Red 10%+
+          </div>
+
+          <div class="legend">
+            <div class="legend-item">
+              <span class="legend-swatch swatch-green"></span>
+              <span>&lt; 1%</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch swatch-yellow"></span>
+              <span>1–3%</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch swatch-orange"></span>
+              <span>3–5%</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch swatch-red"></span>
+              <span>5–10%</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch swatch-darkred"></span>
+              <span>10%+</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOP IMPACTED -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Top Impacted Counties</h2>
+          <div class="panel-subtitle">Sorted by percentage of customers out</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="ranked-list">
+
+          <div class="rank-row">
+            <div class="rank-left">
+              <div class="rank-county">Potter</div>
+              <div class="rank-meta">488 customers out</div>
+            </div>
+            <div class="rank-right sev-major">12.4%</div>
+          </div>
+
+          <div class="rank-row">
+            <div class="rank-left">
+              <div class="rank-county">Dauphin</div>
+              <div class="rank-meta">3,123 customers out</div>
+            </div>
+            <div class="rank-right sev-significant">5.6%</div>
+          </div>
+
+          <div class="rank-row">
+            <div class="rank-left">
+              <div class="rank-county">Lancaster</div>
+              <div class="rank-meta">2,101 customers out</div>
+            </div>
+            <div class="rank-right sev-moderate">4.1%</div>
+          </div>
+
+          <div class="rank-row">
+            <div class="rank-left">
+              <div class="rank-county">Erie</div>
+              <div class="rank-meta">2,892 customers out</div>
+            </div>
+            <div class="rank-right sev-minor">2.1%</div>
+          </div>
+
+          <div class="rank-row">
+            <div class="rank-left">
+              <div class="rank-county">York</div>
+              <div class="rank-meta">1,008 customers out</div>
+            </div>
+            <div class="rank-right sev-minor">1.4%</div>
+          </div>
+
+          <div class="rank-row">
+            <div class="rank-left">
+              <div class="rank-county">Lebanon</div>
+              <div class="rank-meta">644 customers out</div>
+            </div>
+            <div class="rank-right sev-minor">1.1%</div>
+          </div>
+
+        </div>
+
+        <div class="small-note">
+          Showing counties meeting significance threshold for display.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOWER GRID -->
+  <section class="lower-grid">
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Regional Breakdown</h2>
+          <div class="panel-subtitle">Placeholder counties within each PEMA area</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="table-like">
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Western Area</div>
+              <div class="table-sub">Erie, Crawford, Mercer, Venango, Warren, etc.</div>
+            </div>
+            <div class="table-right">5,914</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Central Area</div>
+              <div class="table-sub">Dauphin, Cumberland, York, Lancaster, Potter, etc.</div>
+            </div>
+            <div class="table-right">8,237</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Eastern Area</div>
+              <div class="table-sub">Philadelphia region and eastern counties</div>
+            </div>
+            <div class="table-right">8,218</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Trend / Changes</h2>
+          <div class="panel-subtitle">Placeholder trend indicators for later live data</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="table-like">
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Dauphin</div>
+              <div class="table-sub">Largest increase since last update</div>
+            </div>
+            <div class="table-right">+812</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Lancaster</div>
+              <div class="table-sub">Second-largest increase</div>
+            </div>
+            <div class="table-right">+544</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">York</div>
+              <div class="table-sub">Newly crossed significance threshold</div>
+            </div>
+            <div class="table-right">+301</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Lebanon</div>
+              <div class="table-sub">Newly crossed significance threshold</div>
+            </div>
+            <div class="table-right">+126</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- TICKER -->
+  <section class="ticker-panel">
+    <div class="ticker-header">⚡ Significant Outage Ticker</div>
+    <div class="ticker-body">
+      <div class="ticker-line">
+        <span class="major">Potter: 12.4% (488)</span> |
+        <span class="significant">Dauphin: 5.6% (3,123)</span> |
+        <span class="moderate">Lancaster: 4.1% (2,101)</span> |
+        <span class="minor">Erie: 2.1% (2,892)</span> |
+        <span class="minor">York: 1.4% (1,008)</span> |
+        <span class="minor">Lebanon: 1.1% (644)</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</body>
+</html>
