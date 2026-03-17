@@ -156,8 +156,8 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 
 /* ✅ Wallboard-only: apply ONLY to panels that need scroll */
 .items.wb-scroll{
-  height: 34vh;     /* constrain only the overflowing panel */
-  max-height: none; /* override 45vh */
+  height: 34vh;
+  max-height: none;
   overflow: auto;
 }
 
@@ -254,7 +254,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   margin-top: 2px;
 }
 .subline.indent-under-icon{
-  padding-left: 42px; /* 34px icon + 8px gap */
+  padding-left: 42px;
 }
 </style>
 </head>
@@ -330,7 +330,7 @@ const STALE_MINUTES = 25;
 
 /* --- Wallboard scroll state --- */
 let WALL_SCROLL_ENABLED = false;
-const scrollers = new Map(); // el -> { timer, dir, pauseUntil }
+const scrollers = new Map();
 
 /* Interval-based auto-scroll (reliable on Firefox / wallboards) */
 function startAutoScroll(el){
@@ -340,14 +340,13 @@ function startAutoScroll(el){
   const state = { timer: null, mode: "down", pauseUntil: 0 };
   scrollers.set(el, state);
 
-  const downStepPx = 1;       // normal scroll down speed
-  const upStepPx = 18;        // FAST scroll back to top speed
+  const downStepPx = 1;
+  const upStepPx = 18;
   const tickMs = 40;
 
-  const topPauseMs = 1800;    // pause at top
-  const bottomPauseMs = 2200; // pause at bottom
+  const topPauseMs = 1800;
+  const bottomPauseMs = 2200;
 
-  // start at top each time we enable
   el.scrollTop = 0;
   state.pauseUntil = Date.now() + topPauseMs;
 
@@ -376,7 +375,6 @@ function startAutoScroll(el){
     }
 
     if (st.mode === "pause-bottom") {
-      // when pause ends, switch to fast-up
       st.mode = "up";
       return;
     }
@@ -405,7 +403,6 @@ function panelOverflows(el){
   return (el.scrollHeight - el.clientHeight) > 6;
 }
 
-/* ✅ Only constrain + scroll the panels that actually overflow */
 function applyWallScroll(enabled){
   WALL_SCROLL_ENABLED = !!enabled;
 
@@ -416,22 +413,17 @@ function applyWallScroll(enabled){
     document.getElementById("plannedVehicleList")
   ].filter(Boolean);
 
-  // always clear sizing + scrollers first
   panels.forEach(el => el.classList.remove("wb-scroll"));
   for (const [el] of scrollers.entries()) stopAutoScroll(el);
 
   if (!WALL_SCROLL_ENABLED) return;
 
-  // PASS 1: decide which panels need scrolling WITHOUT forcing height
   const needScroll = panels.filter(el => panelOverflows(el));
 
-  // PASS 2: only those panels get constrained height and auto-scroll
   needScroll.forEach(el => el.classList.add("wb-scroll"));
 
-  // Give layout a moment to apply height before starting scroll
   setTimeout(() => {
     needScroll.forEach(el => {
-      // re-check after height applied
       if (panelOverflows(el)) startAutoScroll(el);
     });
   }, 50);
@@ -484,7 +476,6 @@ function setStatus(state, text, hover) {
   pill.title = hover || "";
 }
 
-/* show JS errors instead of getting stuck on LOADING */
 window.addEventListener("error", (e) => {
   try { setStatus("err","JS ERROR", e?.message || "Unknown error"); } catch {}
 });
@@ -516,8 +507,6 @@ function cleanLine(s) {
 
   t = t.replace(/\s*\|\s*\|\s*/g, " | ");
   t = t.replace(/\s{2,}/g, " ");
-
-    // ✅ NEW: remove trailing route-only column like " | I - 180"
   t = t.replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*$/gi, "");
 
   return t.trim();
@@ -531,7 +520,6 @@ function isFakeHeaderRow(s) {
   return false;
 }
 
-/* Roadway icon resolver (prefers leading route; avoids picking I-xx from "between Exit I-xx") */
 function getRoadImage(text){
   const s = String(text || "").trim();
 
@@ -581,7 +569,6 @@ function buildRoadRow(text){
   return wrap;
 }
 
-/* Closures-only: add (County) before roadway text */
 function extractCounty(text){
   const s = String(text || "");
 
@@ -634,9 +621,7 @@ function renderList(elId, items, kind) {
   items.forEach(text => {
     const div = document.createElement("div");
     div.className = `item ${kind || ""}`;
-
- div.appendChild(buildRoadRow(text));
-
+    div.appendChild(buildRoadRow(text));
     el.appendChild(div);
   });
 }
@@ -645,6 +630,29 @@ function isSpeedRestriction(text) {
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   const hasSpeed = /\b(mph|speed)\b/i.test(text);
   return hasSpeed && hasRoad;
+}
+
+/* Turnpike / CMV lane-control items should live under vehicle restrictions, not speed */
+function isVehicleOnlyRestriction(text){
+  const t = String(text || "");
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
+  if (!hasRoad) return false;
+
+  const hasCmv =
+    /\bcommercial\s*vehicles?\b/i.test(t) ||
+    /\bcmv\b/i.test(t) ||
+    /\btruck(s)?\b/i.test(t);
+
+  const hasVehicleControl =
+    /\bright\s*lane\s*only\b/i.test(t) ||
+    /\bleft\s*lane\s*only\b/i.test(t) ||
+    /\bno\s+tractors\b/i.test(t) ||
+    /\bno\s+trailers\b/i.test(t) ||
+    /\bempty\s+trailers?\b/i.test(t) ||
+    /\bban(ned)?\b/i.test(t) ||
+    /\brestricted\b/i.test(t);
+
+  return hasCmv && hasVehicleControl;
 }
 
 /* 45 MPH - CMV Right Lane Only */
@@ -662,6 +670,23 @@ function is45CmvRightLaneOnly(text){
     (/\bcmv\b/i.test(text) && rightLaneOnly);
 
   return mph45 && rightLaneOnly && cmvRightLane;
+}
+
+/* 55 MPH - CMV Right Lane Only (needed for Turnpike items like I-76) */
+function is55CmvRightLaneOnly(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  if (!hasRoad) return false;
+
+  const mph55 = /\b55\s*mph\b/i.test(text) || /\breduced to 55 miles per hour\b/i.test(text);
+  const rightLaneOnly = /\bright\s*lane\s*only\b/i.test(text) || /\brt\.?\s*lane\s*only\b/i.test(text);
+
+  const cmvRightLane =
+    /\bcommercial\s*vehicles?\s*right\s*lane\s*only\b/i.test(text) ||
+    /\bcmv\s*right\s*lane\s*only\b/i.test(text) ||
+    (/\bcommercial\s*vehicles?\b/i.test(text) && rightLaneOnly) ||
+    (/\bcmv\b/i.test(text) && rightLaneOnly);
+
+  return mph55 && rightLaneOnly && cmvRightLane;
 }
 
 function formatDataLastUpdated(dt) {
@@ -695,7 +720,6 @@ function extractTextLines(anyJson){
   return [];
 }
 
-/* Numeric-ish sort */
 function routeKey(text){
   const s = String(text || "");
   const m =
@@ -721,7 +745,6 @@ function sortByRoute(a,b){
   return String(a).localeCompare(String(b));
 }
 
-/* Planned sort */
 function parseDtToEpoch(dtStr){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -763,7 +786,6 @@ function sortPlannedByStartThenRoute(a,b){
   return sortByRoute(a,b);
 }
 
-/* Tier grouping */
 function extractTierHeader(s){
   const t = (s || "").trim();
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
@@ -810,7 +832,6 @@ function vehiclePanelCandidate(text){
   );
 }
 
-/* Display cleanups */
 function parseMmDdYyTimeLabel(dtStr, label){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -893,7 +914,7 @@ function renderVehicleGrouped(elId, items){
 
   const buckets = new Map([
     [1, []],[2, []],[3, []],[4, []],[5, []],
-    ["rl45", []],["other", []]
+    ["rl45", []],["rl55", []],["other", []]
   ]);
 
   for (const it of items) {
@@ -901,6 +922,7 @@ function renderVehicleGrouped(elId, items){
     const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
 
     if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
+    if (is55CmvRightLaneOnly(text)) { buckets.get("rl55").push(text); continue; }
     if (tier && buckets.has(tier)) buckets.get(tier).push(text);
     else buckets.get("other").push(text);
   }
@@ -908,12 +930,17 @@ function renderVehicleGrouped(elId, items){
   for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
 
   const tierLabels = {
-    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    1:"Tier 1",
+    2:"Tier 2",
+    3:"Tier 3",
+    4:"Tier 4",
+    5:"Tier 5",
     rl45:"45 MPH — CMV Right Lane Only",
+    rl55:"55 MPH — CMV Right Lane Only",
     other:"Other / Unclassified vehicle restrictions"
   };
-  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:""};
-  const order = [1,2,3,4,5,"rl45","other"];
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl45",other:""};
+  const order = [1,2,3,4,5,"rl45","rl55","other"];
 
   for (const key of order) {
     const arr = buckets.get(key);
@@ -961,7 +988,7 @@ function renderVehicleGroupedPlanned(elId, items){
 
   const buckets = new Map([
     [1, []],[2, []],[3, []],[4, []],[5, []],
-    ["rl45", []],["other", []]
+    ["rl45", []],["rl55", []],["other", []]
   ]);
 
   for (const it of items) {
@@ -969,6 +996,7 @@ function renderVehicleGroupedPlanned(elId, items){
     const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
 
     if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
+    if (is55CmvRightLaneOnly(text)) { buckets.get("rl55").push(text); continue; }
     if (tier && buckets.has(tier)) buckets.get(tier).push(text);
     else buckets.get("other").push(text);
   }
@@ -976,12 +1004,17 @@ function renderVehicleGroupedPlanned(elId, items){
   for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
 
   const tierLabels = {
-    1:"Tier 1",2:"Tier 2",3:"Tier 3",4:"Tier 4",5:"Tier 5",
+    1:"Tier 1",
+    2:"Tier 2",
+    3:"Tier 3",
+    4:"Tier 4",
+    5:"Tier 5",
     rl45:"45 MPH — CMV Right Lane Only",
+    rl55:"55 MPH — CMV Right Lane Only",
     other:"Other / Unclassified vehicle restrictions"
   };
-  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",other:""};
-  const order = [1,2,3,4,5,"rl45","other"];
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl45",other:""};
+  const order = [1,2,3,4,5,"rl45","rl55","other"];
 
   for (const key of order) {
     const arr = buckets.get(key);
@@ -1014,7 +1047,6 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 }
 
-/* Closures de-dupe key */
 function closureDedupeKey(s){
   return String(s || "")
     .toLowerCase()
@@ -1025,7 +1057,6 @@ function closureDedupeKey(s){
     .trim();
 }
 
-/* Start/End time split logic (planned vs active) */
 function hasEndTime(text){
   const t = String(text || "").toLowerCase();
   if (t.includes("end time")) return true;
@@ -1103,10 +1134,14 @@ async function loadBoard(){
       .map(r => r.text)
       .filter(isSpeedRestriction)
       .filter(s => !is45CmvRightLaneOnly(s))
+      .filter(s => !is55CmvRightLaneOnly(s))
+      .filter(s => !isVehicleOnlyRestriction(s))
       .sort(sortByRoute);
 
     const vehicleAll = withTiers.filter(r =>
       is45CmvRightLaneOnly(r.text) ||
+      is55CmvRightLaneOnly(r.text) ||
+      isVehicleOnlyRestriction(r.text) ||
       (r.tier != null) ||
       vehiclePanelCandidate(r.text)
     );
@@ -1119,7 +1154,6 @@ async function loadBoard(){
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
-    // After re-render, re-evaluate which panels need scroll
     if (WALL_SCROLL_ENABLED) applyWallScroll(true);
 
     if (warnings.length) {
@@ -1132,7 +1166,6 @@ async function loadBoard(){
   }
 }
 
-/* Toggle + remember setting */
 (function initWallboardToggle(){
   const toggle = document.getElementById("wallScrollToggle");
   if (!toggle) return;
