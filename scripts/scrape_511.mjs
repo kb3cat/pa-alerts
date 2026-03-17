@@ -189,7 +189,6 @@ function buildMajorRouteClosures(trafficTable) {
   const descIdx = idx(headers, "Description") ?? findHeader(headers, /description/i);
   const endIdx  = idx(headers, "Anticipated End Time") ?? findHeader(headers, /(anticipated|end)/i);
 
-  // ✅ NEW: try to find a County column
   const countyIdx =
     idx(headers, "County") ??
     idx(headers, "County Name") ??
@@ -218,7 +217,6 @@ function buildMajorRouteClosures(trafficTable) {
     const dir = parseDirection(desc) || "DIRECTION";
     const between = parseBetweenExits(desc);
 
-    // ✅ NEW: prefer county column; fallback to parsing description
     const countyFromCol = countyIdx != null ? norm(r[countyIdx]) : "";
     const county = (countyFromCol && !/^unknown$/i.test(countyFromCol))
       ? countyFromCol.replace(/\s*county$/i, "").trim()
@@ -249,6 +247,111 @@ function buildMajorRouteClosures(trafficTable) {
     name: "major_route_closures",
     fetched_at: trafficTable.fetched_at,
     source_url: trafficTable.url,
+    count: items.length,
+    items
+  };
+}
+
+/* ---------- LANE RESTRICTION SUPPORT ---------- */
+
+function rowToJoinedText(row) {
+  return (row || []).map(x => norm(x)).filter(Boolean).join(" | ");
+}
+
+function isCmvVehicleRestrictionText(text) {
+  return /\bcommercial vehicles?\b|\bcmv\b|\btrucks?\b/i.test(text);
+}
+
+function isGeneralLaneRestrictionText(text) {
+  const t = String(text || "");
+
+  const laneLike =
+    /\blane restriction(s)?\b/i.test(t) ||
+    /\blane closed\b/i.test(t) ||
+    /\bleft lane closed\b/i.test(t) ||
+    /\bright lane closed\b/i.test(t) ||
+    /\bcenter lane closed\b/i.test(t) ||
+    /\bsingle lane\b/i.test(t) ||
+    /\bleft lane blocked\b/i.test(t) ||
+    /\bright lane blocked\b/i.test(t) ||
+    /\bshoulder closed\b/i.test(t) ||
+    /\bshoulder restriction\b/i.test(t) ||
+    /\bmerge\b.*\blane\b/i.test(t);
+
+  if (!laneLike) return false;
+
+  if (isCmvVehicleRestrictionText(t)) return false;
+
+  return true;
+}
+
+function buildLaneRestrictions(restrTable) {
+  const headers = restrTable.headers || [];
+  const rows = restrTable.rows || [];
+
+  const descIdx =
+    idx(headers, "Description") ??
+    findHeader(headers, /description/i);
+
+  const typeIdx =
+    idx(headers, "Type") ??
+    findHeader(headers, /type/i);
+
+  const countyIdx =
+    idx(headers, "County") ??
+    idx(headers, "County Name") ??
+    findHeader(headers, /\bcounty\b/i);
+
+  const startIdx =
+    idx(headers, "Start Time") ??
+    idx(headers, "Anticipated Start Time") ??
+    findHeader(headers, /(start)/i);
+
+  const endIdx =
+    idx(headers, "End Time") ??
+    idx(headers, "Anticipated End Time") ??
+    findHeader(headers, /(anticipated.*end|end time|\bend\b)/i);
+
+  const items = [];
+
+  for (const r of rows) {
+    const desc = norm(descIdx != null ? r[descIdx] : rowToJoinedText(r));
+    const type = norm(typeIdx != null ? r[typeIdx] : "");
+    const countyRaw = norm(countyIdx != null ? r[countyIdx] : "");
+    const startRaw = norm(startIdx != null ? r[startIdx] : "");
+    const endRaw = norm(endIdx != null ? r[endIdx] : "");
+
+    const combined = `${type} | ${desc}`;
+
+    if (!isGeneralLaneRestrictionText(combined)) continue;
+
+    const county = countyRaw
+      ? countyRaw.replace(/\s*county$/i, "").trim()
+      : (parseCountyFromDesc(desc) || "");
+
+    const route = parseRoute(desc) || parseRoute(type) || "";
+    const direction = parseDirection(desc) || parseDirection(type) || "";
+    const between = parseBetweenExits(desc);
+
+    items.push({
+      route,
+      direction,
+      county,
+      start_time: startRaw,
+      end_time: endRaw,
+      between,
+      description: desc,
+      type,
+      formatted: rowToJoinedText(r),
+      row: r
+    });
+  }
+
+  return {
+    name: "lane_restrictions",
+    fetched_at: restrTable.fetched_at,
+    source_url: restrTable.url,
+    headers,
     count: items.length,
     items
   };
@@ -287,6 +390,10 @@ async function main() {
   const major = buildMajorRouteClosures(resultsByName.travel_delays);
   fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(major, null, 2));
   console.log(`Wrote data/major_route_closures.json (${major.count} items)`);
+
+  const lane = buildLaneRestrictions(resultsByName.restrictions);
+  fs.writeFileSync(`data/lane_restrictions.json`, JSON.stringify(lane, null, 2));
+  console.log(`Wrote data/lane_restrictions.json (${lane.count} items)`);
 }
 
 main().catch(err => {
