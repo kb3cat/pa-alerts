@@ -587,13 +587,6 @@ function getRoadImage(text){
 
   const filename = `${typ}${num}small.png`;
   return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
-  }
-  if (!m) return "";
-
-  const typ = String(m[1]).toLowerCase();
-  const num = m[2];
-  const filename = `${typ}${num}small.png`;
-  return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
 }
 
 function buildRoadRow(text){
@@ -1323,7 +1316,7 @@ async function loadBoard(){
     const speed = combineContiguousRestrictions(speedRaw);
 
     const laneRaw = (laneJson?.items || [])
-      .map(it => it?.description || it?.formatted || "")
+      .map(it => it?.formatted || it?.description || "")
       .map(cleanLine)
       .filter(Boolean);
 
