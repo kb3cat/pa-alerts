@@ -150,7 +150,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   margin-bottom:8px;
 }
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
-.paneltitle .count{ font-size:18px; color:var(--muted); }
 
 .panel-actions{
   display:flex;
@@ -178,11 +177,10 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border-color: rgba(255,176,0,.28);
 }
 
-/* ITEMS (normal mode) */
+/* ITEMS */
 .items{ max-height:45vh; overflow:auto; }
 .items.is-collapsed{ display:none; }
 
-/* Wallboard-only: apply ONLY to panels that need scroll */
 .items.wb-scroll{
   height:34vh;
   max-height:none;
@@ -216,11 +214,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   font-weight:400;
   font-size:15px;
   letter-spacing:.02em;
-}
-.grouphead small{
-  color:var(--muted);
-  font-weight:400;
-  margin-left:6px;
 }
 .grouphead.tier1{ color:#a855f7; }
 .grouphead.tier2{ color:#f59e0b; }
@@ -279,7 +272,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   flex-shrink:0;
 }
 
-/* Second-line alignment under roadway text (not under icon) */
+/* Second-line alignment under roadway text */
 .subline{
   margin-top:2px;
 }
@@ -376,6 +369,7 @@ const REFRESH_MS = 60000;
 
 const CLOSURES_FILE = "major_route_closures.json";
 const RESTR_FILE = "restrictions.json";
+const LANE_FILE = "lane_restrictions.json";
 
 const LAST_RUN_FILE = "last_run.json";
 const STALE_MINUTES = 25;
@@ -384,7 +378,7 @@ const STALE_MINUTES = 25;
 let WALL_SCROLL_ENABLED = false;
 const scrollers = new Map();
 
-/* Interval-based auto-scroll (reliable on Firefox / wallboards) */
+/* Interval-based auto-scroll */
 function startAutoScroll(el){
   if (!el) return;
   stopAutoScroll(el);
@@ -439,7 +433,6 @@ function startAutoScroll(el){
         st.mode = "down";
         st.pauseUntil = Date.now() + topPauseMs;
       }
-      return;
     }
   }, tickMs);
 }
@@ -566,10 +559,9 @@ function cleanLine(s) {
 
 function isFakeHeaderRow(s) {
   const t = s.trim().toLowerCase();
-  return t === "speed restrictions" || t === "vehicle restrictions" || t === "restrictions" || t === "lane restrictions";
+  return t === "speed restrictions" || t === "vehicle restrictions" || t === "restrictions";
 }
 
-/* Roadway icon resolver */
 function getRoadImage(text){
   const s = String(text || "").trim();
 
@@ -619,16 +611,6 @@ function buildRoadRow(text){
   return wrap;
 }
 
-/* Closures-only county support if needed later */
-function extractCounty(text){
-  const s = String(text || "");
-  const m =
-    s.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+County\b/) ||
-    s.match(/\bCounty:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/i);
-
-  return m && m[1] ? m[1].trim() : "";
-}
-
 function renderList(elId, items, kind) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -652,52 +634,12 @@ function renderList(elId, items, kind) {
   });
 }
 
-function renderLaneList(elId, items) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-
-  el.innerHTML = "";
-
-  if (!items.length) {
-    const div = document.createElement("div");
-    div.className = "item lane";
-    div.style.borderLeftColor = "var(--green)";
-    div.textContent = "None currently reported";
-    el.appendChild(div);
-    return;
-  }
-
-  items.forEach(text => {
-    const div = document.createElement("div");
-    div.className = "item lane";
-    div.appendChild(buildRoadRow(text));
-    el.appendChild(div);
-  });
-}
-
 function isSpeedRestriction(text) {
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   const hasSpeed = /\b(mph|speed)\b/i.test(text);
   return hasSpeed && hasRoad;
 }
 
-function isLaneRestriction(text){
-  const t = String(text || "");
-  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
-  if (!hasRoad) return false;
-
-  const hasLaneWord =
-    /\bright\s*lane\s*only\b/i.test(t) ||
-    /\bleft\s*lane\s*only\b/i.test(t) ||
-    /\b(single|left|right|center)\s+lane\b/i.test(t) ||
-    /\blane restriction(s)?\b/i.test(t) ||
-    /\blane closed\b/i.test(t) ||
-    /\bshoulder closed\b/i.test(t);
-
-  return hasLaneWord;
-}
-
-/* Vehicle-only restrictions (CMV/truck class) */
 function isVehicleOnlyRestriction(text){
   const t = String(text || "");
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
@@ -720,7 +662,6 @@ function isVehicleOnlyRestriction(text){
   return hasCmv && hasVehicleControl;
 }
 
-/* 45 MPH - CMV Right Lane Only */
 function is45CmvRightLaneOnly(text){
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   if (!hasRoad) return false;
@@ -737,7 +678,6 @@ function is45CmvRightLaneOnly(text){
   return mph45 && rightLaneOnly && cmvRightLane;
 }
 
-/* 55 MPH - CMV Right Lane Only */
 function is55CmvRightLaneOnly(text){
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   if (!hasRoad) return false;
@@ -778,7 +718,6 @@ function extractTextLines(anyJson){
   return [];
 }
 
-/* Numeric-ish sort */
 function routeKey(text){
   const s = String(text || "");
   const m =
@@ -804,7 +743,6 @@ function sortByRoute(a,b){
   return String(a).localeCompare(String(b));
 }
 
-/* Planned sort */
 function parseDtToEpoch(dtStr){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -846,7 +784,6 @@ function sortPlannedByStartThenRoute(a,b){
   return sortByRoute(a,b);
 }
 
-/* Tier grouping */
 function extractTierHeader(s){
   const t = (s || "").trim();
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
@@ -893,7 +830,6 @@ function vehiclePanelCandidate(text){
   );
 }
 
-/* Display cleanups */
 function parseMmDdYyTimeLabel(dtStr, label){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -959,7 +895,7 @@ function cleanupActiveVehicleText(fullText){
   return { main, line2 };
 }
 
-/* ---------- CONTIGUOUS RESTRICTION COMBINER ---------- */
+/* ---------- COMBINER ---------- */
 function normalizePointName(s){
   return String(s || "")
     .toLowerCase()
@@ -1252,7 +1188,6 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 }
 
-/* Closures de-dupe key */
 function closureDedupeKey(s){
   return String(s || "")
     .toLowerCase()
@@ -1263,7 +1198,6 @@ function closureDedupeKey(s){
     .trim();
 }
 
-/* Start/End time split logic */
 function hasEndTime(text){
   const t = String(text || "").toLowerCase();
   if (t.includes("end time")) return true;
@@ -1351,10 +1285,11 @@ async function loadBoard(){
       return;
     }
 
-    let closuresJson = null, restr = null;
+    let closuresJson = null, restr = null, laneJson = null;
 
     try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
     try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
+    try { laneJson = (await fetchFirstWorkingJson(LANE_FILE)).json; } catch { warnings.push(`Could not load data/${LANE_FILE}.`); }
 
     const closuresPrimaryRaw = extractTextLines(closuresJson).map(cleanLine).filter(Boolean);
     const seen = new Set();
@@ -1375,15 +1310,14 @@ async function loadBoard(){
       .filter(isSpeedRestriction)
       .filter(s => !is45CmvRightLaneOnly(s))
       .filter(s => !is55CmvRightLaneOnly(s))
-      .filter(s => !isVehicleOnlyRestriction(s))
-      .filter(s => !isLaneRestriction(s));
+      .filter(s => !isVehicleOnlyRestriction(s));
 
     const speed = combineContiguousRestrictions(speedRaw);
 
-    const laneRaw = withTiers
-      .map(r => r.text)
-      .filter(isLaneRestriction)
-      .filter(s => !isVehicleOnlyRestriction(s));
+    const laneRaw = (laneJson?.items || [])
+      .map(it => it?.description || it?.formatted || "")
+      .map(cleanLine)
+      .filter(Boolean);
 
     const lane = combineContiguousRestrictions(laneRaw);
 
@@ -1408,7 +1342,7 @@ async function loadBoard(){
 
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
-    renderLaneList("laneList", lane);
+    renderList("laneList", lane, "lane");
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
@@ -1424,7 +1358,6 @@ async function loadBoard(){
   }
 }
 
-/* Toggle + remember setting */
 (function initWallboardToggle(){
   const toggle = document.getElementById("wallScrollToggle");
   if (!toggle) return;
