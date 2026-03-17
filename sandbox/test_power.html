@@ -19,13 +19,14 @@
   --orange:#ffb000;
   --red:#ff2b2b;
   --blue:#00bfff;
+  --darkred:#8b0000;
 
   --shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 8px 24px rgba(0,0,0,0.28);
 }
 
 *{ box-sizing:border-box; }
 
-html,body{
+html, body{
   margin:0;
   padding:0;
   background:var(--bg);
@@ -39,7 +40,7 @@ body{
 
 .board{
   display:grid;
-  grid-template-rows:auto auto 1fr auto auto;
+  grid-template-rows:auto auto auto 1fr auto auto;
   gap:14px;
   min-height:100vh;
 }
@@ -81,12 +82,7 @@ body{
 }
 
 /* STAT ROWS */
-.stats-grid{
-  display:grid;
-  grid-template-columns:repeat(3, 1fr);
-  gap:14px;
-}
-
+.stats-grid,
 .region-grid{
   display:grid;
   grid-template-columns:repeat(3, 1fr);
@@ -129,10 +125,29 @@ body{
   font-size:12px;
 }
 
+.trend{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+
+.trend.up{
+  color:var(--red);
+}
+
+.trend.down{
+  color:var(--green);
+}
+
+.trend.flat{
+  color:var(--muted);
+  font-weight:600;
+}
+
 /* MAIN GRID */
 .main-grid{
   display:grid;
-  grid-template-columns: 1.7fr 1fr;
+  grid-template-columns:1.7fr 1fr;
   gap:14px;
 }
 
@@ -235,7 +250,7 @@ body{
 .swatch-yellow{ background:var(--yellow); }
 .swatch-orange{ background:var(--orange); }
 .swatch-red{ background:var(--red); }
-.swatch-darkred{ background:#8b0000; }
+.swatch-darkred{ background:var(--darkred); }
 
 /* LISTS */
 .ranked-list{
@@ -246,7 +261,7 @@ body{
 
 .rank-row{
   display:grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns:1fr auto;
   gap:10px;
   align-items:center;
   background:var(--panel2);
@@ -290,7 +305,7 @@ body{
 /* LOWER GRID */
 .lower-grid{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:1fr 1fr;
   gap:14px;
 }
 
@@ -302,7 +317,7 @@ body{
 
 .table-row{
   display:grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns:1fr auto;
   gap:10px;
   align-items:center;
   background:var(--panel2);
@@ -411,7 +426,7 @@ body{
     <div class="topbar-row">
       <div class="title-wrap">
         <h1>⚡ Pennsylvania Power Outage Status Board</h1>
-        <p>County outage severity, regional rollups, and trend monitoring</p>
+        <p>County outage severity, PEMA area rollups, and trend monitoring</p>
       </div>
       <div class="updated">Last Updated: 03/17/26 18:45 EDT</div>
     </div>
@@ -430,8 +445,10 @@ body{
     </div>
 
     <div class="stat-card">
-      <div class="stat-label">Largest Increase</div>
-      <div class="stat-value">+812</div>
+      <div class="stat-label">Trend Since Last Update</div>
+      <div class="stat-value">
+        <span class="trend up">▲ +4,102</span>
+      </div>
     </div>
   </section>
 
@@ -576,11 +593,12 @@ body{
   <!-- LOWER GRID -->
   <section class="lower-grid">
 
+    <!-- POWER COMPANY BREAKDOWN -->
     <div class="panel">
       <div class="panel-header">
         <div>
-          <h2 class="panel-title">Regional Breakdown</h2>
-          <div class="panel-subtitle">Placeholder counties within each PEMA area</div>
+          <h2 class="panel-title">Power Company Breakdown</h2>
+          <div class="panel-subtitle">Placeholder utility totals for later live data</div>
         </div>
       </div>
       <div class="panel-body">
@@ -588,32 +606,49 @@ body{
 
           <div class="table-row">
             <div class="table-left">
-              <div class="table-main">Western Area</div>
-              <div class="table-sub">Erie, Crawford, Mercer, Venango, Warren, etc.</div>
+              <div class="table-main">PPL Electric</div>
+              <div class="table-sub">Eastern and central Pennsylvania service areas</div>
             </div>
-            <div class="table-right">5,914</div>
+            <div class="table-right">12,441</div>
           </div>
 
           <div class="table-row">
             <div class="table-left">
-              <div class="table-main">Central Area</div>
-              <div class="table-sub">Dauphin, Cumberland, York, Lancaster, Potter, etc.</div>
+              <div class="table-main">Met-Ed</div>
+              <div class="table-sub">FirstEnergy service territory</div>
             </div>
-            <div class="table-right">8,237</div>
+            <div class="table-right">4,983</div>
           </div>
 
           <div class="table-row">
             <div class="table-left">
-              <div class="table-main">Eastern Area</div>
-              <div class="table-sub">Philadelphia region and eastern counties</div>
+              <div class="table-main">PECO</div>
+              <div class="table-sub">Philadelphia region service territory</div>
             </div>
-            <div class="table-right">8,218</div>
+            <div class="table-right">1,204</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Duquesne Light</div>
+              <div class="table-sub">Pittsburgh region service territory</div>
+            </div>
+            <div class="table-right">632</div>
+          </div>
+
+          <div class="table-row">
+            <div class="table-left">
+              <div class="table-main">Penelec</div>
+              <div class="table-sub">FirstEnergy northern and western service territory</div>
+            </div>
+            <div class="table-right">2,115</div>
           </div>
 
         </div>
       </div>
     </div>
 
+    <!-- TREND / CHANGES -->
     <div class="panel">
       <div class="panel-header">
         <div>
