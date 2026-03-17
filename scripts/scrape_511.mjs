@@ -30,68 +30,6 @@ async function scrapeSimpleTable(url, tableSelector = "table") {
   return { url, fetched_at: new Date().toISOString(), headers, rows };
 }
 
-async function scrapePaginatedTrafficTable(url, tableSelector = "table") {
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-
-  await page.goto(url, { waitUntil: "networkidle" });
-
-  for (const sel of [
-    'button:has-text("Done")',
-    'button:has-text("Next")',
-    'button[aria-label="Close"]'
-  ]) {
-    try { await page.click(sel, { timeout: 1500 }); } catch {}
-  }
-
-  await page.waitForTimeout(1500);
-
-  const headers = await page.$$eval(`${tableSelector} thead th`, ths =>
-    ths.map(th => th.innerText.trim())
-  );
-
-  const allRows = [];
-  const seen = new Set();
-
-  while (true) {
-    await page.waitForTimeout(800);
-
-    const rows = await page.$$eval(`${tableSelector} tbody tr`, trs =>
-      trs.map(tr => Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim()))
-    );
-
-    for (const row of rows) {
-      const key = JSON.stringify(row);
-      if (!seen.has(key)) {
-        seen.add(key);
-        allRows.push(row);
-      }
-    }
-
-    const nextButton = page.locator(
-      'a.paginate_button.next, button.paginate_button.next, .dataTables_paginate .next'
-    ).first();
-
-    const nextExists = await nextButton.count();
-    if (!nextExists) break;
-
-    const cls = (await nextButton.getAttribute("class")) || "";
-    const ariaDisabled = (await nextButton.getAttribute("aria-disabled")) || "";
-    const disabled =
-      /\bdisabled\b/i.test(cls) ||
-      ariaDisabled === "true";
-
-    if (disabled) break;
-
-    await nextButton.click().catch(() => {});
-    await page.waitForLoadState("networkidle").catch(() => {});
-  }
-
-  await browser.close();
-
-  return { url, fetched_at: new Date().toISOString(), headers, rows: allRows };
-}
-
 /* ---------- HELPERS ---------- */
 
 function idx(headers, name) {
@@ -414,18 +352,15 @@ async function main() {
   const outputs = [
     {
       name: "road_conditions",
-      url: "https://www.511pa.com/list/roadcondition",
-      scraper: scrapeSimpleTable
+      url: "https://www.511pa.com/list/roadcondition"
     },
     {
       name: "travel_delays",
-      url: "https://www.511pa.com/list/events/traffic?start=0&length=100&order%5Bi%5D=8&order%5Bdir%5D=desc",
-      scraper: scrapePaginatedTrafficTable
+      url: "https://www.511pa.com/list/events/traffic?start=0&length=250&order%5Bi%5D=8&order%5Bdir%5D=desc"
     },
     {
       name: "restrictions",
-      url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc",
-      scraper: scrapeSimpleTable
+      url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc"
     }
   ];
 
@@ -434,7 +369,7 @@ async function main() {
   const resultsByName = {};
 
   for (const o of outputs) {
-    const data = await o.scraper(o.url, "table");
+    const data = await scrapeSimpleTable(o.url, "table");
     resultsByName[o.name] = data;
     fs.writeFileSync(`data/${o.name}.json`, JSON.stringify(data, null, 2));
     console.log(`Wrote data/${o.name}.json (${data.rows.length} rows)`);
