@@ -154,7 +154,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 /* ITEMS (normal mode) */
 .items{ max-height:45vh; overflow:auto; }
 
-/* ✅ Wallboard-only: apply ONLY to panels that need scroll */
+/* Wallboard-only: apply ONLY to panels that need scroll */
 .items.wb-scroll{
   height: 34vh;
   max-height: none;
@@ -199,6 +199,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .grouphead.tier4{ color:#ef4444; }
 .grouphead.tier5{ color:#ec4899; }
 .grouphead.rl45{ color:#3b82f6; }
+.grouphead.rl55{ color:#06b6d4; }
 
 /* FOOTER pill reused in header */
 .footer{
@@ -419,7 +420,6 @@ function applyWallScroll(enabled){
   if (!WALL_SCROLL_ENABLED) return;
 
   const needScroll = panels.filter(el => panelOverflows(el));
-
   needScroll.forEach(el => el.classList.add("wb-scroll"));
 
   setTimeout(() => {
@@ -507,7 +507,7 @@ function cleanLine(s) {
 
   t = t.replace(/\s*\|\s*\|\s*/g, " | ");
   t = t.replace(/\s{2,}/g, " ");
-  t = t.replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*$/gi, "");
+  t = t.replace(/\s*\|\s*(I|US|PA)\s*[- ]\s*\d{1,4}\s*$/gi, "");
 
   return t.trim();
 }
@@ -520,6 +520,7 @@ function isFakeHeaderRow(s) {
   return false;
 }
 
+/* Roadway icon resolver */
 function getRoadImage(text){
   const s = String(text || "").trim();
 
@@ -571,7 +572,6 @@ function buildRoadRow(text){
 
 function extractCounty(text){
   const s = String(text || "");
-
   let m =
     s.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+County\b/) ||
     s.match(/\bCounty:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/i);
@@ -579,6 +579,7 @@ function extractCounty(text){
   if (m && m[1]) return m[1].trim();
   return "";
 }
+
 function buildRoadRowWithCounty(text){
   const wrap = document.createElement("div");
   wrap.className = "road-row";
@@ -672,7 +673,7 @@ function is45CmvRightLaneOnly(text){
   return mph45 && rightLaneOnly && cmvRightLane;
 }
 
-/* 55 MPH - CMV Right Lane Only (needed for Turnpike items like I-76) */
+/* 55 MPH - CMV Right Lane Only */
 function is55CmvRightLaneOnly(text){
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   if (!hasRoad) return false;
@@ -720,6 +721,7 @@ function extractTextLines(anyJson){
   return [];
 }
 
+/* Numeric-ish sort */
 function routeKey(text){
   const s = String(text || "");
   const m =
@@ -745,6 +747,7 @@ function sortByRoute(a,b){
   return String(a).localeCompare(String(b));
 }
 
+/* Planned sort */
 function parseDtToEpoch(dtStr){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -786,6 +789,7 @@ function sortPlannedByStartThenRoute(a,b){
   return sortByRoute(a,b);
 }
 
+/* Tier grouping */
 function extractTierHeader(s){
   const t = (s || "").trim();
   const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
@@ -832,6 +836,7 @@ function vehiclePanelCandidate(text){
   );
 }
 
+/* Display cleanups */
 function parseMmDdYyTimeLabel(dtStr, label){
   const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
   if (!m) return null;
@@ -897,6 +902,149 @@ function cleanupActiveVehicleText(fullText){
   return { main, line2 };
 }
 
+/* ---------- CONTIGUOUS RESTRICTION COMBINER ---------- */
+function normalizePointName(s){
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[–—]/g, "-")
+    .replace(/\boh\s*line\b/g, "oh line")
+    .replace(/\bohio\s+state\s+line\b/g, "oh line")
+    .replace(/\bohio\s+line\b/g, "oh line")
+    .replace(/\bstate\s+line\b/g, "state line")
+    .replace(/\bexit\s*:\s*/g, "exit: ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeRouteLabel(route){
+  const r = String(route || "").toUpperCase().replace(/\s+/g, "");
+  const m = r.match(/^(I|US|PA)-?(\d{1,4})$/i);
+  if (!m) return String(route || "").trim().toUpperCase();
+  return `${m[1].toUpperCase()}-${m[2]}`;
+}
+
+function normalizeDirLabel(dir){
+  const d = String(dir || "").trim().toUpperCase();
+  if (d === "EAST" || d === "EB") return "E";
+  if (d === "WEST" || d === "WB") return "W";
+  if (d === "NORTH" || d === "NB") return "N";
+  if (d === "SOUTH" || d === "SB") return "S";
+  return "";
+}
+
+function dirLetterToWord(dir){
+  if (dir === "E") return " East";
+  if (dir === "W") return " West";
+  if (dir === "N") return " North";
+  if (dir === "S") return " South";
+  return "";
+}
+
+function normalizeRestrictionRest(rest){
+  return String(rest || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+\./g, ".")
+    .trim()
+    .toLowerCase();
+}
+
+function parseRestrictionSegment(text){
+  const s = String(text || "").trim();
+
+  const m = s.match(/^(?<route>(?:I|US|PA)\s*-\s*\d{1,4}|(?:I|US|PA)\s*\d{1,4})\s*(?<dir>east|west|north|south|eb|wb|nb|sb)?\s+between\s+(?<start>.+?)\s+and\s+(?<end>.+?)\.\s+(?<rest>.+)$/i);
+  if (!m || !m.groups) return null;
+
+  const route = normalizeRouteLabel(m.groups.route || "");
+  const dir = normalizeDirLabel(m.groups.dir || "");
+  const start = String(m.groups.start || "").trim();
+  const end = String(m.groups.end || "").trim();
+  const rest = String(m.groups.rest || "").trim();
+
+  if (!route || !start || !end || !rest) return null;
+
+  return {
+    original: s,
+    route,
+    dir,
+    start,
+    end,
+    rest,
+    startKey: normalizePointName(start),
+    endKey: normalizePointName(end),
+    restKey: normalizeRestrictionRest(rest)
+  };
+}
+
+function combineContiguousRestrictions(items){
+  const parsed = [];
+  const leftovers = [];
+
+  for (const raw of (items || [])) {
+    const text = typeof raw === "string" ? raw : (raw?.text ?? String(raw ?? ""));
+    const seg = parseRestrictionSegment(text);
+    if (seg) parsed.push(seg);
+    else leftovers.push(text);
+  }
+
+  const grouped = new Map();
+
+  for (const seg of parsed) {
+    const key = `${seg.route}|${seg.dir}|${seg.restKey}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(seg);
+  }
+
+  const combined = [];
+
+  for (const segs of grouped.values()) {
+    const startMap = new Map();
+    const endMap = new Map();
+
+    for (const seg of segs) {
+      if (!startMap.has(seg.startKey)) startMap.set(seg.startKey, []);
+      startMap.get(seg.startKey).push(seg);
+
+      if (!endMap.has(seg.endKey)) endMap.set(seg.endKey, []);
+      endMap.get(seg.endKey).push(seg);
+    }
+
+    const used = new Set();
+
+    for (const seg of segs) {
+      if (used.has(seg.original)) continue;
+
+      let head = seg;
+
+      while (true) {
+        const prevCandidates = (endMap.get(head.startKey) || []).filter(x => !used.has(x.original) && x.original !== head.original);
+        if (prevCandidates.length !== 1) break;
+        const prev = prevCandidates[0];
+        if (prev.startKey === prev.endKey) break;
+        head = prev;
+      }
+
+      let tail = head;
+      used.add(tail.original);
+
+      while (true) {
+        const nextCandidates = (startMap.get(tail.endKey) || []).filter(x => !used.has(x.original) && x.original !== tail.original);
+        if (nextCandidates.length !== 1) break;
+        const next = nextCandidates[0];
+        if (next.startKey === next.endKey) break;
+        used.add(next.original);
+        tail = next;
+      }
+
+      combined.push(
+        `${head.route}${dirLetterToWord(head.dir)} between ${head.start} and ${tail.end}. ${head.rest}`
+      );
+    }
+  }
+
+  return [...combined, ...leftovers].sort(sortByRoute);
+}
+/* ---------- END COMBINER ---------- */
+
 function renderVehicleGrouped(elId, items){
   const el = document.getElementById(elId);
   if (!el) return;
@@ -939,7 +1087,7 @@ function renderVehicleGrouped(elId, items){
     rl55:"55 MPH — CMV Right Lane Only",
     other:"Other / Unclassified vehicle restrictions"
   };
-  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl45",other:""};
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl55",other:""};
   const order = [1,2,3,4,5,"rl45","rl55","other"];
 
   for (const key of order) {
@@ -962,8 +1110,8 @@ function renderVehicleGrouped(elId, items){
       if (line2) {
         const l2 = document.createElement("div");
         l2.className = "subline";
-        l2.textContent = line2;
         div.appendChild(l2);
+        l2.textContent = line2;
       }
 
       el.appendChild(div);
@@ -1013,7 +1161,7 @@ function renderVehicleGroupedPlanned(elId, items){
     rl55:"55 MPH — CMV Right Lane Only",
     other:"Other / Unclassified vehicle restrictions"
   };
-  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl45",other:""};
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl55",other:""};
   const order = [1,2,3,4,5,"rl45","rl55","other"];
 
   for (const key of order) {
@@ -1047,6 +1195,7 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 }
 
+/* Closures de-dupe key */
 function closureDedupeKey(s){
   return String(s || "")
     .toLowerCase()
@@ -1057,6 +1206,7 @@ function closureDedupeKey(s){
     .trim();
 }
 
+/* Start/End time split logic */
 function hasEndTime(text){
   const t = String(text || "").toLowerCase();
   if (t.includes("end time")) return true;
@@ -1111,7 +1261,7 @@ async function loadBoard(){
       return;
     }
 
-    let closuresJson=null, restr=null;
+    let closuresJson = null, restr = null;
 
     try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
     try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
@@ -1130,13 +1280,14 @@ async function loadBoard(){
     const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
     const withTiers = applyTierContext(restrRows);
 
-    const speed = withTiers
+    const speedRaw = withTiers
       .map(r => r.text)
       .filter(isSpeedRestriction)
       .filter(s => !is45CmvRightLaneOnly(s))
       .filter(s => !is55CmvRightLaneOnly(s))
-      .filter(s => !isVehicleOnlyRestriction(s))
-      .sort(sortByRoute);
+      .filter(s => !isVehicleOnlyRestriction(s));
+
+    const speed = combineContiguousRestrictions(speedRaw);
 
     const vehicleAll = withTiers.filter(r =>
       is45CmvRightLaneOnly(r.text) ||
@@ -1146,8 +1297,16 @@ async function loadBoard(){
       vehiclePanelCandidate(r.text)
     );
 
-    const plannedVehicle = vehicleAll.filter(isPlannedVehicleItem);
-    const activeVehicle = vehicleAll.filter(r => !isPlannedVehicleItem(r));
+    const plannedVehicleRaw = vehicleAll.filter(isPlannedVehicleItem);
+    const activeVehicleRaw = vehicleAll.filter(r => !isPlannedVehicleItem(r));
+
+    const plannedVehicle = combineContiguousRestrictions(
+      plannedVehicleRaw.map(r => r.text || String(r))
+    ).map(t => ({ text: t, tier: getTierFromText(t) }));
+
+    const activeVehicle = combineContiguousRestrictions(
+      activeVehicleRaw.map(r => r.text || String(r))
+    ).map(t => ({ text: t, tier: getTierFromText(t) }));
 
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
