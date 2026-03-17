@@ -568,18 +568,26 @@ function getRoadImage(text){
   const parts = location.pathname.split("/").filter(Boolean);
   const repoBase = parts.length ? `/${parts[0]}/` : "/";
 
-  let m =
-    s.match(/^(?:\(|\[)?\s*(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
-    s.match(/^(?:\(|\[)?\s*(PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
-    s.match(/^(?:\(|\[)?\s*(I)\s*[- ]?\s*(\d{1,4})\b/i);
+  const m =
+    s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/\binterstate\s*(\d{1,4})\b/i);
 
-  if (!m) {
-    m =
-      s.match(/\b(US)\s*[- ]?\s*(\d{1,4})\b/i) ||
-      s.match(/\b(PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
-      s.match(/\b(I)\s*[- ]?\s*(\d{1,4})\b/i);
+  if (!m) return "";
+
+  let typ = "";
+  let num = "";
+
+  if (/interstate/i.test(m[0])) {
+    typ = "i";
+    num = m[1];
+  } else {
+    typ = String(m[1]).toLowerCase();
+    num = m[2];
   }
 
+  const filename = `${typ}${num}small.png`;
+  return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
+}
   if (!m) return "";
 
   const typ = String(m[1]).toLowerCase();
