@@ -355,7 +355,7 @@ async function main() {
     },
     {
       name: "travel_delays",
-      url: "https://www.511pa.com/list/events/traffic",
+      url: "https://www.511pa.com/list/events/traffic?start=0&length=100&order%5Bi%5D=8&order%5Bdir%5D=desc",
       tableSelector: "table"
     },
     {
