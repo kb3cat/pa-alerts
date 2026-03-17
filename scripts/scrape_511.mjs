@@ -180,6 +180,69 @@ function normalizeNarrativeText(s) {
   return t;
 }
 
+function extractMileMarker(text) {
+  const s = String(text || "");
+
+  const range = s.match(/Mile Post:\s*([\d.]+)\s*-\s*Mile Post:\s*([\d.]+)/i);
+  if (range) {
+    return {
+      type: "range",
+      start: range[1],
+      end: range[2]
+    };
+  }
+
+  const single = s.match(/Mile Post:\s*([\d.]+)/i);
+  if (single) {
+    return {
+      type: "single",
+      value: single[1]
+    };
+  }
+
+  return null;
+}
+
+function applyMileMarkerCleanup(narrative, sourceText) {
+  const mm = extractMileMarker(sourceText);
+  if (!mm) return narrative;
+
+  const hasRestArea = /rest area/i.test(narrative);
+  const hasMilesFromExit = /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b/i.test(narrative);
+
+  if (!hasRestArea && !hasMilesFromExit) return narrative;
+
+  if (mm.type === "range") {
+    let updated = narrative.replace(
+      /between.*?rest area.*?and.*?rest area/i,
+      `between Mile Marker ${mm.start} and ${mm.end}`
+    );
+
+    updated = updated.replace(
+      /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b.*?\band\b\s*\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b.*?(?=\.|$)/i,
+      `between Mile Marker ${mm.start} and ${mm.end}`
+    );
+
+    return updated;
+  }
+
+  if (mm.type === "single") {
+    let updated = narrative.replace(
+      /between.*?rest area.*?and.*?rest area/i,
+      `near Mile Marker ${mm.value}`
+    );
+
+    updated = updated.replace(
+      /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b[^.]*/i,
+      `near Mile Marker ${mm.value}`
+    );
+
+    return updated;
+  }
+
+  return narrative;
+}
+
 /* ---------- MAJOR ROUTE CLOSURES ---------- */
 
 function buildMajorRouteClosures(trafficTable) {
@@ -222,10 +285,12 @@ function buildMajorRouteClosures(trafficTable) {
       ? countyFromCol.replace(/\s*county$/i, "").trim()
       : (parseCountyFromDesc(desc) || "Unknown");
 
-    const narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
+    let narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
+    narrative = applyMileMarkerCleanup(narrative, desc);
+
     const reopenFmt = parseReopenToMMDDYY_HHMM(end);
 
-    const narrativeHasBetween = /\bbetween\s+Exit\b/i.test(narrative);
+    const narrativeHasBetween = /\bbetween\b/i.test(narrative);
     const betweenText = (!narrativeHasBetween && between)
       ? ` between ${between.from} and ${between.to}.`
       : "";
@@ -317,6 +382,7 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
       : (parseCountyFromDesc(desc) || "Unknown");
 
     let narrative = desc.replace(/\s*There is a lane restriction\.?\s*$/i, "").trim();
+    narrative = applyMileMarkerCleanup(narrative, desc);
     if (narrative && !/[.!?]$/.test(narrative)) narrative += ".";
 
     const reopenFmt = parseReopenToMMDDYY_HHMM(end);
