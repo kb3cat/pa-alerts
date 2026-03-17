@@ -17,6 +17,7 @@
   --blue:#00bfff;
   --yellow:#ffe600;
   --green:#29d36a;
+  --purple:#c084fc;
 }
 
 body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Helvetica, sans-serif; }
@@ -29,10 +30,10 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   display:flex;
   justify-content:space-between;
   align-items:center;
-  gap: 14px;
+  gap:14px;
 }
 .title{ font-size:22px; font-weight:700; }
-.subtitle{ color:var(--muted); font-size:13px; margin-top: 2px; }
+.subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
 .header-left{ display:flex; flex-direction:column; }
 
 /* Status pill (upper right) */
@@ -151,14 +152,41 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
 .paneltitle .count{ font-size:18px; color:var(--muted); }
 
+.panel-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.section-toggle{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.section-toggle:hover{
+  background: rgba(255,255,255,.09);
+}
+.section-toggle.closed{
+  color: #ffd7a8;
+  border-color: rgba(255,176,0,.28);
+}
+
 /* ITEMS (normal mode) */
 .items{ max-height:45vh; overflow:auto; }
+.items.is-collapsed{ display:none; }
 
 /* Wallboard-only: apply ONLY to panels that need scroll */
 .items.wb-scroll{
-  height: 34vh;
-  max-height: none;
-  overflow: auto;
+  height:34vh;
+  max-height:none;
+  overflow:auto;
 }
 
 /* ITEMS content */
@@ -175,6 +203,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 }
 .speed .item{ border-left-color: var(--blue); }
 .vehicle .item{ border-left-color: var(--yellow); }
+.lane .item{ border-left-color: var(--purple); }
 
 /* Vehicle grouping headers */
 .grouphead{
@@ -182,16 +211,16 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   margin:10px 0 6px;
   border-radius:6px;
   background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.10);
-  color: var(--text);
-  font-weight: 400;
-  font-size: 15px;
-  letter-spacing: .02em;
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--text);
+  font-weight:400;
+  font-size:15px;
+  letter-spacing:.02em;
 }
 .grouphead small{
-  color: var(--muted);
-  font-weight: 400;
-  margin-left: 6px;
+  color:var(--muted);
+  font-weight:400;
+  margin-left:6px;
 }
 .grouphead.tier1{ color:#a855f7; }
 .grouphead.tier2{ color:#f59e0b; }
@@ -214,27 +243,27 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   border-radius:999px;
 }
 .header-updated{
-  position: static;
-  bottom: auto;
-  right: auto;
-  background: none;
-  border: none;
-  padding: 0;
-  margin-top: 4px;
-  border-radius: 0;
+  position:static;
+  bottom:auto;
+  right:auto;
+  background:none;
+  border:none;
+  padding:0;
+  margin-top:4px;
+  border-radius:0;
 }
 
 /* Link under updated */
 .header-links{
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top:6px;
+  font-size:12px;
 }
 .header-links a{
-  color: #bfe7ff;
-  text-decoration: none;
+  color:#bfe7ff;
+  text-decoration:none;
 }
 .header-links a:hover{
-  text-decoration: underline;
+  text-decoration:underline;
 }
 
 /* Roadway icon next to route name */
@@ -252,10 +281,10 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 
 /* Second-line alignment under roadway text (not under icon) */
 .subline{
-  margin-top: 2px;
+  margin-top:2px;
 }
 .subline.indent-under-icon{
-  padding-left: 42px;
+  padding-left:42px;
 }
 </style>
 </head>
@@ -293,6 +322,9 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="row closures">
     <div class="paneltitle">
       <div class="name">Closures</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="closuresList">Close</button>
+      </div>
     </div>
     <div class="items" id="closuresList"></div>
   </div>
@@ -300,13 +332,29 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="row speed">
     <div class="paneltitle">
       <div class="name">Speed Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="speedList">Close</button>
+      </div>
     </div>
     <div class="items" id="speedList"></div>
+  </div>
+
+  <div class="row lane">
+    <div class="paneltitle">
+      <div class="name">Lane Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="laneList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="laneList"></div>
   </div>
 
   <div class="row vehicle">
     <div class="paneltitle">
       <div class="name">Active Vehicle Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="vehicleList">Close</button>
+      </div>
     </div>
     <div class="items" id="vehicleList"></div>
   </div>
@@ -314,6 +362,9 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="row vehicle">
     <div class="paneltitle">
       <div class="name">Planned Vehicle Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="plannedVehicleList">Close</button>
+      </div>
     </div>
     <div class="items" id="plannedVehicleList"></div>
   </div>
@@ -410,6 +461,7 @@ function applyWallScroll(enabled){
   const panels = [
     document.getElementById("closuresList"),
     document.getElementById("speedList"),
+    document.getElementById("laneList"),
     document.getElementById("vehicleList"),
     document.getElementById("plannedVehicleList")
   ].filter(Boolean);
@@ -419,12 +471,12 @@ function applyWallScroll(enabled){
 
   if (!WALL_SCROLL_ENABLED) return;
 
-  const needScroll = panels.filter(el => panelOverflows(el));
+  const needScroll = panels.filter(el => !el.classList.contains("is-collapsed") && panelOverflows(el));
   needScroll.forEach(el => el.classList.add("wb-scroll"));
 
   setTimeout(() => {
     needScroll.forEach(el => {
-      if (panelOverflows(el)) startAutoScroll(el);
+      if (!el.classList.contains("is-collapsed") && panelOverflows(el)) startAutoScroll(el);
     });
   }, 50);
 }
@@ -507,17 +559,14 @@ function cleanLine(s) {
 
   t = t.replace(/\s*\|\s*\|\s*/g, " | ");
   t = t.replace(/\s{2,}/g, " ");
-  t = t.replace(/\s*\|\s*(I|US|PA)\s*[- ]\s*\d{1,4}\s*$/gi, "");
+  t = t.replace(/\s*\|\s*(I|US|PA)\s*[- ]?\s*\d{1,4}\s*$/gi, "");
 
   return t.trim();
 }
 
 function isFakeHeaderRow(s) {
   const t = s.trim().toLowerCase();
-  if (t === "speed restrictions") return true;
-  if (t === "vehicle restrictions") return true;
-  if (t === "restrictions") return true;
-  return false;
+  return t === "speed restrictions" || t === "vehicle restrictions" || t === "restrictions" || t === "lane restrictions";
 }
 
 /* Roadway icon resolver */
@@ -570,38 +619,14 @@ function buildRoadRow(text){
   return wrap;
 }
 
+/* Closures-only county support if needed later */
 function extractCounty(text){
   const s = String(text || "");
-  let m =
+  const m =
     s.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+County\b/) ||
     s.match(/\bCounty:\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/i);
 
-  if (m && m[1]) return m[1].trim();
-  return "";
-}
-
-function buildRoadRowWithCounty(text){
-  const wrap = document.createElement("div");
-  wrap.className = "road-row";
-
-  const imgPath = getRoadImage(text);
-  if (imgPath) {
-    wrap.dataset.hasIcon = "1";
-
-    const img = document.createElement("img");
-    img.className = "road-img";
-    img.src = imgPath;
-    img.alt = "";
-    img.onerror = () => { img.style.display = "none"; };
-    wrap.appendChild(img);
-  }
-
-  const county = extractCounty(text);
-  const name = document.createElement("div");
-  name.textContent = county ? `(${county}) ${text}` : text;
-  wrap.appendChild(name);
-
-  return wrap;
+  return m && m[1] ? m[1].trim() : "";
 }
 
 function renderList(elId, items, kind) {
@@ -627,13 +652,52 @@ function renderList(elId, items, kind) {
   });
 }
 
+function renderLaneList(elId, items) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "item lane";
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+    return;
+  }
+
+  items.forEach(text => {
+    const div = document.createElement("div");
+    div.className = "item lane";
+    div.appendChild(buildRoadRow(text));
+    el.appendChild(div);
+  });
+}
+
 function isSpeedRestriction(text) {
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
   const hasSpeed = /\b(mph|speed)\b/i.test(text);
   return hasSpeed && hasRoad;
 }
 
-/* Turnpike / CMV lane-control items should live under vehicle restrictions, not speed */
+function isLaneRestriction(text){
+  const t = String(text || "");
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
+  if (!hasRoad) return false;
+
+  const hasLaneWord =
+    /\bright\s*lane\s*only\b/i.test(t) ||
+    /\bleft\s*lane\s*only\b/i.test(t) ||
+    /\b(single|left|right|center)\s+lane\b/i.test(t) ||
+    /\blane restriction(s)?\b/i.test(t) ||
+    /\blane closed\b/i.test(t) ||
+    /\bshoulder closed\b/i.test(t);
+
+  return hasLaneWord;
+}
+
+/* Vehicle-only restrictions (CMV/truck class) */
 function isVehicleOnlyRestriction(text){
   const t = String(text || "");
   const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
@@ -702,14 +766,7 @@ function extractTextLines(anyJson){
 
   if (Array.isArray(anyJson.items)) {
     return anyJson.items
-      .map(it =>
-        it?.formatted ||
-        it?.description ||
-        it?.title ||
-        it?.message ||
-        it?.text ||
-        ""
-      )
+      .map(it => it?.formatted || it?.description || it?.title || it?.message || it?.text || "")
       .map(s => String(s || "").trim())
       .filter(Boolean);
   }
@@ -865,7 +922,7 @@ function parseMmDdYyTimeLabel(dtStr, label){
   return `${label} ${MM}/${DD}/${yy} at ${HH}:${MN} hours.`;
 }
 function stripPipeRouteOnly(text){
-  return String(text || "").replace(/\s*\|\s*(I|US|PA)\s*-\s*\d{1,4}\s*\|\s*/gi, " | ").trim();
+  return String(text || "").replace(/\s*\|\s*(I|US|PA)\s*[- ]?\s*\d{1,4}\s*\|\s*/gi, " | ").trim();
 }
 
 function cleanupPlannedVehicleText(fullText){
@@ -1223,6 +1280,39 @@ function isPlannedVehicleItem(it){
   return hasStart && !hasEndTime(text);
 }
 
+/* Section toggle support */
+function setSectionCollapsed(contentEl, buttonEl, collapsed){
+  if (!contentEl || !buttonEl) return;
+
+  contentEl.classList.toggle("is-collapsed", collapsed);
+  buttonEl.classList.toggle("closed", collapsed);
+  buttonEl.textContent = collapsed ? "Open" : "Close";
+
+  localStorage.setItem(`sectionCollapsed:${contentEl.id}`, collapsed ? "1" : "0");
+}
+
+function initSectionToggles(){
+  const buttons = document.querySelectorAll(".section-toggle");
+
+  buttons.forEach(btn => {
+    const targetId = btn.dataset.target;
+    const contentEl = document.getElementById(targetId);
+    if (!contentEl) return;
+
+    const saved = localStorage.getItem(`sectionCollapsed:${targetId}`) === "1";
+    setSectionCollapsed(contentEl, btn, saved);
+
+    btn.addEventListener("click", () => {
+      const isCollapsed = contentEl.classList.contains("is-collapsed");
+      setSectionCollapsed(contentEl, btn, !isCollapsed);
+
+      if (WALL_SCROLL_ENABLED) {
+        setTimeout(() => applyWallScroll(true), 50);
+      }
+    });
+  });
+}
+
 async function loadBoard(){
   try {
     let lastRunDt = null;
@@ -1285,9 +1375,17 @@ async function loadBoard(){
       .filter(isSpeedRestriction)
       .filter(s => !is45CmvRightLaneOnly(s))
       .filter(s => !is55CmvRightLaneOnly(s))
-      .filter(s => !isVehicleOnlyRestriction(s));
+      .filter(s => !isVehicleOnlyRestriction(s))
+      .filter(s => !isLaneRestriction(s));
 
     const speed = combineContiguousRestrictions(speedRaw);
+
+    const laneRaw = withTiers
+      .map(r => r.text)
+      .filter(isLaneRestriction)
+      .filter(s => !isVehicleOnlyRestriction(s));
+
+    const lane = combineContiguousRestrictions(laneRaw);
 
     const vehicleAll = withTiers.filter(r =>
       is45CmvRightLaneOnly(r.text) ||
@@ -1310,6 +1408,7 @@ async function loadBoard(){
 
     renderList("closuresList", closuresMerged, "");
     renderList("speedList", speed, "speed");
+    renderLaneList("laneList", lane);
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
@@ -1325,6 +1424,7 @@ async function loadBoard(){
   }
 }
 
+/* Toggle + remember setting */
 (function initWallboardToggle(){
   const toggle = document.getElementById("wallScrollToggle");
   if (!toggle) return;
@@ -1340,6 +1440,7 @@ async function loadBoard(){
   });
 })();
 
+initSectionToggles();
 loadBoard();
 setInterval(loadBoard, REFRESH_MS);
 </script>
