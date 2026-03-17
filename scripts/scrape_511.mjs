@@ -252,105 +252,91 @@ function buildMajorRouteClosures(trafficTable) {
   };
 }
 
-/* ---------- LANE RESTRICTION SUPPORT ---------- */
+/* ---------- LANE RESTRICTIONS FROM TRAFFIC EVENTS ---------- */
 
-function rowToJoinedText(row) {
-  return (row || []).map(x => norm(x)).filter(Boolean).join(" | ");
-}
-
-function isCmvVehicleRestrictionText(text) {
-  return /\bcommercial vehicles?\b|\bcmv\b|\btrucks?\b/i.test(text);
-}
-
-function isGeneralLaneRestrictionText(text) {
-  const t = String(text || "");
-
-  const laneLike =
-    /\blane restriction(s)?\b/i.test(t) ||
-    /\blane closed\b/i.test(t) ||
-    /\bleft lane closed\b/i.test(t) ||
-    /\bright lane closed\b/i.test(t) ||
-    /\bcenter lane closed\b/i.test(t) ||
-    /\bsingle lane\b/i.test(t) ||
-    /\bleft lane blocked\b/i.test(t) ||
-    /\bright lane blocked\b/i.test(t) ||
-    /\bshoulder closed\b/i.test(t) ||
-    /\bshoulder restriction\b/i.test(t) ||
-    /\bmerge\b.*\blane\b/i.test(t);
-
-  if (!laneLike) return false;
-
-  if (isCmvVehicleRestrictionText(t)) return false;
-
-  return true;
-}
-
-function buildLaneRestrictions(restrTable) {
-  const headers = restrTable.headers || [];
-  const rows = restrTable.rows || [];
-
-  const descIdx =
-    idx(headers, "Description") ??
-    findHeader(headers, /description/i);
+function buildLaneRestrictionsFromTraffic(trafficTable) {
+  const headers = trafficTable.headers || [];
+  const rows = trafficTable.rows || [];
 
   const typeIdx =
     idx(headers, "Type") ??
     findHeader(headers, /type/i);
+
+  const roadwayIdx =
+    idx(headers, "Roadway") ??
+    findHeader(headers, /roadway/i);
+
+  const stateIdx =
+    idx(headers, "State") ??
+    findHeader(headers, /\bstate\b/i);
 
   const countyIdx =
     idx(headers, "County") ??
     idx(headers, "County Name") ??
     findHeader(headers, /\bcounty\b/i);
 
+  const descIdx =
+    idx(headers, "Description") ??
+    findHeader(headers, /description/i);
+
   const startIdx =
     idx(headers, "Start Time") ??
-    idx(headers, "Anticipated Start Time") ??
-    findHeader(headers, /(start)/i);
+    idx(headers, "Reported Time") ??
+    findHeader(headers, /start time|reported/i);
 
   const endIdx =
-    idx(headers, "End Time") ??
     idx(headers, "Anticipated End Time") ??
-    findHeader(headers, /(anticipated.*end|end time|\bend\b)/i);
+    idx(headers, "End Time") ??
+    findHeader(headers, /anticipated end|end time|\bend\b/i);
+
+  const updatedIdx =
+    idx(headers, "Last Updated") ??
+    findHeader(headers, /last updated|updated/i);
 
   const items = [];
 
   for (const r of rows) {
-    const desc = norm(descIdx != null ? r[descIdx] : rowToJoinedText(r));
     const type = norm(typeIdx != null ? r[typeIdx] : "");
-    const countyRaw = norm(countyIdx != null ? r[countyIdx] : "");
-    const startRaw = norm(startIdx != null ? r[startIdx] : "");
-    const endRaw = norm(endIdx != null ? r[endIdx] : "");
+    const roadway = norm(roadwayIdx != null ? r[roadwayIdx] : "");
+    const state = norm(stateIdx != null ? r[stateIdx] : "");
+    const county = norm(countyIdx != null ? r[countyIdx] : "");
+    const desc = norm(descIdx != null ? r[descIdx] : "");
+    const start = norm(startIdx != null ? r[startIdx] : "");
+    const end = norm(endIdx != null ? r[endIdx] : "");
+    const updated = norm(updatedIdx != null ? r[updatedIdx] : "");
 
-    const combined = `${type} | ${desc}`;
+    if (!desc) continue;
 
-    if (!isGeneralLaneRestrictionText(combined)) continue;
+    // ONLY keep rows that explicitly say "There is a lane restriction."
+    if (!/\bthere is a lane restriction\b/i.test(desc)) continue;
 
-    const county = countyRaw
-      ? countyRaw.replace(/\s*county$/i, "").trim()
-      : (parseCountyFromDesc(desc) || "");
-
-    const route = parseRoute(desc) || parseRoute(type) || "";
-    const direction = parseDirection(desc) || parseDirection(type) || "";
+    const route = parseRoute(roadway || desc) || "";
+    const direction = parseDirection(desc) || parseDirection(roadway) || "";
     const between = parseBetweenExits(desc);
 
     items.push({
+      type,
+      roadway,
+      state,
+      county: county ? county.replace(/\s*county$/i, "").trim() : "",
       route,
       direction,
-      county,
-      start_time: startRaw,
-      end_time: endRaw,
       between,
       description: desc,
-      type,
-      formatted: rowToJoinedText(r),
-      row: r
+      start_time: start,
+      anticipated_end_time: end,
+      last_updated: updated,
+      formatted: [type, roadway, state, county, desc, start, end, updated]
+        .map(x => norm(x))
+        .filter(Boolean)
+        .join(" | ")
     });
   }
 
   return {
     name: "lane_restrictions",
-    fetched_at: restrTable.fetched_at,
-    source_url: restrTable.url,
+    fetched_at: trafficTable.fetched_at,
+    source_url: trafficTable.url,
     headers,
     count: items.length,
     items
@@ -391,7 +377,7 @@ async function main() {
   fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(major, null, 2));
   console.log(`Wrote data/major_route_closures.json (${major.count} items)`);
 
-  const lane = buildLaneRestrictions(resultsByName.restrictions);
+  const lane = buildLaneRestrictionsFromTraffic(resultsByName.travel_delays);
   fs.writeFileSync(`data/lane_restrictions.json`, JSON.stringify(lane, null, 2));
   console.log(`Wrote data/lane_restrictions.json (${lane.count} items)`);
 }
