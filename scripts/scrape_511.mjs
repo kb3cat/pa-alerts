@@ -307,6 +307,9 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
 
     if (!desc) continue;
 
+    // ONLY keep major routes
+    if (!/major route/i.test(type)) continue;
+    
     // ONLY keep rows that explicitly say "There is a lane restriction."
     if (!/\bthere is a lane restriction\b/i.test(desc)) continue;
 
