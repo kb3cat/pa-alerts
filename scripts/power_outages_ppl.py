@@ -88,10 +88,17 @@ def fetch():
         page.on("response", log_response)
 
         try:
-            page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
+           page.goto("https://omap.prod.pplweb.com/omap", wait_until="domcontentloaded", timeout=60000)
 
-            # Give the app time to initialize and make its own calls
-            page.wait_for_timeout(15000)
+# Force navigation to tabular view (this triggers the API)
+page.evaluate("""
+    () => {
+        window.location.hash = "#pg-tabular";
+    }
+""")
+
+# Wait for app to react
+page.wait_for_timeout(20000)
 
             if not captured["text"]:
                 write_debug({
