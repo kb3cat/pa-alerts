@@ -1,0 +1,1856 @@
+<!DOCTYPE html><html class=" js flexbox flexboxlegacy canvas canvastext webgl no-touch geolocation postmessage no-websqldatabase indexeddb hashchange history draganddrop websockets rgba hsla multiplebgs backgroundsize borderimage borderradius boxshadow textshadow opacity cssanimations csscolumns cssgradients cssreflections csstransforms csstransforms3d csstransitions fontface generatedcontent video audio localstorage sessionstorage webworkers no-applicationcache svg inlinesvg smil svgclippaths" style=""><head>
+    <!-- Google Tag Manager -->
+    <!--   <script>
+       (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+       new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+       j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+       'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+       })(window,document,'script','dataLayer','GTM-5DMXWH5');</script> -->
+    <!-- Google tag (gtag.js) -->
+    <script async="" src="//www.google-analytics.com/analytics.js"></script><script type="text/javascript" async="" src="https://www.googletagmanager.com/gtag/js?id=G-G9DNPLTFWL&amp;cx=c&amp;gtm=4e63g1"></script><script type="text/javascript" src="/OMAP/ruxitagentjs_ICANVfqrux_10331260218130851.js" data-dtconfig="rid=RID_1451425797|rpid=537140951|domain=pplweb.com|reportUrl=/OMAP/rb_bf61764qsj|uam=1|app=fa6d6990e3efb79d|cuc=1560jyq3|owasp=1|mel=100000|featureHash=ICANVfqrux|dpvc=1|lastModification=1772588283841|tp=500,50,0|rdnt=1|uxrgce=1|srbbv=2|agentUri=/OMAP/ruxitagentjs_ICANVfqrux_10331260218130851.js"></script><script async="" src="https://www.googletagmanager.com/gtag/js?id=GTM-5DMXWH5"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'GTM-5DMXWH5', { 'debug_mode':true });
+    </script>
+    <!-- End Google Tag Manager -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>PPL Outage Map</title>
+    <meta name="description" content="Search our map to see information about your outage, get updates about the repair status and see your estimated repair time.">
+    <meta name="keywords" content="Outage, outages, power, map, outage causes, generators, storm, storms, pp&amp;l, light, electric, utilities, Pennsylvania">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+    <link rel="shortcut icon" href="https://omap.prod.pplweb.com/OMAP/img/favicon.png">
+    <link rel="apple-touch-icon" href="https://omap.prod.pplweb.com/OMAP/img/favicon.png">
+    
+    <script src="https://maps.googleapis.com/maps/api/js?client=gme-pplelectricutilities1"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/3.0.3/handlebars.min.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,400italic,700,700italic,900,900italic,300italic,300" rel="stylesheet" type="text/css">
+
+    
+
+    <!-- Optional theme -->
+    
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+    <script type="text/javascript" src="/OMAP/Scripts/moment.js"></script>
+
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css" rel="stylesheet">
+
+
+    
+
+    <script src="/OMAP/Scripts/jquery.signalR-2.2.0.min.js"></script>
+
+    <script src="/OMAP/signalr/hubs"></script>
+
+    <link href="/OMAP/Content/omap?v=RTlW9p-GeHhq0qOtjg8irSxyWE-P0dFZDNCc4gq-BBs1" rel="stylesheet">
+
+
+    <script src="/OMAP/bundles/modernizr?v=wBEWDufH_8Md-Pbioxomt90vm6tJN2Pyy9u9zHtWsPo1"></script>
+
+
+    
+    <script src="/OMAP/bundles/omap?v=WSdTSMu--pXsuNLlRiZAKzdUEF4CXRKKDRmD05nkjKg1"></script>
+
+    <script src="/OMAP/bundles/treegrid?v=lR3yW2Y95PUEgbhwZM45OS28tt7MoCtyjAqKqWrMaFs1"></script>
+
+    
+
+
+
+
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
+    <script>
+        (function (i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+                (i[r].q = i[r].q || []).push(arguments);
+            }, i[r].l = 1 * new Date(); a = s.createElement(o),
+            m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g;
+            m.parentNode.insertBefore(a, m);
+        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+
+        ga('create', 'UA-32485962-1', 'auto');
+        ga('send', 'pageview');
+
+    </script>
+
+<script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/common.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/util.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/map.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/geocoder.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/overlay.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/marker.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/geometry.js"></script><script type="text/javascript" charset="UTF-8" src="https://maps.googleapis.com/maps-api-v3/api/js/63/14d/poly.js"></script></head>
+<body class="search-input-open application-nav_legend-open" style="">
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5DMXWH5" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <noscript>In order to use the Outage Map, it is necessary to enable JavaScript. Here are the <a href="http://www.enable-javascript.com" target="_blank"> instructions how to enable JavaScript in your web browser</a></noscript>
+
+    <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-body" id="myModalBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="msgModal" tabindex="-1" role="dialog" aria-labelledby="msgModalLabel" data-backdrop="static" data-keyboard="false">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title" id="msgTitle"></h4>
+                </div>
+                <div class="modal-body" id="msgBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="application-nav">
+        <div class="title-bar">
+            <a href="https://www.pplelectric.com/" class="pull-left logoimg">
+                <img src="/OMAP/img/ppl-logo.png">
+            </a>
+
+            <div class="search pull-left">
+                <div class="search-input open" style="width: 1330px;">
+                    <input type="text" onkeyup="outageMap.searchAddressOnEnter(event);" placeholder="Search an address..." value="" id="address" data-no-close="true" style="width: 1280px;">
+                    <button onclick="outageMap.resetSearch()" data-no-close="true"><i class="fa fa-close fa-2x"></i></button>
+                </div>
+                <button id="btnSearch" class="btn btn-primary" onclick="outageMap.geocodeAddress()" style="left: 1330px;">
+                    <i class="fa fa-search"></i>
+                </button>
+                <button id="btnOpenSearch" class="btn btn-transparent" data-toggle-open=".search-input" style="left: 1330px;">
+                    <i class="fa fa-search"></i>
+                </button>
+            </div>
+            <div class="pull-right">
+                <button class="pull-left btn btn-transparent" data-toggle-open=".application-nav .menu" data-mask-content="true"><i class="fa fa-bars" aria-hidden="true"></i></button>
+            </div>
+            <h2 class="title" style="font-size: 1.4rem; text-align: center; margin-top: 35px; width: 100%; display: flex; justify-content: center; ">
+                PPL OUTAGE MAP
+            </h2>
+        </div>
+
+
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 20px 0px; flex-wrap: wrap; background-color: white;">
+            <!-- Left Section: Outage Info -->
+            <div class="outage-heading" style="flex: 1 1 0%; min-width: 250px; font-size: 16px; display: none;">
+                <div style="margin-bottom: 6px;">
+                    <span class="outage-label">Customers currently without power:</span>
+                    <b><span _ngcontent-my-app-c30="" class="outage-number" fxlayoutalign.sm="center center" id="CustomerTotal">1,859</span></b><br>
+                </div>
+                    <div style="font-size: 1.2rem;">
+                        <span class="outage-label">Last Updated:</span>
+                        <span style="font-size: 1.2rem;" id="LastUpdate">Mar 18 05:40 AM</span>
+                    </div>
+                                    </div>
+
+            <div class="legend open" style="display: none;">
+                <div class="legend-row">
+
+                    <div class="legend-item">
+                        <span class="legend-title" style="font-weight: normal; font-family: ProximaNovaRegular">Outage Map Legend</span>
+                    </div>
+
+                    <div class="legend-item">
+                        <span class="map-pin large"><i class="fa fa-bolt"></i></span> 500+
+                    </div>
+                    <div class="legend-item">
+                        <span class="map-pin medium"><i class="fa fa-bolt"></i></span> 51 - 500
+                    </div>
+                    <div class="legend-item">
+                        <span class="map-pin small"><i class="fa fa-bolt"></i></span> 1 - 50
+                    </div>
+                    <div class="legend-item view-ice-water-switch" style="display:none;">
+                        <span class="map-pin info"><i class="fa fa-ice-water"></i></span> Ice &amp; Water
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="menu">
+            <li class="menu-item menu-item-muted" data-no-close="true">
+                <div class="onoffswitch half-space-left">
+                    <label class="onoffswitch-label">
+                        <input type="checkbox" class="onoffswitch-checkbox" data-toggle-open=".application-nav .legend" id="legend-toggle">
+                        <span class="onoffswitch-inner">
+                            <div class="onoffswitch-inner-checked"><i class="fa fa-check"></i></div>
+                            <div class="onoffswitch-inner-unchecked"><i class="fa fa-times"></i></div>
+                            <span class="onoffswitch-switch"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="menu-item-ico">
+                    <div class="menu-item-ico">
+                        <i class="fa fa-key"></i>
+                    </div>
+                </div> Display Map Legend
+            </li>
+
+            <li class="menu-item menu-item-muted view-county-switch" data-no-close="true">
+                <div class="onoffswitch half-space-left">
+                    <label class="onoffswitch-label">
+                        <input type="checkbox" class="onoffswitch-checkbox" id="displayCountyBoundaries">
+                        <span class="onoffswitch-inner">
+                            <div class="onoffswitch-inner-checked"><i class="fa fa-check"></i></div>
+                            <div class="onoffswitch-inner-unchecked"><i class="fa fa-times"></i></div>
+                            <span class="onoffswitch-switch"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="menu-item-ico">
+                    <span class="fa-stack-diagonal">
+                        <i class="fa fa-map-o"></i>
+                        <i class="fa fa-info-circle"></i>
+                    </span>
+                </div> Display Counties
+            </li>
+            <li class="menu-item menu-item-muted view-weather-switch" data-no-close="true" style="display: none;">
+                <div class="onoffswitch half-space-left">
+                    <label class="onoffswitch-label">
+                        <input type="checkbox" class="onoffswitch-checkbox" id="displayWeatherData">
+                        <span class="onoffswitch-inner">
+                            <div class="onoffswitch-inner-checked"><i class="fa fa-check"></i></div>
+                            <div class="onoffswitch-inner-unchecked"><i class="fa fa-times"></i></div>
+                            <span class="onoffswitch-switch"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="menu-item-ico">
+                    <span class="fa-stack-diagonal">
+                        <i class="fa fa-map-o"></i>
+                        <i class="fa fa-info-circle"></i>
+                    </span>
+                </div> View Current Weather
+            </li>
+            <li class="separator"></li>
+            <li class="view-map">
+                <a href="#pg-map" class="menu-item" onclick="outageMap.viewOutagesandLastUpdate(event);">
+                    <div class="menu-item-ico">
+                        <i class="fa fa-map-o"></i>
+                    </div> View Map
+                </a>
+            </li>
+            <li class="view-tab hidden" onclick="outageMap.hideOutagesandLastUpdate(event);">
+                <a href="#pg-tabular" class="menu-item">
+                    <div class="menu-item-ico">
+                        <i class="fa fa-info"></i>
+                    </div> View Outages By County
+                </a>
+            </li>
+            <!--Removed Ice and water as per business requirements-->
+            
+            <li class="separator"></li>
+            <li>
+                <a href="https://www.pplelectric.com/site/Outages-and-Issues" class="menu-item">
+                    <div class="menu-item-ico">
+                        <img src="/OMAP/img/ico_cloudBolt_sm.png">
+                    </div> Outage Center
+                </a>
+            </li>
+            <li>
+                <a href="https://selfserve.pplelectric.com/report-an-outage/report-issue" class="menu-item">
+                    <div class="menu-item-ico">
+                        <i class="fa fa-bolt"></i>
+                    </div> Report an Outage
+                </a>
+            </li>
+            <li>
+                <a href="https://selfserve.pplelectric.com/report-an-outage/report-issue" class="menu-item">
+                    <div class="menu-item-ico">
+                        <i class="fa fa-check"></i>
+                    </div> Check Outage Status
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <div class="application-content-wrapper ">
+        
+
+
+<script>
+    let _opco = 'PA';
+    let _apiUrl = 'https://omap.prod.pplweb.com/OMAP';
+    let _appUrl = 'https://omap.prod.pplweb.com/OMAP';
+    let _GTagManager = 'GTM-5DMXWH5';
+    let isExternalApp = true;
+</script>
+
+<input id="app-path" type="hidden" value="/">
+
+<div class="view-map application-content hidden">
+    <div id="directionsPanelHeader" style="float: right; width: 30%; height: 100%; display: none; direction: ltr; overflow: auto; padding: 5px;" class="hidden">
+        <span class="hider" style="float: left"><strong>X</strong></span>
+        <span style="float: right"><input type="button" value="Print" onclick="window.print();"></span><br>
+        <div id="directionsPanel">
+        </div>
+    </div>
+    <div id="map-canvas" class="hidden-print"><div style="height: 100%; width: 100%;"><div style="overflow: hidden;"></div></div></div>
+</div>
+
+
+
+<div class="view-tab application-content">
+    <div id="tab" class="tabular">
+    <div id="pageWrapper">
+        <div id="feedWrapper">
+                <div class="feed">
+                    <div class="cwpFeed">
+                        <div class="h1feed">1,789</div>
+                        <p>Customers Without Power</p>
+                    </div>
+                    <div class="clear"></div>
+                </div>
+                    </div>
+
+        <h2>Outage Information by County &amp; Municipality</h2>
+        <table class="tree" cellpadding="0" cellspacing="0">
+            <tbody><tr class="header">
+                <td class="col-county">
+                    County &amp; Municipality
+                    <span id="sortByName" style="float: right; cursor: pointer;">
+                        <i id="nameIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-ca">
+                    Customers Affected
+                    <span id="sortByCust" style="float: right; cursor: pointer;">
+                        <i id="custIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-cs">
+                    Customers Served
+                    <span id="sortByTotal" style="float: right; cursor: pointer;">
+                        <i id="totalIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-view">View On Map</td>
+            </tr>
+
+            <tr class="treegrid-7 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Berks</td>
+                <td class="col-ca">20</td>
+                <td class="col-cs">48,966</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.40704056, -75.98471495);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-8 treegrid-parent-7" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Brecknock Twp</td>
+            <td class="col-ca">5</td>
+            <td class="col-cs">6</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.189727, -75.953296);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-49 treegrid-parent-7" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Wyomissing Boro</td>
+            <td class="col-ca">15</td>
+            <td class="col-cs">8,898</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3298, -75.987038);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-15 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Bucks</td>
+                <td class="col-ca">858</td>
+                <td class="col-cs">34,267</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.32926008, -75.10252709);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-16 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>East Rockhill Twp</td>
+            <td class="col-ca">19</td>
+            <td class="col-cs">2,574</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.410359, -75.2894135);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-20 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Haycock Twp</td>
+            <td class="col-ca">276</td>
+            <td class="col-cs">1,148</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.4731384444444, -75.2609295555555);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-22 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Hilltown Twp</td>
+            <td class="col-ca">7</td>
+            <td class="col-cs">5,471</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.33242, -75.26654);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-31 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Milford Twp</td>
+            <td class="col-ca">9</td>
+            <td class="col-cs">3,197</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.454416, -75.430845);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-33 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Richland Twp</td>
+            <td class="col-ca">26</td>
+            <td class="col-cs">9,183</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.45642, -75.30232);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-35 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Springfield Twp</td>
+            <td class="col-ca">164</td>
+            <td class="col-cs">2,033</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.525449, -75.3364143333333);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-36 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Telford Boro</td>
+            <td class="col-ca">246</td>
+            <td class="col-cs">821</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3396, -75.34891);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-47 treegrid-parent-15" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Rockhill Twp</td>
+            <td class="col-ca">111</td>
+            <td class="col-cs">2,467</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3755153571429, -75.3517488571429);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-13 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Carbon</td>
+                <td class="col-ca">42</td>
+                <td class="col-cs">54,854</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.93462072, -75.73516383);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-14 treegrid-parent-13" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>East Penn Twp</td>
+            <td class="col-ca">32</td>
+            <td class="col-cs">5,212</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.76137, -75.79293);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-25 treegrid-parent-13" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Kidder Twp</td>
+            <td class="col-ca">10</td>
+            <td class="col-cs">4,297</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(41.108686, -75.661678);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-23 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Chester</td>
+                <td class="col-ca">67</td>
+                <td class="col-cs">13,051</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(39.98323196, -75.74868728);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-24 treegrid-parent-23" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Honeybrook Twp</td>
+            <td class="col-ca">43</td>
+            <td class="col-cs">6,076</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.095552, -75.9047993333333);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-34 treegrid-parent-23" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Salisbury Twp</td>
+            <td class="col-ca">24</td>
+            <td class="col-cs">25</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.06817, -75.9389);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-9 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Lancaster</td>
+                <td class="col-ca">128</td>
+                <td class="col-cs">258,148</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.01870614, -76.2972238);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-10 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Caernarvon Twp</td>
+            <td class="col-ca">2</td>
+            <td class="col-cs">950</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.149709, -75.956792);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-11 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Clay Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">774</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.256571, -76.221307);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-12 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Conestoga Twp</td>
+            <td class="col-ca">3</td>
+            <td class="col-cs">1,643</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(39.889523, -76.365459);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-17 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Ephrata Twp</td>
+            <td class="col-ca">55</td>
+            <td class="col-cs">6,694</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.178775, -76.180785);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-26 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lancaster Twp</td>
+            <td class="col-ca">26</td>
+            <td class="col-cs">10,452</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.02128, -76.33837);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-30 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Manheim Twp</td>
+            <td class="col-ca">24</td>
+            <td class="col-cs">16,882</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.089339, -76.26285);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-42 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Warwick Twp</td>
+            <td class="col-ca">2</td>
+            <td class="col-cs">10,377</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.1484235, -76.286223);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-44 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Donegal Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">958</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.143561, -76.635247);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-45 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Earl Twp</td>
+            <td class="col-ca">13</td>
+            <td class="col-cs">3,519</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.1435216666667, -76.1691456666667);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-46 treegrid-parent-9" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Hempfield Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">11,384</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.059653, -76.41173);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-1 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Lehigh</td>
+                <td class="col-ca">509</td>
+                <td class="col-cs">180,287</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.60296986, -75.61248234);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-2 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Allentown</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">55,848</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.610333, -75.500121);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-3 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Bethlehem</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">7,205</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.620184, -75.412874);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-27 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lower Macungie Twp</td>
+            <td class="col-ca">84</td>
+            <td class="col-cs">11,418</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.543714, -75.57143075);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-28 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lower Milford Twp</td>
+            <td class="col-ca">18</td>
+            <td class="col-cs">1,171</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.465503, -75.451631);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-32 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Na</td>
+            <td class="col-ca">63</td>
+            <td class="col-cs">3,788</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.55559, -75.5119);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-40 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Upper Milford Twp</td>
+            <td class="col-ca">119</td>
+            <td class="col-cs">6,989</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.484328, -75.5377785);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-41 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Upper Saucon Twp</td>
+            <td class="col-ca">216</td>
+            <td class="col-cs">8,890</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.5468348, -75.4374448);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-43 treegrid-parent-1" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Washington Twp</td>
+            <td class="col-ca">7</td>
+            <td class="col-cs">7,069</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.758269, -75.641381);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-37 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Monroe</td>
+                <td class="col-ca">4</td>
+                <td class="col-cs">74,619</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(41.03350504, -75.30793404);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-38 treegrid-parent-37" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Tobyhanna Twp</td>
+            <td class="col-ca">4</td>
+            <td class="col-cs">11,835</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(41.145154, -75.538833);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-18 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Montgomery</td>
+                <td class="col-ca">25</td>
+                <td class="col-cs">25,840</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.21190394, -75.3558576);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-19 treegrid-parent-18" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Franconia Twp</td>
+            <td class="col-ca">19</td>
+            <td class="col-cs">6,840</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3124465, -75.343956);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-39 treegrid-parent-18" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Upper Hanover Twp</td>
+            <td class="col-ca">6</td>
+            <td class="col-cs">6,728</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.413909, -75.490749);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-4 tg-master treegrid-collapsed">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-collapsed"></span>Northampton</td>
+                <td class="col-ca">136</td>
+                <td class="col-cs">89,426</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.75271836, -75.33004463);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-5 treegrid-parent-4" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Bethlehem</td>
+            <td class="col-ca">15</td>
+            <td class="col-cs">22,034</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.6174683333333, -75.3715223333333);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-6 treegrid-parent-4" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Bethlehem Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">14,301</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.676784, -75.278052);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-21 treegrid-parent-4" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Hellertown Boro</td>
+            <td class="col-ca">4</td>
+            <td class="col-cs">2,802</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.592181, -75.336829);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-29 treegrid-parent-4" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lower Saucon Twp</td>
+            <td class="col-ca">21</td>
+            <td class="col-cs">12,554</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.58101, -75.3742);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-48 treegrid-parent-4" style="background-color: rgb(237, 237, 237); display: none;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Williams Twp</td>
+            <td class="col-ca">95</td>
+            <td class="col-cs">1,110</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.624158, -75.257994);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+
+        </tbody></table> 
+    </div>
+</div>
+</div>
+
+<div class="view-ice-water application-content hidden">
+    <div id="ice-water" class="tabular"></div>
+</div>
+
+
+<!--
+*
+*
+*   The following section defines the Handlebar templates to be used in the project
+*
+*
+-->
+
+<script id="mapPin" type="text/x-handlebars-template">
+    <span class="map-pin {{type}}{{aggregate}} {{#if untacked}}untacked{{/if}}">
+        <i class="fa fa-{{icon}}"></i>
+        {{#if overlay}}
+        <span class="map-pin-overlay">{{overlay}}</span>
+        {{/if}}
+    </span>
+</script>
+
+
+<script id="outageInfobox" type="text/x-handlebars-template">
+
+    <div class="panel {{#if hasOutage}}panel-{{outage_severity_class}} {{/if}}panel-infobox">
+        <div class="close">
+            <img src="https://maps.gstatic.com/mapfiles/api-3/images/mapcnt6.png" draggable="false">
+        </div>
+
+        {{#if searchInfo}}
+        <div class="panel-heading {{#if hasOutage}}bg-{{outage_severity_class}}{{else}}bg-search{{/if}}">
+            {{> pinIcon}}
+            <h4 class="capitalize">{{searchInfo}}</h4>
+        </div>
+        {{else}}
+        <div class="panel-heading bg-{{outage_severity_class}}">
+            {{> pinIcon}}
+            <h4>Outage Information</h4>
+        </div>
+        {{/if}}
+        <div class="panel-body">
+            {{#if hasOutage}}
+            <div class="row form-group">
+                <div class="col-xs-12">
+                    <div >
+                        <strong>Cause:</strong> {{Info.rc}}
+                    </div>
+                    <div>
+                        <strong>Status:</strong> {{Info.sc}}
+                    </div>
+                </div>
+            </div>
+            <div class="row form-group">
+                <div class="col-xs-6">
+                    <strong>Customers Affected</strong>
+                    <h1>
+                        {{#if maskCustCount}}
+                        {{#compare nc '<' 5}}<5 {{else}} {{numFormat numCust}} {{/compare}}
+                                                {{else}}
+                                                {{numFormat numCust}}
+                                                {{/if}}
+                    </h1>
+                </div>
+                {{#if Info.ert}}
+                <div class="col-xs-6 ert">
+                    <strong>Estimated Repair Time</strong>
+                    <h1 class="col-xs-6">
+                        {{ertTime}}
+                        <small>{{amPm}}</small>
+                    </h1>
+                    <div class="col-xs-6">
+                        <div>{{weekDay}}</div>
+                        <div>{{shortDate}}</div>
+                    </div>
+                </div>
+                {{else}}
+                <div class="col-xs-6 ert">
+                    <strong>Estimated Repair Time</strong><br>Not Yet Available...
+                </div>
+                {{/if}}
+            </div>
+
+            {{/if}}
+
+            {{#if searchInfo}}
+            {{#if iceWaterActive}}
+            <div class="row" style="padding-bottom: 5px;">
+                <div class="col-xs-12 panel-form">
+                    <a class="btn btn-md btn-full-width" href="#" onclick="outageMap.displayNearestIceWater(); return false;">
+                        <i class="fa fa-cube"></i>Find Nearest Ice/Water
+                    </a>
+                </div>
+            </div>
+            {{else}}
+            {{#if showIceWaterLink}}
+            
+            {{/if}}
+            {{/if}}
+            {{/if}}
+
+            <div class="row">
+                <div class="col-xs-12 panel-form">
+                    <a class="btn btn-md btn-full-width" href="https://selfserve.pplelectric.com/report-an-outage/report-issue">
+                        <i class="fa fa-bolt"></i>Report an Outage
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>
+
+
+<script id="iceWaterInfobox" type="text/x-handlebars-template">
+
+    <div class="panel panel-infobox">
+        <div class="close">
+            <img src="https://maps.gstatic.com/mapfiles/api-3/images/mapcnt6.png" draggable="false">
+        </div>
+
+        <div class="panel-heading panel bg-info ice-water">
+
+            <span class="map-pin info untacked">
+                <i class="fa fa-ice-water"></i>
+                
+            </span>
+            <h4 class="capitalize">Free Ice &amp; Water</h4>
+        </div>
+
+        <div class="panel-body">
+            <div class="row form-group">
+                <div class="col-xs-12">
+                    <div>
+                        <strong>
+                            <span class="ice-water-provider">{{vendorName}}</span><br>
+                            {{vendorAddress}}<br>
+                            <div class="ice-water-provider-detail">
+                                Customers without power can <a href="#pg-icewater">
+                                    pick up free ice
+                                    &amp; water
+                                </a>
+                            </div>
+
+                            <div class="ice-waterBoxWrapper">
+                                <div class="iceBox">
+                                    <h4>Ice</h4>
+                                    {{#if hasIce}}
+                                    <i class="fa fa-check"></i>
+                                    {{else}}
+                                    <i class="fa fa-times"></i>
+                                    {{/if}}
+                                </div>
+
+                                <div class="waterBox">
+                                    <h4>Water</h4>
+                                    {{#if hasWater}}
+                                    <i class="fa fa-check"></i>
+                                    {{else}}
+                                    <i class="fa fa-times"></i>
+                                    {{/if}}
+                                </div>
+
+                            </div>
+
+                        </strong>
+                    </div><strong>
+                    </strong>
+                </div><strong>
+                </strong>
+            </div><strong>
+
+                <div class="row form-group">
+                    <div class="col-xs-12 panel-form">
+                        <a class="btn btn-md btn-full-width" href="#" onclick="outageMap.calcRouteWithNavigation('{{vendorAddress}}', {{a}}, {{o}});">
+                            <i class="fa fa-search"></i>Get Directions to Here
+                        </a>
+                    </div>
+                </div>
+
+            </strong>
+        </div><strong>
+        </strong>
+    </div>
+
+</script>
+
+<div id="TableWrapper">
+    <div id="pageWrapper">
+        <div id="feedWrapper">
+                <div class="feed">
+                    <div class="cwpFeed">
+                        <div class="h1feed">1,789</div>
+                        <p>Customers Without Power</p>
+                    </div>
+                    <div class="clear"></div>
+                </div>
+                    </div>
+
+        <h2>Outage Information by County &amp; Municipality</h2>
+        <table class="tree" cellpadding="0" cellspacing="0">
+            <tbody><tr class="header">
+                <td class="col-county">
+                    County &amp; Municipality
+                    <span id="sortByName" style="float: right; cursor: pointer;">
+                        <i id="nameIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-ca">
+                    Customers Affected
+                    <span id="sortByCust" style="float: right; cursor: pointer;">
+                        <i id="custIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-cs">
+                    Customers Served
+                    <span id="sortByTotal" style="float: right; cursor: pointer;">
+                        <i id="totalIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-view">View On Map</td>
+            </tr>
+
+            <tr class="treegrid-7 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Berks</td>
+                <td class="col-ca">20</td>
+                <td class="col-cs">48,966</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.40704056, -75.98471495);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-8 treegrid-parent-7" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Brecknock Twp</td>
+            <td class="col-ca">5</td>
+            <td class="col-cs">6</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.189727, -75.953296);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-49 treegrid-parent-7" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Wyomissing Boro</td>
+            <td class="col-ca">15</td>
+            <td class="col-cs">8,898</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3298, -75.987038);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-15 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Bucks</td>
+                <td class="col-ca">858</td>
+                <td class="col-cs">34,267</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.32926008, -75.10252709);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-16 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>East Rockhill Twp</td>
+            <td class="col-ca">19</td>
+            <td class="col-cs">2,574</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.410359, -75.2894135);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-20 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Haycock Twp</td>
+            <td class="col-ca">276</td>
+            <td class="col-cs">1,148</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.4731384444444, -75.2609295555555);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-22 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Hilltown Twp</td>
+            <td class="col-ca">7</td>
+            <td class="col-cs">5,471</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.33242, -75.26654);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-31 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Milford Twp</td>
+            <td class="col-ca">9</td>
+            <td class="col-cs">3,197</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.454416, -75.430845);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-33 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Richland Twp</td>
+            <td class="col-ca">26</td>
+            <td class="col-cs">9,183</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.45642, -75.30232);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-35 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Springfield Twp</td>
+            <td class="col-ca">164</td>
+            <td class="col-cs">2,033</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.525449, -75.3364143333333);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-36 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Telford Boro</td>
+            <td class="col-ca">246</td>
+            <td class="col-cs">821</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3396, -75.34891);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-47 treegrid-parent-15" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Rockhill Twp</td>
+            <td class="col-ca">111</td>
+            <td class="col-cs">2,467</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3755153571429, -75.3517488571429);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-13 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Carbon</td>
+                <td class="col-ca">42</td>
+                <td class="col-cs">54,854</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.93462072, -75.73516383);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-14 treegrid-parent-13" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>East Penn Twp</td>
+            <td class="col-ca">32</td>
+            <td class="col-cs">5,212</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.76137, -75.79293);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-25 treegrid-parent-13" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Kidder Twp</td>
+            <td class="col-ca">10</td>
+            <td class="col-cs">4,297</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(41.108686, -75.661678);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-23 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Chester</td>
+                <td class="col-ca">67</td>
+                <td class="col-cs">13,051</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(39.98323196, -75.74868728);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-24 treegrid-parent-23" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Honeybrook Twp</td>
+            <td class="col-ca">43</td>
+            <td class="col-cs">6,076</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.095552, -75.9047993333333);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-34 treegrid-parent-23" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Salisbury Twp</td>
+            <td class="col-ca">24</td>
+            <td class="col-cs">25</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.06817, -75.9389);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-9 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Lancaster</td>
+                <td class="col-ca">128</td>
+                <td class="col-cs">258,148</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.01870614, -76.2972238);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-10 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Caernarvon Twp</td>
+            <td class="col-ca">2</td>
+            <td class="col-cs">950</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.149709, -75.956792);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-11 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Clay Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">774</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.256571, -76.221307);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-12 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Conestoga Twp</td>
+            <td class="col-ca">3</td>
+            <td class="col-cs">1,643</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(39.889523, -76.365459);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-17 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Ephrata Twp</td>
+            <td class="col-ca">55</td>
+            <td class="col-cs">6,694</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.178775, -76.180785);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-26 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lancaster Twp</td>
+            <td class="col-ca">26</td>
+            <td class="col-cs">10,452</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.02128, -76.33837);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-30 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Manheim Twp</td>
+            <td class="col-ca">24</td>
+            <td class="col-cs">16,882</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.089339, -76.26285);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-42 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Warwick Twp</td>
+            <td class="col-ca">2</td>
+            <td class="col-cs">10,377</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.1484235, -76.286223);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-44 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Donegal Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">958</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.143561, -76.635247);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-45 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Earl Twp</td>
+            <td class="col-ca">13</td>
+            <td class="col-cs">3,519</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.1435216666667, -76.1691456666667);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-46 treegrid-parent-9" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>West Hempfield Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">11,384</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.059653, -76.41173);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-1 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Lehigh</td>
+                <td class="col-ca">509</td>
+                <td class="col-cs">180,287</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.60296986, -75.61248234);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-2 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Allentown</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">55,848</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.610333, -75.500121);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-3 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Bethlehem</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">7,205</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.620184, -75.412874);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-27 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lower Macungie Twp</td>
+            <td class="col-ca">84</td>
+            <td class="col-cs">11,418</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.543714, -75.57143075);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-28 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lower Milford Twp</td>
+            <td class="col-ca">18</td>
+            <td class="col-cs">1,171</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.465503, -75.451631);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-32 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Na</td>
+            <td class="col-ca">63</td>
+            <td class="col-cs">3,788</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.55559, -75.5119);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-40 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Upper Milford Twp</td>
+            <td class="col-ca">119</td>
+            <td class="col-cs">6,989</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.484328, -75.5377785);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-41 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Upper Saucon Twp</td>
+            <td class="col-ca">216</td>
+            <td class="col-cs">8,890</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.5468348, -75.4374448);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-43 treegrid-parent-1" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Washington Twp</td>
+            <td class="col-ca">7</td>
+            <td class="col-cs">7,069</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.758269, -75.641381);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-37 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Monroe</td>
+                <td class="col-ca">4</td>
+                <td class="col-cs">74,619</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(41.03350504, -75.30793404);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-38 treegrid-parent-37" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Tobyhanna Twp</td>
+            <td class="col-ca">4</td>
+            <td class="col-cs">11,835</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(41.145154, -75.538833);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-18 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Montgomery</td>
+                <td class="col-ca">25</td>
+                <td class="col-cs">25,840</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.21190394, -75.3558576);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-19 treegrid-parent-18" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Franconia Twp</td>
+            <td class="col-ca">19</td>
+            <td class="col-cs">6,840</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.3124465, -75.343956);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-39 treegrid-parent-18" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Upper Hanover Twp</td>
+            <td class="col-ca">6</td>
+            <td class="col-cs">6,728</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.413909, -75.490749);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+            <tr class="treegrid-4 tg-master treegrid-expanded">
+                <td class="col-county"><span class="treegrid-expander treegrid-expander-expanded"></span>Northampton</td>
+                <td class="col-ca">136</td>
+                <td class="col-cs">89,426</td>
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty(40.75271836, -75.33004463);">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+            </tr>
+
+        <tr class="treegrid-child-5 treegrid-parent-4" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Bethlehem</td>
+            <td class="col-ca">15</td>
+            <td class="col-cs">22,034</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.6174683333333, -75.3715223333333);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-6 treegrid-parent-4" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Bethlehem Twp</td>
+            <td class="col-ca">1</td>
+            <td class="col-cs">14,301</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.676784, -75.278052);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-21 treegrid-parent-4" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Hellertown Boro</td>
+            <td class="col-ca">4</td>
+            <td class="col-cs">2,802</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.592181, -75.336829);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-29 treegrid-parent-4" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Lower Saucon Twp</td>
+            <td class="col-ca">21</td>
+            <td class="col-cs">12,554</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.58101, -75.3742);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+        <tr class="treegrid-child-48 treegrid-parent-4" style="background-color: #EDEDED;">
+            <td class="col-muni"><span class="treegrid-indent"></span><span class="treegrid-expander"></span>Williams Twp</td>
+            <td class="col-ca">95</td>
+            <td class="col-cs">1,110</td>
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni(40.624158, -75.257994);">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+        </tr>
+
+        </tbody></table> 
+    </div>
+</div>
+<script id="tabularData" type="text/x-handlebars-template">
+    <div id="pageWrapper">
+        <div id="feedWrapper">
+                <div class="feed">
+                    <div class="cwpFeed">
+                        <div class="h1feed">{{numFormat nc}}</div>
+                        <p>Customers Without Power</p>
+                    </div>
+                    <div class="clear"></div>
+                </div>
+                    </div>
+
+        <h2>Outage Information by County & Municipality</h2>
+        <table class="tree" cellpadding="0" cellspacing="0">
+            <tr class="header">
+                <td class="col-county">
+                    County & Municipality
+                    <span id="sortByName" style="float: right; cursor: pointer;">
+                        <i id="nameIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-ca">
+                    Customers Affected
+                    <span id="sortByCust" style="float: right; cursor: pointer;">
+                        <i id="custIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-cs">
+                    Customers Served
+                    <span id="sortByTotal" style="float: right; cursor: pointer;">
+                        <i id="totalIcon" class="fa fa-sort"></i>
+                    </span>
+                </td>
+                <td class="col-view">View On Map</td>
+            </tr>
+
+            {{#each data}}
+            <tr class="treegrid-{{index}} tg-master">
+                <td class="col-county">{{nm}}</td>
+                <td class="col-ca">{{numFormat nc}}</td>
+                <td class="col-cs">{{numFormat tc}}</td>
+                {{#if nc}}
+                <td class="col-view">
+                    <span onclick="outageMap.centerOnCounty({{a}}, {{o}});">
+                        <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                    </span>
+                </td>
+                {{else}}
+                <td class="col-view"></td>
+                {{/if}}
+            </tr>
+
+            {{#if mun}}
+            {{#each mun}}
+        <tr class="treegrid-child-{{index}} treegrid-parent-{{../index}}" style="background-color: #EDEDED;">
+            <td class="col-muni">{{nm}}</td>
+            <td class="col-ca">{{numFormat nc}}</td>
+            <td class="col-cs">{{numFormat tc}}</td>
+            {{#if nc}}
+            <td class="col-view">
+                <span onclick="outageMap.centerOnMuni({{a}}, {{o}});">
+                    <a href="#pg-cm"><i class="fa fa-map-o fa-2x"></i></a>
+                </span>
+            </td>
+            {{else}}
+            <td class="col-view"></td>
+            {{/if}}
+        </tr>
+            {{/each}}
+            {{/if}}
+            {{/each}}
+
+        </table> 
+    </div>
+</script>
+
+
+
+
+<script id="iceWaterData" type="text/x-handlebars-template">
+    <div id="pageWrapper">
+
+        <div style="padding-top: 8px;">
+            <button class="btn btn-primary right" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">How to get free ice & water</button>
+            <div class="collapse" id="collapseExample">
+                <div class="well">
+                    {{instructions}}
+                </div>
+            </div>
+        </div>
+
+        <div id="TableWrapper">
+            <!-- Table Start -->
+            <table class="tree" cellpadding="0" cellspacing="0">
+                <tr class="header">
+                    <td class="col-county">Vendor Name<span id="sortByVendor" style="float: right; cursor: pointer;"><i id="vendorIcon" class="fa fa-sort"></i></span></td>
+                    <td class="col-ca">Address</td>
+                    <td class="col-cs">County<span id="sortByCounty" style="float: right; cursor: pointer;"><i id="countyIcon" class="fa fa-sort"></i></span></td>
+                    <td class="col-pca">Ice</td>
+                    <td class="col-view">Water</td>
+                </tr>
+                {{#each data}}
+                <tr {{rowStyle @index}}>
+                    <td class="col-county">{{vendorName}}{{index}}</td>
+                    <td class="col-ca">{{vendorAddress}}</td>
+                    <td class="col-cs">{{county}}</td>
+                    <td class="col-pca">{{#if hasIce}}Yes{{else}}No{{/if}}</td>
+                    <td class="col-pca">{{#if hasWater}}Yes{{else}}No{{/if}}</td>
+                </tr>
+                {{/each}}
+            </table>
+            <div style="height: 120px">
+
+            </div>
+        </div>
+    </div>
+</script>
+
+
+<script id="iceWaterNearbyPopup" type="text/x-handlebars-template">
+    <div id="ice-water" class="iw-popup">
+        <div id="pageWrapper">
+            {{#if data}}
+            <div id="TableWrapper">
+                <!-- Table Start -->
+                <table class="tree" cellpadding="0" cellspacing="0">
+                    <tbody>
+                        <tr class="header">
+                            <td class="col-county">Vendor Name</td>
+                            <td class="col-ice">Ice</td>
+                            <td class="col-water">Water</td>
+                            <td class="col-distance">Distance</td>
+
+                        </tr>
+
+                        {{#each data}}
+                        <tr class="">
+                            <td class="col-county">{{vendorName}}<br>{{vendorAddress}}</td>
+                            <td class="col-ice">{{#if hasIce}}Yes{{else}}No{{/if}}</td>
+                            <td class="col-water">{{#if hasWater}}Yes{{else}}No{{/if}}</td>
+                            <td class="col-distance">
+                                {{distance}}<br>
+                                <a href="#" data-dismiss="modal" onclick="outageMap.calcRouteWithNavigation('{{vendorAddress}}', {{a}}, {{o}});">Get Directions</a>
+                            </td>
+                        </tr>
+                        {{/each}}
+                    </tbody>
+                </table>
+            </div>
+            {{else}}
+            <h4>Google services are currently unavailable.  <a onclick="outageMap.dismissIceWaterPopupFromError(); return false;">Click here</a> to see the full list of active Ice/Water Vendors</h4>
+            {{/if}}
+        </div>
+    </div>
+</script>
+
+
+
+<!--
+*
+*
+*   The following section defines the Handlebar helper functions to be used in the project
+*
+*
+-->
+
+<script id="numFormatHelper">
+    //Create a custom function helper to check the status.
+    Handlebars.registerHelper("numFormat", function (number) {
+        if (number == null) return "0";
+        return number.toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+    });
+</script>
+
+<script>
+    //Create a custom function helper to check the date format.
+    Handlebars.registerHelper("dateFormat", function (dtString) {
+        const [date, time] = dtString.split(" ");
+        const [month, day, year] = date.split("-");
+        const [hour, minute] = time.split(":");
+
+        const formattedDate = `${year}-${month}-${day}T${hour}:${minute}:00`;
+        const dateObj = new Date(formattedDate);
+
+        const monthPart = dateObj.toLocaleDateString("en-US", { month: "short" });
+        const dayPart = String(dateObj.getDate()).padStart(2, "0");
+
+        let timePart = dateObj.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true
+        });
+
+        timePart = timePart.replace(/([AP]M)/, " $1").toLowerCase();
+
+        return `${monthPart} ${dayPart} ${timePart}`;
+    });
+
+</script>
+
+
+<script id="rowStyleHelper">
+    //Create a custom function helper to check the status.
+    Handlebars.registerHelper("rowStyle", function (num) {
+        if ((num % 2) == 0)
+            return "class=tg-child";
+        else
+            return "class=tg-master";
+    });
+</script>
+
+
+<script id="numCustHelper">
+    //Create a custom function helper to check the status.
+    Handlebars.registerHelper("numCust", function (num) {
+        if (num < 5)
+            return "class=tg-child";
+        else
+            return "class=tg-master";
+    });
+</script>
+
+
+<script id="compareHelper">
+
+    //Code borrowed from EUWEB PES project
+    Handlebars.registerHelper('compare', function (left, operator, right, options) {
+
+        /*jshint eqeqeq: false*/
+
+        if (arguments.length < 3) {
+            throw new Error('Handlerbars Helper "compare" needs 2 parameters');
+        }
+
+        if (options === undefined) {
+            options = right;
+            right = operator;
+            operator = '===';
+        }
+
+        var operators = {
+            '==': function (l, r) { return l == r; },
+            '===': function (l, r) { return l === r; },
+            '!=': function (l, r) { return l != r; },
+            '!==': function (l, r) { return l !== r; },
+            '<': function (l, r) { return l < r; },
+            '>': function (l, r) { return l > r; },
+            '<=': function (l, r) { return l <= r; },
+            '>=': function (l, r) { return l >= r; },
+            'typeof': function (l, r) { return typeof l == r; }
+        };
+
+        if (!operators[operator]) {
+            throw new Error('Handlerbars Helper "compare" doesn\'t know the operator ' + operator);
+        }
+
+        var result = operators[operator](left, right);
+
+        if (result) {
+            return options.fn(this);
+        } else {
+            return options.inverse(this);
+        }
+    });
+</script>
+
+    </div>
+    <script>
+        Handlebars.registerHelper("eq", function (a, b) {
+            return a === b;
+        });
+    </script>
+    <script>
+        console.log("Before event");
+        document.addEventListener("DOMContentLoaded", function () {
+            if (window.location.href.toLowerCase().includes("pg-tabular")) {
+                console.log("Test");
+                const outageHeading = document.querySelector(".outage-heading");
+                if (outageHeading) outageHeading.style.display = "none";
+
+                const legend = document.querySelector(".legend");
+                if (legend) legend.style.display = "none";
+            }
+        });
+    </script>
+
+
+</body></html>
