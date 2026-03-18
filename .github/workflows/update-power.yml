@@ -1,15 +1,15 @@
-name: Update Power Outages
+name: Update FirstEnergy PA Power Outages
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: write
 
 jobs:
-  update-power:
+  update-power-outages:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,22 +25,27 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install playwright
-          playwright install chromium
+          python -m playwright install --with-deps chromium
 
-      - name: Ensure data directory exists
-        run: mkdir -p data scripts
+      - name: Ensure data folder exists
+        run: mkdir -p data
 
       - name: Run power outage script
-        run: python scripts/power_outages.py
+        run: python scripts/power_outages.py --output data/power_outages_pa.json
+
+      - name: Verify output file
+        run: |
+          ls -l data
+          test -f data/power_outages_pa.json
 
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add data/power_outages.json data/previous_power_outages_pa.json
-
-          git diff --cached --quiet && exit 0
-
-          git commit -m "Update PA power outage data"
-          git push
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/power_outages_pa.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update power outage data"
+            git push
+          fi
