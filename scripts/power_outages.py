@@ -6,7 +6,6 @@ import argparse
 import json
 import re
 import shutil
-import sys
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -91,10 +90,7 @@ def write_debug_files(
     except Exception as exc:
         extra["screenshot_error"] = str(exc)
 
-    try:
-        debug_json_path.write_text(json.dumps(extra, indent=2), encoding="utf-8")
-    except Exception:
-        pass
+    debug_json_path.write_text(json.dumps(extra, indent=2), encoding="utf-8")
 
 
 def scrape(
@@ -161,122 +157,70 @@ def scrape(
                       .trim();
                   }
 
-                  function lower(v) {
-                    return (v || "").toLowerCase();
-                  }
+                  const tables = Array.from(document.querySelectorAll("table"));
+                  const rawRows = [];
 
-                  function rowFromCells(cells) {
-                    const values = cells.map(txt).filter(Boolean);
-                    if (values.length < 2) return null;
-
-                    const joined = values.join(" | ");
-                    if (/municipality|county|customers out|customers served|percent out|etr/i.test(joined)) {
-                      return null;
-                    }
-                    if (/pennsylvania search|new york search|no outages/i.test(joined)) {
-                      return null;
-                    }
-
-                    return {
-                      municipality: values[0] || "",
-                      county: values[1] || "",
-                      customers_out: values[2] || "",
-                      customers_served: values[3] || "",
-                      percent_out: values[4] || "",
-                      etr: values[5] || "",
-                      raw_cells: values
-                    };
-                  }
-
-                  function tableRows(table) {
-                    const rows = [];
+                  for (const [tableIndex, table] of tables.entries()) {
                     const trs = Array.from(table.querySelectorAll("tr"));
-                    for (const tr of trs) {
-                      const cells = Array.from(tr.querySelectorAll("td,th"));
-                      const parsed = rowFromCells(cells);
-                      if (parsed) rows.push(parsed);
+                    for (const [rowIndex, tr] of trs.entries()) {
+                      const cells = Array.from(tr.querySelectorAll("td,th")).map(txt).filter(Boolean);
+                      if (cells.length) {
+                        rawRows.push({
+                          table_index: tableIndex,
+                          row_index: rowIndex,
+                          cells
+                        });
+                      }
                     }
-                    return rows;
                   }
 
-                  function looksUseful(row) {
-                    const muni = lower(row.municipality);
-                    const county = lower(row.county);
-                    if (!muni && !county) return false;
-                    if (muni.includes("customers out") || county.includes("customers out")) return false;
-                    if (muni.includes("county") && county.includes("municipality")) return false;
-                    return true;
-                  }
-
-                  const result = {
+                  return {
                     title: document.title,
-                    url: window.location.href,
+                    url_seen_in_browser: window.location.href,
+                    table_count: tables.length,
                     headings: Array.from(document.querySelectorAll("h1,h2,h3,h4")).map(txt).filter(Boolean),
-                    table_count: document.querySelectorAll("table").length,
-                    candidate_rows: [],
-                    body_text_sample: txt(document.body).slice(0, 8000)
+                    buttons: Array.from(document.querySelectorAll("button,a")).map(txt).filter(Boolean).slice(0, 200),
+                    body_text_sample: txt(document.body).slice(0, 12000),
+                    raw_rows_preview: rawRows.slice(0, 100)
                   };
-
-                  const allTables = Array.from(document.querySelectorAll("table"));
-                  for (const table of allTables) {
-                    const rows = tableRows(table);
-                    for (const row of rows) {
-                      if (looksUseful(row)) result.candidate_rows.push(row);
-                    }
-                  }
-
-                  return result;
                 }
                 """
             )
 
-            rows = extracted.get("candidate_rows", [])
-
+            raw_rows = extracted.get("raw_rows_preview", [])
             cleaned: List[Dict[str, Any]] = []
-            for row in rows:
-                if not isinstance(row, dict):
+
+            for row in raw_rows:
+                cells = row.get("cells", [])
+                if not isinstance(cells, list) or len(cells) < 2:
                     continue
 
-                municipality = clean_text(row.get("municipality"))
-                county = clean_text(row.get("county"))
-
-                if not municipality and not county:
+                joined = " | ".join(str(c) for c in cells).lower()
+                if any(bad in joined for bad in [
+                    "pennsylvania search",
+                    "new york search",
+                    "municipality",
+                    "county",
+                    "customers out",
+                    "customers served",
+                    "percent out",
+                    "etr",
+                    "no outages",
+                ]):
                     continue
 
-                joined = " ".join(
-                    [
-                        municipality,
-                        county,
-                        clean_text(row.get("customers_out")),
-                        clean_text(row.get("customers_served")),
-                        clean_text(row.get("percent_out")),
-                        clean_text(row.get("etr")),
-                    ]
-                ).lower()
+                item = {
+                    "municipality": clean_text(cells[0]) if len(cells) > 0 else "",
+                    "county": clean_text(cells[1]) if len(cells) > 1 else "",
+                    "customers_out": safe_int(cells[2]) if len(cells) > 2 else 0,
+                    "customers_served": safe_int(cells[3]) if len(cells) > 3 else None,
+                    "percent_out": safe_float(cells[4]) if len(cells) > 4 else None,
+                    "etr": clean_text(cells[5]) if len(cells) > 5 else None,
+                    "raw_cells": cells,
+                }
 
-                if any(
-                    bad in joined
-                    for bad in [
-                        "pennsylvania search",
-                        "new york search",
-                        "customers out",
-                        "customers served",
-                        "municipality",
-                        "county",
-                    ]
-                ):
-                    continue
-
-                cleaned.append(
-                    {
-                        "municipality": municipality,
-                        "county": county,
-                        "customers_out": safe_int(row.get("customers_out")) or 0,
-                        "customers_served": safe_int(row.get("customers_served")),
-                        "percent_out": safe_float(row.get("percent_out")),
-                        "etr": clean_text(row.get("etr")) or None,
-                    }
-                )
+                if item["municipality"] or item["county"]:
+                    cleaned.append(item)
 
             deduped: List[Dict[str, Any]] = []
             seen = set()
@@ -298,14 +242,14 @@ def scrape(
                 debug_payload = {
                     "fetched_at": iso_utc_now(),
                     "page_url": PAGE_URL,
-                    "title": extracted.get("title"),
-                    "url_seen_in_browser": extracted.get("url"),
-                    "headings": extracted.get("headings"),
-                    "table_count": extracted.get("table_count"),
-                    "candidate_rows_found": len(rows),
-                    "candidate_rows_preview": rows[:25],
-                    "body_text_sample": extracted.get("body_text_sample", ""),
                     "reason": "No usable outage rows found",
+                    "title": extracted.get("title"),
+                    "url_seen_in_browser": extracted.get("url_seen_in_browser"),
+                    "table_count": extracted.get("table_count"),
+                    "headings": extracted.get("headings"),
+                    "buttons": extracted.get("buttons"),
+                    "body_text_sample": extracted.get("body_text_sample"),
+                    "raw_rows_preview": extracted.get("raw_rows_preview"),
                 }
                 write_debug_files(
                     page,
@@ -314,10 +258,8 @@ def scrape(
                     debug_screenshot_path=debug_screenshot_path,
                     extra=debug_payload,
                 )
-                raise RuntimeError(
-                    f"No outage rows found. Wrote debug files: "
-                    f"{debug_html_path}, {debug_json_path}, {debug_screenshot_path}"
-                )
+                browser.close()
+                raise RuntimeError("No outage rows found")
 
             browser.close()
             return deduped
@@ -338,26 +280,27 @@ def scrape(
                 },
             )
             browser.close()
-            raise RuntimeError(f"Timed out loading FE page: {exc}") from exc
+            raise
+
+        except RuntimeError:
+            browser.close()
+            raise
 
         except Exception as exc:
-            try:
-                write_debug_files(
-                    page,
-                    debug_html_path=debug_html_path,
-                    debug_json_path=debug_json_path,
-                    debug_screenshot_path=debug_screenshot_path,
-                    extra={
-                        "fetched_at": iso_utc_now(),
-                        "page_url": PAGE_URL,
-                        "reason": "Unhandled scrape exception",
-                        "error_type": type(exc).__name__,
-                        "error": str(exc),
-                        "traceback": traceback.format_exc(),
-                    },
-                )
-            except Exception:
-                pass
+            write_debug_files(
+                page,
+                debug_html_path=debug_html_path,
+                debug_json_path=debug_json_path,
+                debug_screenshot_path=debug_screenshot_path,
+                extra={
+                    "fetched_at": iso_utc_now(),
+                    "page_url": PAGE_URL,
+                    "reason": "Unhandled scrape exception",
+                    "error_type": type(exc).__name__,
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(),
+                },
+            )
             browser.close()
             raise
 
@@ -460,7 +403,7 @@ def main() -> int:
     previous.parent.mkdir(parents=True, exist_ok=True)
 
     if output.exists():
-      shutil.copyfile(output, previous)
+        shutil.copyfile(output, previous)
 
     prev_data = load_previous(previous)
     current = scrape(
