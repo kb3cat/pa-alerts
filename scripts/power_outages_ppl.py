@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -27,7 +28,7 @@ def parse_percent(value):
         return None
 
 
-def save_debug(payload):
+def write_debug(payload):
     Path("data").mkdir(parents=True, exist_ok=True)
     with open(DEBUG_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
@@ -71,7 +72,6 @@ def fetch():
         try:
             page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
 
-            # Wait for the exact response the app itself makes
             response = page.wait_for_response(
                 lambda r: "omap.prod.pplweb.com/omap/Tabular?opco=PA" in r.url and r.status == 200,
                 timeout=30000,
@@ -82,7 +82,7 @@ def fetch():
             try:
                 data = json.loads(text)
             except Exception:
-                save_debug({
+                write_debug({
                     "fetched_at": iso_utc_now(),
                     "reason": "Tabular response was not JSON",
                     "response_url": response.url,
@@ -93,7 +93,7 @@ def fetch():
                 })
                 raise RuntimeError("PPL Tabular response was not JSON")
 
-            save_debug({
+            write_debug({
                 "fetched_at": iso_utc_now(),
                 "reason": "Successful PPL capture",
                 "response_url": response.url,
@@ -106,14 +106,32 @@ def fetch():
             browser.close()
             return data
 
-        except PlaywrightTimeoutError:
-            save_debug({
+        except PlaywrightTimeoutError as exc:
+            write_debug({
                 "fetched_at": iso_utc_now(),
                 "reason": "Timed out waiting for PPL Tabular response",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "traceback": traceback.format_exc(),
                 "network_log": network_log,
             })
             browser.close()
-            raise RuntimeError("Timed out waiting for PPL Tabular response")
+            raise
+
+        except Exception as exc:
+            write_debug({
+                "fetched_at": iso_utc_now(),
+                "reason": "Unhandled PPL exception",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+                "traceback": traceback.format_exc(),
+                "network_log": network_log,
+            })
+            try:
+                browser.close()
+            except Exception:
+                pass
+            raise
 
 
 def transform(raw):
@@ -150,6 +168,7 @@ def main():
     raw = fetch()
     parsed = transform(raw)
 
+    Path("data").mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(parsed, f, indent=2)
 
