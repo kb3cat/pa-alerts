@@ -21,6 +21,7 @@
   --blue:#00bfff;
   --darkred:#8b0000;
 
+  --badge:#2b2b30;
   --shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 8px 24px rgba(0,0,0,0.28);
 }
 
@@ -215,7 +216,7 @@ body{
   border:1px solid var(--border);
   border-radius:10px;
   padding:10px;
-  min-height:82px;
+  min-height:92px;
   display:flex;
   flex-direction:column;
   justify-content:space-between;
@@ -262,6 +263,24 @@ body{
 .delta-up{ color:var(--red); }
 .delta-down{ color:var(--green); }
 .delta-flat{ color:var(--muted); }
+
+.source-badges{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top:6px;
+}
+
+.source-badge{
+  display:inline-flex;
+  align-items:center;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--badge);
+  padding:2px 8px;
+  font-size:11px;
+  color:var(--text);
+}
 
 .overview-strip{
   display:grid;
@@ -486,7 +505,7 @@ body{
     <div class="topbar-row">
       <div class="title-wrap">
         <h1>⚡ Pennsylvania Power Outage Status Board</h1>
-        <p>Live FirstEnergy outage status, county impact, and trend monitoring</p>
+        <p>Live statewide outage status from merged utility feeds</p>
       </div>
       <div class="updated" id="lastUpdated">Last Updated: Loading...</div>
     </div>
@@ -513,19 +532,19 @@ body{
     <div class="region-card">
       <div class="region-label">New Municipal Outages</div>
       <div class="region-value" id="newCount">--</div>
-      <div class="region-sub">Rows marked new since prior FE update</div>
+      <div class="region-sub">Rows marked new since prior FirstEnergy update</div>
     </div>
 
     <div class="region-card">
       <div class="region-label">Increasing</div>
       <div class="region-value" id="increasingCount">--</div>
-      <div class="region-sub">Rows with increasing outages since last update</div>
+      <div class="region-sub">FirstEnergy rows with increasing outages</div>
     </div>
 
     <div class="region-card">
       <div class="region-label">Restored</div>
       <div class="region-value" id="restoredCount">--</div>
-      <div class="region-sub">Rows treated as restored since last update</div>
+      <div class="region-sub">FirstEnergy rows treated as restored</div>
     </div>
   </section>
 
@@ -535,7 +554,7 @@ body{
       <div class="panel-header">
         <div>
           <h2 class="panel-title">County Severity Wall</h2>
-          <div class="panel-subtitle">Live county tiles shaded by percent out</div>
+          <div class="panel-subtitle">Merged county tiles shaded by percent out</div>
         </div>
       </div>
       <div class="panel-body">
@@ -568,7 +587,7 @@ body{
         </div>
 
         <div class="small-note" id="topImpactedNote">
-          Showing top impacted counties in the live FE dataset.
+          Showing top impacted counties in the merged statewide dataset.
         </div>
       </div>
     </div>
@@ -578,13 +597,13 @@ body{
     <div class="panel">
       <div class="panel-header">
         <div>
-          <h2 class="panel-title">County Changes</h2>
-          <div class="panel-subtitle">Largest county-level changes since last update</div>
+          <h2 class="panel-title">Outages by Utility</h2>
+          <div class="panel-subtitle">Current contribution by source in the merged statewide feed</div>
         </div>
       </div>
       <div class="panel-body">
-        <div class="table-like" id="countyChanges">
-          <div class="loading">Loading county changes...</div>
+        <div class="table-like" id="utilityBreakdown">
+          <div class="loading">Loading utility totals...</div>
         </div>
       </div>
     </div>
@@ -593,7 +612,7 @@ body{
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Top Municipalities</h2>
-          <div class="panel-subtitle">Highest municipal outage totals in the current FE payload</div>
+          <div class="panel-subtitle">Highest outage totals across FirstEnergy and PPL municipality rows</div>
         </div>
       </div>
       <div class="panel-body">
@@ -682,6 +701,16 @@ function deltaMarkup(change) {
   return `<span class="county-delta delta-flat">— 0</span>`;
 }
 
+function buildSourceBadges(sources) {
+  const list = Array.isArray(sources) ? sources : [];
+  if (!list.length) return "";
+  return `
+    <div class="source-badges">
+      ${list.map(src => `<span class="source-badge">${src}</span>`).join("")}
+    </div>
+  `;
+}
+
 function buildSeverityWall(data) {
   const counties = Array.isArray(data.county_summary) ? data.county_summary : [];
   const active = counties.filter(c => Number(c.customers_out || 0) > 0);
@@ -723,6 +752,7 @@ function buildSeverityWall(data) {
           </div>
           <div class="county-out">${formatNumber(county.customers_out)}</div>
           ${deltaMarkup(county.change)}
+          ${buildSourceBadges(county.sources)}
         </div>
       `).join("")}
     </div>
@@ -744,7 +774,7 @@ function buildTopImpacted(counties) {
     .slice(0, 8);
 
   if (!active.length) {
-    target.innerHTML = `<div class="empty">No active county outages in the current FE dataset.</div>`;
+    target.innerHTML = `<div class="empty">No active county outages in the current merged dataset.</div>`;
     return;
   }
 
@@ -756,48 +786,105 @@ function buildTopImpacted(counties) {
           ${formatNumber(county.customers_out)} customers out
           ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : ""}
         </div>
+        ${buildSourceBadges(county.sources)}
       </div>
       <div class="rank-right ${severityClass(county.percent_out)}">${formatPercent(county.percent_out)}</div>
     </div>
   `).join("");
 }
 
-function buildCountyChanges(counties) {
-  const target = document.getElementById("countyChanges");
-  const rows = [...counties]
-    .filter(c => Number(c.change || 0) !== 0)
-    .sort((a, b) => Math.abs(Number(b.change || 0)) - Math.abs(Number(a.change || 0)))
-    .slice(0, 8);
+function buildUtilityBreakdown(data) {
+  const target = document.getElementById("utilityBreakdown");
+  const counties = Array.isArray(data.county_summary) ? data.county_summary : [];
 
-  if (!rows.length) {
-    target.innerHTML = `<div class="empty">No county change deltas in the current comparison window.</div>`;
-    return;
+  let feOut = 0;
+  let feServed = 0;
+  let pplOut = 0;
+  let pplServed = 0;
+
+  for (const county of counties) {
+    if (county.firstenergy) {
+      feOut += Number(county.firstenergy.customers_out || 0);
+      feServed += Number(county.firstenergy.customers_served || 0);
+    }
+
+    if (county.ppl) {
+      pplOut += Number(county.ppl.customers_out || 0);
+      pplServed += Number(county.ppl.customers_served || 0);
+    }
   }
 
-  target.innerHTML = rows.map(row => `
+  const statewideOut = Number(data.total_customers_out || 0);
+
+  const utilities = [
+    {
+      name: "FirstEnergy",
+      sub: "Met-Ed / Penelec source feed",
+      out: feOut,
+      served: feServed
+    },
+    {
+      name: "PPL",
+      sub: "PPL county / municipality table",
+      out: pplOut,
+      served: pplServed
+    },
+    {
+      name: "Statewide Total",
+      sub: "Merged total across active sources",
+      out: statewideOut,
+      served: feServed + pplServed
+    }
+  ];
+
+  utilities.forEach(u => {
+    u.percent = u.served > 0 ? ((u.out / u.served) * 100) : null;
+  });
+
+  target.innerHTML = utilities.map(u => `
     <div class="table-row">
       <div class="table-left">
-        <div class="table-main">${row.county}</div>
+        <div class="table-main">${u.name}</div>
         <div class="table-sub">
-          ${row.change > 0 ? "Increase" : "Decrease"} • ${formatNumber(row.customers_out)} currently out
+          ${u.sub}${u.percent !== null ? ` • ${u.percent.toFixed(2)}% of customers out` : ""}
         </div>
       </div>
-      <div class="table-right" style="color:${row.change > 0 ? 'var(--red)' : 'var(--green)'};">
-        ${row.change > 0 ? "+" : ""}${formatNumber(row.change)}
-      </div>
+      <div class="table-right">${formatNumber(u.out || 0)}</div>
     </div>
   `).join("");
 }
 
-function buildTopMunicipalities(items) {
+function buildTopMunicipalities(data) {
   const target = document.getElementById("topMunicipalities");
-  const rows = [...items]
-    .filter(i => Number(i.customers_out || 0) > 0)
+
+  const feItems = Array.isArray(data.items_firstenergy) ? data.items_firstenergy : [];
+  const pplItems = Array.isArray(data.items_ppl) ? data.items_ppl : [];
+
+  const normalizedFe = feItems.map(row => ({
+    municipality: row.municipality,
+    county: row.county,
+    customers_out: Number(row.customers_out || 0),
+    customers_served: Number(row.customers_served || 0),
+    status: row.status || null,
+    source: "FirstEnergy"
+  }));
+
+  const normalizedPpl = pplItems.map(row => ({
+    municipality: row.municipality,
+    county: row.county,
+    customers_out: Number(row.customers_out || 0),
+    customers_served: Number(row.customers_served || 0),
+    status: null,
+    source: "PPL"
+  }));
+
+  const rows = [...normalizedFe, ...normalizedPpl]
+    .filter(i => i.municipality && Number(i.customers_out || 0) > 0)
     .sort((a, b) => Number(b.customers_out || 0) - Number(a.customers_out || 0))
-    .slice(0, 8);
+    .slice(0, 10);
 
   if (!rows.length) {
-    target.innerHTML = `<div class="empty">No active municipal outages in the current FE payload.</div>`;
+    target.innerHTML = `<div class="empty">No active municipality outages in the current merged payload.</div>`;
     return;
   }
 
@@ -805,7 +892,12 @@ function buildTopMunicipalities(items) {
     <div class="table-row">
       <div class="table-left">
         <div class="table-main">${row.municipality}</div>
-        <div class="table-sub">${row.county} County${row.status ? ` • ${row.status}` : ""}</div>
+        <div class="table-sub">
+          ${row.county} County${row.status ? ` • ${row.status}` : ""}
+        </div>
+        <div class="source-badges">
+          <span class="source-badge">${row.source}</span>
+        </div>
       </div>
       <div class="table-right">${formatNumber(row.customers_out)}</div>
     </div>
@@ -825,7 +917,7 @@ function buildTicker(counties) {
     .slice(0, 10);
 
   if (!rows.length) {
-    target.textContent = "No active county outages in the current FE dataset.";
+    target.textContent = "No active county outages in the current merged dataset.";
     return;
   }
 
@@ -841,7 +933,6 @@ async function loadPowerData() {
 
     const data = await response.json();
     const counties = Array.isArray(data.county_summary) ? data.county_summary : [];
-    const items = Array.isArray(data.items) ? data.items : [];
 
     document.getElementById("lastUpdated").textContent = formatTimestamp(data.fetched_at);
     document.getElementById("statewideOut").textContent = formatNumber(data.total_customers_out || 0);
@@ -858,16 +949,16 @@ async function loadPowerData() {
 
     buildSeverityWall(data);
     buildTopImpacted(counties);
-    buildCountyChanges(counties);
-    buildTopMunicipalities(items);
+    buildUtilityBreakdown(data);
+    buildTopMunicipalities(data);
     buildTicker(counties);
 
   } catch (err) {
-    const msg = `Unable to load live FE outage data: ${err.message}`;
+    const msg = `Unable to load live merged outage data: ${err.message}`;
     document.getElementById("lastUpdated").textContent = "Last Updated: Data load failed";
     document.getElementById("overviewPanel").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("topImpactedList").innerHTML = `<div class="error">${msg}</div>`;
-    document.getElementById("countyChanges").innerHTML = `<div class="error">${msg}</div>`;
+    document.getElementById("utilityBreakdown").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("topMunicipalities").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("tickerLine").textContent = msg;
   }
