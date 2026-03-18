@@ -40,6 +40,11 @@ jobs:
         continue-on-error: true
         run: python3 scripts/power_outages_ppl.py
 
+      - name: Merge FE + PPL
+        id: merge
+        continue-on-error: true
+        run: python3 scripts/merge_power_data.py
+
       - name: List data directory
         if: always()
         run: |
@@ -89,4 +94,10 @@ jobs:
         if: steps.ppl.outcome == 'failure'
         run: |
           echo "PPL script failed"
+          exit 1
+
+      - name: Fail workflow if merge failed
+        if: steps.merge.outcome == 'failure'
+        run: |
+          echo "Merge script failed"
           exit 1
