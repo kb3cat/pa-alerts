@@ -1,8 +1,34 @@
 {
-  "fetched_at": "2026-03-18T09:24:25Z",
+  "fetched_at": "2026-03-18T09:38:41Z",
   "reason": "Unhandled PPL exception",
   "error_type": "RuntimeError",
-  "error": "No PPL Tabular response captured",
-  "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/pa-alerts/pa-alerts/scripts/power_outages_ppl.py\", line 103, in fetch\n    raise RuntimeError(\"No PPL Tabular response captured\")\nRuntimeError: No PPL Tabular response captured\n",
-  "network_log": []
+  "error": "PPL Tabular response was not JSON",
+  "traceback": "Traceback (most recent call last):\n  File \"/home/runner/work/pa-alerts/pa-alerts/scripts/power_outages_ppl.py\", line 194, in fetch\n    data = json.loads(text)\n           ^^^^^^^^^^^^^^^^\n  File \"/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/json/__init__.py\", line 346, in loads\n    return _default_decoder.decode(s)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/json/decoder.py\", line 337, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/hostedtoolcache/Python/3.11.15/x64/lib/python3.11/json/decoder.py\", line 355, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/home/runner/work/pa-alerts/pa-alerts/scripts/power_outages_ppl.py\", line 208, in fetch\n    raise RuntimeError(\"PPL Tabular response was not JSON\")\nRuntimeError: PPL Tabular response was not JSON\n",
+  "network_log": [
+    {
+      "url": "https://omap.prod.pplweb.com/omap",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "ui_trigger": {
+        "clicked": true,
+        "text": "View Outages By County"
+      }
+    },
+    {
+      "url": "https://omap.prod.pplweb.com/omap/Tabular?opco=PA",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8"
+    },
+    {
+      "xhr_fallback": {
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "ok": true,
+        "error": null,
+        "preview": "<!DOCTYPE html>\r\n\r\n<!--\r\n\r\n     ______  ______  _\r\n    (_____ \\(_____ \\| |\r\n     _____) )_____) ) |\r\n    |  ____/|  ____/| |\r\n    | |     | |     | |_____\r\n    |_|     |_|     |_______)\r\n\r\n    PPL Electric Utilities\r\n\r\n-->\r\n\r\n\r\n<html>\r\n<head>\r\n    <!-- Google Tag Manager -->\r\n    <!--   <script>\r\n       (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':\r\n       new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],\r\n       j=d.createElement(s),dl=l!='dataLayer'?'&l='+l"
+      }
+    }
+  ]
 }
