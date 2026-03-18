@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 import json
-import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
-from bs4 import BeautifulSoup
 
-URL = "https://poweroutage.us/area/state/pennsylvania"
 OUTPUT_FILE = "data/power_outages_pa.json"
 PREVIOUS_FILE = "data/previous_power_outages_pa.json"
 LOCAL_TZ = ZoneInfo("America/New_York")
+
+COUNTY_THRESHOLD_PERCENT = 1.0
+COUNTY_THRESHOLD_OUTAGES = 50
 
 HEADERS = {
     "User-Agent": (
@@ -19,15 +19,12 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/134.0.0.0 Safari/537.36"
     ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-    "Referer": "https://poweroutage.us/",
+    "Accept": "application/json, text/plain, */*",
+    "Origin": "https://www.firstenergycorp.com",
+    "Referer": "https://www.firstenergycorp.com/",
 }
 
-COUNTY_THRESHOLD_PERCENT = 1.0
-COUNTY_THRESHOLD_OUTAGES = 50
+FIRSTENERGY_URL = "https://www.firstenergycorp.com/my-town-search.areaSearch.json"
 
 PEMA_AREAS = {
     "Western Area": {
@@ -52,146 +49,59 @@ PEMA_AREAS = {
 }
 
 
-def clean_int(value: str) -> int:
-    return int(value.replace(",", "").strip())
+def parse_percent(value) -> float:
+    if value is None:
+        return 0.0
+
+    s = str(value).strip().replace("%", "")
+    if s in {"", "-", "--"}:
+        return 0.0
+    if s.startswith("<"):
+        return 0.0
+
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
 
 
-def clean_float(value: str) -> float:
-    return float(value.replace("%", "").strip())
+def load_previous_total() -> int | None:
+    try:
+        with open(PREVIOUS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("statewide", {}).get("customers_out")
+    except Exception:
+        return None
 
 
-def normalize_text(html: str) -> str:
-    soup = BeautifulSoup(html, "html.parser")
-    text = soup.get_text(" ", strip=True)
-    text = re.sub(r"\s+", " ", text)
-    return text
+def build_trend(current_total: int, previous_total: int | None) -> dict:
+    if previous_total is None:
+        return {
+            "direction": "flat",
+            "delta": 0,
+            "display": "No Change",
+        }
 
+    delta = current_total - previous_total
 
-def extract_statewide(text: str) -> dict:
-    out_match = re.search(r"Customers Out\s+([\d,]+)", text)
-    tracked_match = re.search(r"Customers Tracked\s+([\d,]+)", text)
-    updated_match = re.search(
-        r"# Pennsylvania Power Outages\s+Updated\s+(.+?)\s+Customers Out",
-        text
-    )
-
-    if not out_match or not tracked_match:
-        raise ValueError("Could not parse statewide totals from page")
-
-    customers_out = clean_int(out_match.group(1))
-    customers_tracked = clean_int(tracked_match.group(1))
-    percent_out = round((customers_out / customers_tracked) * 100, 2) if customers_tracked else 0.0
+    if delta > 0:
+        return {
+            "direction": "up",
+            "delta": delta,
+            "display": f"▲ +{delta:,}",
+        }
+    if delta < 0:
+        return {
+            "direction": "down",
+            "delta": delta,
+            "display": f"▼ {delta:,}",
+        }
 
     return {
-        "customers_out": customers_out,
-        "customers_tracked": customers_tracked,
-        "percent_out": percent_out,
-        "updated_text": updated_match.group(1).strip() if updated_match else None,
+        "direction": "flat",
+        "delta": 0,
+        "display": "No Change",
     }
-
-
-def extract_section_block(text: str, start_marker: str, end_marker: str) -> str:
-    start = text.find(start_marker)
-    if start == -1:
-        return ""
-
-    end = text.find(end_marker, start)
-    if end == -1:
-        end = len(text)
-
-    return text[start:end]
-
-
-def extract_counties(text: str) -> list[dict]:
-    block = extract_section_block(
-        text,
-        "## Outages by County",
-        "## Pennsylvania Outage Summary"
-    )
-
-    pattern = re.compile(
-        r"([A-Za-z .'\-]+?)\s+Updated\s+(.+?)\s+([\d,]+)\s+Customers Out\s+"
-        r"([\d,]+)\s+Customers Tracked\s+([\d.]+)%\s+Outage Percent"
-    )
-
-    counties = []
-    seen = set()
-
-    for match in pattern.finditer(block):
-        county = match.group(1).strip()
-        if county in seen:
-            continue
-        seen.add(county)
-
-        updated = match.group(2).strip()
-        customers_out = clean_int(match.group(3))
-        customers_tracked = clean_int(match.group(4))
-        percent_out = clean_float(match.group(5))
-
-        counties.append({
-            "county": county,
-            "updated_text": updated,
-            "customers_out": customers_out,
-            "customers_tracked": customers_tracked,
-            "percent_out": percent_out,
-        })
-
-    counties.sort(key=lambda x: x["county"])
-    return counties
-
-
-def extract_utilities(text: str) -> list[dict]:
-    block = extract_section_block(
-        text,
-        "## Outages by Utility",
-        "## Outages by County"
-    )
-
-    pattern = re.compile(
-        r"([A-Za-z0-9&/ .,'()\-]+?)\s+Updated\s+(.+?)\s+([\d,]+)\s+Customers Out\s+"
-        r"([\d,]+)\s+Customers Tracked\s+([\d.]+)%\s+Outage Percent"
-    )
-
-    utilities = []
-    seen = set()
-
-    for match in pattern.finditer(block):
-        utility = match.group(1).strip()
-        if utility in seen:
-            continue
-        seen.add(utility)
-
-        updated = match.group(2).strip()
-        customers_out = clean_int(match.group(3))
-        customers_tracked = clean_int(match.group(4))
-        percent_out = clean_float(match.group(5))
-
-        utilities.append({
-            "utility": utility,
-            "updated_text": updated,
-            "customers_out": customers_out,
-            "customers_tracked": customers_tracked,
-            "percent_out": percent_out,
-        })
-
-    utilities.sort(key=lambda x: (-x["customers_out"], x["utility"]))
-    return utilities
-
-
-def build_significant_counties(counties: list[dict]) -> list[dict]:
-    filtered = [
-        c for c in counties
-        if c["percent_out"] >= COUNTY_THRESHOLD_PERCENT and c["customers_out"] >= COUNTY_THRESHOLD_OUTAGES
-    ]
-    filtered.sort(key=lambda x: (-x["percent_out"], -x["customers_out"], x["county"]))
-    return filtered
-
-
-def build_ticker_items(counties: list[dict]) -> list[str]:
-    return [
-        f'{c["county"]}: {c["percent_out"]:.1f}% ({c["customers_out"]:,})'
-        for c in counties
-    ]
 
 
 def build_pema_totals(counties: list[dict]) -> dict:
@@ -218,46 +128,21 @@ def build_pema_totals(counties: list[dict]) -> dict:
     return totals
 
 
-def load_previous_total() -> int | None:
-    try:
-        with open(PREVIOUS_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("statewide", {}).get("customers_out")
-    except FileNotFoundError:
-        return None
-    except Exception:
-        return None
+def build_significant_counties(counties: list[dict]) -> list[dict]:
+    rows = [
+        c for c in counties
+        if c["percent_out"] >= COUNTY_THRESHOLD_PERCENT
+        and c["customers_out"] >= COUNTY_THRESHOLD_OUTAGES
+    ]
+    rows.sort(key=lambda x: (-x["percent_out"], -x["customers_out"], x["county"]))
+    return rows
 
 
-def build_trend(current_total: int, previous_total: int | None) -> dict:
-    if previous_total is None:
-        return {
-            "direction": "flat",
-            "delta": 0,
-            "display": "No Change",
-        }
-
-    delta = current_total - previous_total
-
-    if delta > 0:
-        return {
-            "direction": "up",
-            "delta": delta,
-            "display": f"▲ +{delta:,}",
-        }
-
-    if delta < 0:
-        return {
-            "direction": "down",
-            "delta": delta,
-            "display": f"▼ {delta:,}",
-        }
-
-    return {
-        "direction": "flat",
-        "delta": 0,
-        "display": "No Change",
-    }
+def build_ticker_items(counties: list[dict]) -> list[str]:
+    return [
+        f'{c["county"]}: {c["percent_out"]:.1f}% ({c["customers_out"]:,})'
+        for c in counties
+    ]
 
 
 def write_previous_snapshot(payload: dict) -> None:
@@ -269,39 +154,95 @@ def write_previous_snapshot(payload: dict) -> None:
         json.dump(previous_payload, f, indent=2)
 
 
-def fetch_page(url: str) -> str:
+def fetch_firstenergy_data() -> dict:
     session = requests.Session()
-    response = session.get(url, headers=HEADERS, timeout=30)
+    response = session.post(
+        FIRSTENERGY_URL,
+        headers=HEADERS,
+        data={"stateAbbreviation": "pa"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
 
-    print(f"Fetch status: {response.status_code}")
 
-    if response.status_code != 200:
-        print("Response preview:")
-        print(response.text[:1000])
-        response.raise_for_status()
+def parse_firstenergy(payload: dict) -> tuple[list[dict], list[dict]]:
+    counties_out = []
+    municipalities_out = []
 
-    return response.text
+    map_counties = payload.get("mapCounties", {})
+
+    for county_key, county_obj in map_counties.items():
+        county_name = county_obj.get("name", county_key.title())
+        area_data = county_obj.get("areaData", {})
+
+        county_row = {
+            "county": county_name,
+            "customers_out": int(area_data.get("customerOutages", 0) or 0),
+            "customers_tracked": int(area_data.get("totalCustomers", 0) or 0),
+            "percent_out": parse_percent(area_data.get("percentOut")),
+            "etr": area_data.get("estimatedTimeRestored") or "",
+            "source": "FirstEnergy",
+        }
+        counties_out.append(county_row)
+
+        map_towns = county_obj.get("mapTowns", {})
+        for town_key, town_obj in map_towns.items():
+            town_name = town_obj.get("name", town_key.title())
+            town_data = town_obj.get("areaData", {})
+
+            municipalities_out.append({
+                "county": county_name,
+                "municipality": town_name,
+                "customers_out": int(town_data.get("customerOutages", 0) or 0),
+                "customers_tracked": int(town_data.get("totalCustomers", 0) or 0),
+                "percent_out": parse_percent(town_data.get("percentOut")),
+                "etr": town_data.get("estimatedTimeRestored") or "",
+                "source": "FirstEnergy",
+            })
+
+    counties_out.sort(key=lambda x: x["county"])
+    municipalities_out.sort(key=lambda x: (x["county"], x["municipality"]))
+    return counties_out, municipalities_out
 
 
 def main():
-    html = fetch_page(URL)
-    text = normalize_text(html)
+    raw = fetch_firstenergy_data()
+    counties, municipalities = parse_firstenergy(raw)
 
-    statewide = extract_statewide(text)
-    counties = extract_counties(text)
-    utilities = extract_utilities(text)
+    statewide_out = sum(c["customers_out"] for c in counties)
+    statewide_tracked = sum(c["customers_tracked"] for c in counties)
+
+    statewide = {
+        "customers_out": statewide_out,
+        "customers_tracked": statewide_tracked,
+        "percent_out": round((statewide_out / statewide_tracked) * 100, 2) if statewide_tracked else 0.0,
+        "updated_text": datetime.now(LOCAL_TZ).strftime("%m/%d/%y %I:%M %p %Z"),
+    }
+
+    previous_total = load_previous_total()
+    trend = build_trend(statewide_out, previous_total)
     significant_counties = build_significant_counties(counties)
     pema_totals = build_pema_totals(counties)
 
-    previous_total = load_previous_total()
-    trend = build_trend(statewide["customers_out"], previous_total)
+    utilities = [{
+        "utility": "FirstEnergy",
+        "customers_out": statewide_out,
+        "customers_tracked": statewide_tracked,
+        "percent_out": statewide["percent_out"],
+        "updated_text": statewide["updated_text"],
+    }]
 
     payload = {
         "generated_at": datetime.now(LOCAL_TZ).isoformat(),
-        "source": {
-            "name": "PowerOutage.us",
-            "url": URL,
-        },
+        "source_strategy": "FirstEnergy only",
+        "sources": [
+            {
+                "name": "FirstEnergy",
+                "url": FIRSTENERGY_URL,
+                "method": "POST",
+            }
+        ],
         "thresholds": {
             "county_percent_min": COUNTY_THRESHOLD_PERCENT,
             "county_outages_min": COUNTY_THRESHOLD_OUTAGES,
@@ -309,10 +250,11 @@ def main():
         "statewide": statewide,
         "trend_since_last_update": trend,
         "pema_areas": pema_totals,
+        "utilities": utilities,
         "counties": counties,
         "significant_counties": significant_counties,
-        "utilities": utilities,
         "ticker_items": build_ticker_items(significant_counties),
+        "municipalities": municipalities,
     }
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
@@ -321,16 +263,11 @@ def main():
     write_previous_snapshot(payload)
 
     print(f"Wrote {OUTPUT_FILE}")
-    print(f'Statewide out: {statewide["customers_out"]:,}')
-    print(f'Counties parsed: {len(counties)}')
-    print(f'Utilities parsed: {len(utilities)}')
-    print(f'Significant counties: {len(significant_counties)}')
+    print(f"FirstEnergy counties parsed: {len(counties)}")
+    print(f"FirstEnergy municipalities parsed: {len(municipalities)}")
+    print(f'Statewide out: {statewide_out:,}')
     print(f'Trend: {trend["display"]}')
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"Script failed: {e}")
-        raise
+    main()
