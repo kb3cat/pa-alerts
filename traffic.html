@@ -322,16 +322,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
     <div class="items" id="closuresList"></div>
   </div>
 
-  <div class="row speed">
-    <div class="paneltitle">
-      <div class="name">Speed Restrictions</div>
-      <div class="panel-actions">
-        <button class="section-toggle" type="button" data-target="speedList">Close</button>
-      </div>
-    </div>
-    <div class="items" id="speedList"></div>
-  </div>
-
   <div class="row lane">
     <div class="paneltitle">
       <div class="name">Lane Restrictions</div>
@@ -340,6 +330,16 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
       </div>
     </div>
     <div class="items" id="laneList"></div>
+  </div>
+
+  <div class="row speed">
+    <div class="paneltitle">
+      <div class="name">Speed Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="speedList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="speedList"></div>
   </div>
 
   <div class="row vehicle">
@@ -453,8 +453,8 @@ function applyWallScroll(enabled){
 
   const panels = [
     document.getElementById("closuresList"),
-    document.getElementById("speedList"),
     document.getElementById("laneList"),
+    document.getElementById("speedList"),
     document.getElementById("vehicleList"),
     document.getElementById("plannedVehicleList")
   ].filter(Boolean);
@@ -610,7 +610,7 @@ function buildRoadRow(text){
   wrap.appendChild(name);
 
   return wrap;
-  }
+}
 
 function renderList(elId, items, kind) {
   const el = document.getElementById(elId);
@@ -1342,8 +1342,8 @@ async function loadBoard(){
     ).map(t => ({ text: t, tier: getTierFromText(t) }));
 
     renderList("closuresList", closuresMerged, "");
-    renderList("speedList", speed, "speed");
     renderList("laneList", lane, "lane");
+    renderList("speedList", speed, "speed");
     renderVehicleGrouped("vehicleList", activeVehicle);
     renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
 
