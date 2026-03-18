@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import sys
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -117,7 +118,6 @@ def scrape(
             page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(8000)
 
-            # Try to dismiss any modal/overlay.
             for selector in [
                 "button:has-text('CLOSE')",
                 "button:has-text('Close')",
@@ -136,7 +136,6 @@ def scrape(
                 except Exception:
                     pass
 
-            # Try to click NY & PA if tabbed.
             for selector in [
                 "a:has-text('NY & PA')",
                 "button:has-text('NY & PA')",
@@ -151,7 +150,6 @@ def scrape(
                 except Exception:
                     pass
 
-            # Give FE time to render lazy content.
             page.wait_for_timeout(6000)
 
             extracted = page.evaluate(
@@ -179,9 +177,6 @@ def scrape(
                       return null;
                     }
 
-                    // Flexible mapping:
-                    // Most likely:
-                    // 0 municipality, 1 county, 2 customers_out, 3 customers_served, 4 percent_out, 5 etr
                     return {
                       municipality: values[0] || "",
                       county: values[1] || "",
@@ -207,7 +202,6 @@ def scrape(
                   function looksUseful(row) {
                     const muni = lower(row.municipality);
                     const county = lower(row.county);
-
                     if (!muni && !county) return false;
                     if (muni.includes("customers out") || county.includes("customers out")) return false;
                     if (muni.includes("county") && county.includes("municipality")) return false;
@@ -216,19 +210,18 @@ def scrape(
 
                   const result = {
                     title: document.title,
+                    url: window.location.href,
                     headings: Array.from(document.querySelectorAll("h1,h2,h3,h4")).map(txt).filter(Boolean),
                     table_count: document.querySelectorAll("table").length,
                     candidate_rows: [],
-                    body_text_sample: txt(document.body).slice(0, 5000)
+                    body_text_sample: txt(document.body).slice(0, 8000)
                   };
 
                   const allTables = Array.from(document.querySelectorAll("table"));
                   for (const table of allTables) {
                     const rows = tableRows(table);
                     for (const row of rows) {
-                      if (looksUseful(row)) {
-                        result.candidate_rows.push(row);
-                      }
+                      if (looksUseful(row)) result.candidate_rows.push(row);
                     }
                   }
 
@@ -250,7 +243,6 @@ def scrape(
                 if not municipality and not county:
                     continue
 
-                # Toss obvious garbage/header-like rows.
                 joined = " ".join(
                     [
                         municipality,
@@ -286,7 +278,6 @@ def scrape(
                     }
                 )
 
-            # Deduplicate loosely.
             deduped: List[Dict[str, Any]] = []
             seen = set()
             for item in cleaned:
@@ -303,12 +294,12 @@ def scrape(
                 seen.add(key)
                 deduped.append(item)
 
-            # Debug and fail hard if empty.
             if not deduped:
                 debug_payload = {
                     "fetched_at": iso_utc_now(),
                     "page_url": PAGE_URL,
                     "title": extracted.get("title"),
+                    "url_seen_in_browser": extracted.get("url"),
                     "headings": extracted.get("headings"),
                     "table_count": extracted.get("table_count"),
                     "candidate_rows_found": len(rows),
@@ -341,13 +332,15 @@ def scrape(
                     "fetched_at": iso_utc_now(),
                     "page_url": PAGE_URL,
                     "reason": "Playwright timeout",
+                    "error_type": type(exc).__name__,
                     "error": str(exc),
+                    "traceback": traceback.format_exc(),
                 },
             )
             browser.close()
             raise RuntimeError(f"Timed out loading FE page: {exc}") from exc
 
-        except Exception:
+        except Exception as exc:
             try:
                 write_debug_files(
                     page,
@@ -358,6 +351,9 @@ def scrape(
                         "fetched_at": iso_utc_now(),
                         "page_url": PAGE_URL,
                         "reason": "Unhandled scrape exception",
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                        "traceback": traceback.format_exc(),
                     },
                 )
             except Exception:
@@ -464,7 +460,7 @@ def main() -> int:
     previous.parent.mkdir(parents=True, exist_ok=True)
 
     if output.exists():
-        shutil.copyfile(output, previous)
+      shutil.copyfile(output, previous)
 
     prev_data = load_previous(previous)
     current = scrape(
