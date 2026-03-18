@@ -35,23 +35,33 @@ def parse_percent(value) -> float:
 def fetch_firstenergy_data() -> dict:
     session = requests.Session()
 
-    headers = {
+    base_headers = {
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/134.0.0.0 Safari/537.36"
-        ),
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "Origin": "https://www.firstenergycorp.com",
-        "Referer": "https://www.firstenergycorp.com/outages_help/current_outages_maps/my-town-search.html",
-        "X-Requested-With": "XMLHttpRequest",
+        )
     }
 
+    # STEP 1: Establish session (critical for GitHub Actions)
+    session.get(
+        "https://www.firstenergycorp.com/outages_help/current_outages_maps/my-town-search.html",
+        headers=base_headers,
+        timeout=30,
+    )
+
+    # STEP 2: Fetch outage data
     response = session.post(
         FIRSTENERGY_URL,
-        headers=headers,
+        headers={
+            **base_headers,
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Origin": "https://www.firstenergycorp.com",
+            "Referer": "https://www.firstenergycorp.com/outages_help/current_outages_maps/my-town-search.html",
+            "X-Requested-With": "XMLHttpRequest",
+        },
         data={"stateAbbreviation": "pa"},
         timeout=30,
         allow_redirects=True,
@@ -59,24 +69,12 @@ def fetch_firstenergy_data() -> dict:
 
     print(f"HTTP status: {response.status_code}")
     print(f"Content-Type: {response.headers.get('Content-Type')}")
-    print(f"Final URL: {response.url}")
     print("Response preview:")
-    print(response.text[:1000])
+    print(response.text[:500])
 
     response.raise_for_status()
 
-    if not response.text.strip():
-        raise RuntimeError("FirstEnergy returned empty response")
-
-    try:
-        return response.json()
-    except Exception as e:
-        raise RuntimeError(
-            f"FirstEnergy did not return JSON. "
-            f"Status={response.status_code}, "
-            f"Content-Type={response.headers.get('Content-Type')}, "
-            f"Preview={response.text[:300]!r}"
-        ) from e
+    return response.json()
 
 
 def parse_firstenergy(data: dict):
@@ -89,19 +87,16 @@ def parse_firstenergy(data: dict):
         county_name = county_obj.get("name", county_key.title())
         area = county_obj.get("areaData", {})
 
-        county_row = {
+        counties.append({
             "county": county_name,
             "customers_out": int(area.get("customerOutages", 0) or 0),
             "customers_tracked": int(area.get("totalCustomers", 0) or 0),
             "percent_out": parse_percent(area.get("percentOut")),
             "etr": area.get("estimatedTimeRestored") or "",
             "source": "FirstEnergy",
-        }
+        })
 
-        counties.append(county_row)
-
-        towns = county_obj.get("mapTowns", {})
-        for _, town_obj in towns.items():
+        for _, town_obj in county_obj.get("mapTowns", {}).items():
             t_area = town_obj.get("areaData", {})
             municipalities.append({
                 "county": county_name,
