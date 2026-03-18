@@ -120,7 +120,7 @@ def fetch():
         page.on("response", log_response)
 
         try:
-            page.goto(PAGE_URL, wait_until="networkidle", timeout=60000)
+           page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(5000)
 
             # Try to trigger the county/tabular view the same way a user would.
