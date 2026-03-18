@@ -4,16 +4,45 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import requests
+from playwright.sync_api import sync_playwright
 
 OUTPUT_FILE = "data/power_outages_pa.json"
 PREVIOUS_FILE = "data/previous_power_outages_pa.json"
 LOCAL_TZ = ZoneInfo("America/New_York")
 
-FIRSTENERGY_URL = "https://www.firstenergycorp.com/my-town-search.areaSearch.json"
+FIRSTENERGY_PAGE_URL = (
+    "https://www.firstenergycorp.com/outages_help/current_outages_maps/"
+    "my-town-search.html"
+)
+FIRSTENERGY_DATA_URL = (
+    "https://www.firstenergycorp.com/content/customer/outages_help/"
+    "current_outages_maps/my-town-search.areaSearch.json"
+)
 
 COUNTY_THRESHOLD_PERCENT = 1.0
 COUNTY_THRESHOLD_OUTAGES = 50
+
+PEMA_AREAS = {
+    "Western Area": {
+        "Allegheny", "Armstrong", "Beaver", "Bedford", "Blair", "Butler",
+        "Cambria", "Cameron", "Clarion", "Clearfield", "Crawford", "Elk",
+        "Erie", "Fayette", "Forest", "Greene", "Indiana", "Jefferson",
+        "Lawrence", "McKean", "Mercer", "Potter", "Somerset", "Venango",
+        "Warren", "Washington", "Westmoreland"
+    },
+    "Central Area": {
+        "Adams", "Berks", "Bradford", "Centre", "Clinton", "Columbia",
+        "Cumberland", "Dauphin", "Franklin", "Fulton", "Huntingdon",
+        "Juniata", "Lackawanna", "Lancaster", "Lebanon", "Luzerne",
+        "Lycoming", "Mifflin", "Montour", "Northumberland", "Perry",
+        "Schuylkill", "Snyder", "Sullivan", "Susquehanna", "Tioga",
+        "Union", "Wyoming", "York"
+    },
+    "Eastern Area": {
+        "Bucks", "Carbon", "Chester", "Delaware", "Lehigh", "Monroe",
+        "Montgomery", "Northampton", "Philadelphia", "Pike", "Wayne"
+    },
+}
 
 
 def parse_percent(value) -> float:
@@ -32,49 +61,123 @@ def parse_percent(value) -> float:
         return 0.0
 
 
-def fetch_firstenergy_data() -> dict:
-    session = requests.Session()
+def load_previous_total():
+    try:
+        with open(PREVIOUS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f).get("statewide", {}).get("customers_out")
+    except Exception:
+        return None
 
-    base_headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/134.0.0.0 Safari/537.36"
-        )
+
+def build_trend(current, previous):
+    if previous is None:
+        return {"direction": "flat", "delta": 0, "display": "No Change"}
+
+    delta = current - previous
+
+    if delta > 0:
+        return {"direction": "up", "delta": delta, "display": f"▲ +{delta:,}"}
+    if delta < 0:
+        return {"direction": "down", "delta": delta, "display": f"▼ {delta:,}"}
+
+    return {"direction": "flat", "delta": 0, "display": "No Change"}
+
+
+def build_significant(counties):
+    rows = [
+        c for c in counties
+        if c["percent_out"] >= COUNTY_THRESHOLD_PERCENT
+        and c["customers_out"] >= COUNTY_THRESHOLD_OUTAGES
+    ]
+    return sorted(rows, key=lambda x: (-x["percent_out"], -x["customers_out"], x["county"]))
+
+
+def build_ticker(counties):
+    return [
+        f'{c["county"]}: {c["percent_out"]:.1f}% ({c["customers_out"]:,})'
+        for c in counties
+    ]
+
+
+def build_pema_totals(counties):
+    totals = {
+        "Western Area": 0,
+        "Central Area": 0,
+        "Eastern Area": 0,
+        "Unmapped": 0,
     }
 
-    # STEP 1: Establish session (critical for GitHub Actions)
-    session.get(
-        "https://www.firstenergycorp.com/outages_help/current_outages_maps/my-town-search.html",
-        headers=base_headers,
-        timeout=30,
-    )
+    for county in counties:
+        county_name = county["county"]
+        matched = False
 
-    # STEP 2: Fetch outage data
-    response = session.post(
-        FIRSTENERGY_URL,
-        headers={
-            **base_headers,
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Origin": "https://www.firstenergycorp.com",
-            "Referer": "https://www.firstenergycorp.com/outages_help/current_outages_maps/my-town-search.html",
-            "X-Requested-With": "XMLHttpRequest",
-        },
-        data={"stateAbbreviation": "pa"},
-        timeout=30,
-        allow_redirects=True,
-    )
+        for area_name, area_counties in PEMA_AREAS.items():
+            if county_name in area_counties:
+                totals[area_name] += county["customers_out"]
+                matched = True
+                break
 
-    print(f"HTTP status: {response.status_code}")
-    print(f"Content-Type: {response.headers.get('Content-Type')}")
-    print("Response preview:")
-    print(response.text[:500])
+        if not matched:
+            totals["Unmapped"] += county["customers_out"]
 
-    response.raise_for_status()
+    return totals
 
-    return response.json()
+
+def fetch_firstenergy_data() -> dict:
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) "
+                "Gecko/20100101 Firefox/148.0"
+            ),
+            locale="en-US",
+        )
+        page = context.new_page()
+
+        print("Loading FirstEnergy My Town page...")
+        page.goto(FIRSTENERGY_PAGE_URL, wait_until="networkidle", timeout=60000)
+        page.wait_for_timeout(3000)
+
+        print("Posting to FirstEnergy outage endpoint from browser context...")
+        api_response = context.request.post(
+            FIRSTENERGY_DATA_URL,
+            headers={
+                "Accept": "application/json, text/javascript, */*; q=0.01",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                "Origin": "https://www.firstenergycorp.com",
+                "Referer": FIRSTENERGY_PAGE_URL,
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            form={"stateAbbreviation": "pa"},
+            timeout=60000,
+        )
+
+        print(f"HTTP status: {api_response.status}")
+        print(f"Content-Type: {api_response.headers.get('content-type')}")
+
+        text = api_response.text()
+        print("Response preview:")
+        print(text[:500])
+
+        if api_response.status != 200:
+            raise RuntimeError(f"FirstEnergy returned HTTP {api_response.status}")
+
+        if not text.strip():
+            raise RuntimeError("FirstEnergy returned empty response")
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"FirstEnergy did not return JSON. "
+                f"Content-Type={api_response.headers.get('content-type')}, "
+                f"Preview={text[:300]!r}"
+            ) from e
+        finally:
+            browser.close()
+
+        return data
 
 
 def parse_firstenergy(data: dict):
@@ -109,47 +212,9 @@ def parse_firstenergy(data: dict):
             })
 
     counties.sort(key=lambda x: x["county"])
-    municipalities.sort(key=lambda x: (x["county"], x["municipality"]))
+    municipalities.sort(key=lambda x: (x["county"], x["municipality"] or ""))
 
     return counties, municipalities
-
-
-def load_previous_total():
-    try:
-        with open(PREVIOUS_FILE, "r") as f:
-            return json.load(f).get("statewide", {}).get("customers_out")
-    except:
-        return None
-
-
-def build_trend(current, previous):
-    if previous is None:
-        return {"direction": "flat", "delta": 0, "display": "No Change"}
-
-    delta = current - previous
-
-    if delta > 0:
-        return {"direction": "up", "delta": delta, "display": f"▲ +{delta:,}"}
-    if delta < 0:
-        return {"direction": "down", "delta": delta, "display": f"▼ {delta:,}"}
-
-    return {"direction": "flat", "delta": 0, "display": "No Change"}
-
-
-def build_significant(counties):
-    rows = [
-        c for c in counties
-        if c["percent_out"] >= COUNTY_THRESHOLD_PERCENT
-        and c["customers_out"] >= COUNTY_THRESHOLD_OUTAGES
-    ]
-    return sorted(rows, key=lambda x: (-x["percent_out"], -x["customers_out"]))
-
-
-def build_ticker(counties):
-    return [
-        f'{c["county"]}: {c["percent_out"]:.1f}% ({c["customers_out"]:,})'
-        for c in counties
-    ]
 
 
 def main():
@@ -169,11 +234,14 @@ def main():
     prev = load_previous_total()
     trend = build_trend(total_out, prev)
     significant = build_significant(counties)
+    pema_totals = build_pema_totals(counties)
 
     payload = {
         "generated_at": datetime.now(LOCAL_TZ).isoformat(),
+        "source_strategy": "FirstEnergy via Playwright browser session",
         "statewide": statewide,
         "trend_since_last_update": trend,
+        "pema_areas": pema_totals,
         "utilities": [{
             "utility": "FirstEnergy",
             "customers_out": total_out,
@@ -186,10 +254,10 @@ def main():
         "municipalities": municipalities,
     }
 
-    with open(OUTPUT_FILE, "w") as f:
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
-    with open(PREVIOUS_FILE, "w") as f:
+    with open(PREVIOUS_FILE, "w", encoding="utf-8") as f:
         json.dump({"statewide": statewide}, f, indent=2)
 
     print("SUCCESS")
