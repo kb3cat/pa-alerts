@@ -14,7 +14,16 @@ PREVIOUS_FILE = "data/previous_power_outages_pa.json"
 LOCAL_TZ = ZoneInfo("America/New_York")
 
 HEADERS = {
-    "User-Agent": "PennAlerts Power Board (kb3cat.github.io; contact via site)"
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/134.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "Referer": "https://poweroutage.us/",
 }
 
 COUNTY_THRESHOLD_PERCENT = 1.0
@@ -22,11 +31,11 @@ COUNTY_THRESHOLD_OUTAGES = 50
 
 PEMA_AREAS = {
     "Western Area": {
-        "Beaver", "Butler", "Cambria", "Cameron", "Clarion", "Clearfield",
-        "Crawford", "Elk", "Erie", "Forest", "Greene", "Indiana",
-        "Jefferson", "Lawrence", "McKean", "Mercer", "Potter", "Venango",
-        "Warren", "Washington", "Westmoreland", "Allegheny", "Armstrong",
-        "Bedford", "Blair", "Fayette", "Somerset"
+        "Allegheny", "Armstrong", "Beaver", "Bedford", "Blair", "Butler",
+        "Cambria", "Cameron", "Clarion", "Clearfield", "Crawford", "Elk",
+        "Erie", "Fayette", "Forest", "Greene", "Indiana", "Jefferson",
+        "Lawrence", "McKean", "Mercer", "Potter", "Somerset", "Venango",
+        "Warren", "Washington", "Westmoreland"
     },
     "Central Area": {
         "Adams", "Berks", "Bradford", "Centre", "Clinton", "Columbia",
@@ -61,7 +70,10 @@ def normalize_text(html: str) -> str:
 def extract_statewide(text: str) -> dict:
     out_match = re.search(r"Customers Out\s+([\d,]+)", text)
     tracked_match = re.search(r"Customers Tracked\s+([\d,]+)", text)
-    updated_match = re.search(r"# Pennsylvania Power Outages\s+Updated\s+(.+?)\s+Customers Out", text)
+    updated_match = re.search(
+        r"# Pennsylvania Power Outages\s+Updated\s+(.+?)\s+Customers Out",
+        text
+    )
 
     if not out_match or not tracked_match:
         raise ValueError("Could not parse statewide totals from page")
@@ -98,7 +110,8 @@ def extract_counties(text: str) -> list[dict]:
     )
 
     pattern = re.compile(
-        r"([A-Za-z .'-]+?)\s+Updated\s+(.+?)\s+([\d,]+)\s+Customers Out\s+([\d,]+)\s+Customers Tracked\s+([\d.]+)%\s+Outage Percent"
+        r"([A-Za-z .'\-]+?)\s+Updated\s+(.+?)\s+([\d,]+)\s+Customers Out\s+"
+        r"([\d,]+)\s+Customers Tracked\s+([\d.]+)%\s+Outage Percent"
     )
 
     counties = []
@@ -123,6 +136,7 @@ def extract_counties(text: str) -> list[dict]:
             "percent_out": percent_out,
         })
 
+    counties.sort(key=lambda x: x["county"])
     return counties
 
 
@@ -134,7 +148,8 @@ def extract_utilities(text: str) -> list[dict]:
     )
 
     pattern = re.compile(
-        r"([A-Za-z0-9&/ .,'()-]+?)\s+Updated\s+(.+?)\s+([\d,]+)\s+Customers Out\s+([\d,]+)\s+Customers Tracked\s+([\d.]+)%\s+Outage Percent"
+        r"([A-Za-z0-9&/ .,'()\-]+?)\s+Updated\s+(.+?)\s+([\d,]+)\s+Customers Out\s+"
+        r"([\d,]+)\s+Customers Tracked\s+([\d.]+)%\s+Outage Percent"
     )
 
     utilities = []
@@ -190,11 +205,13 @@ def build_pema_totals(counties: list[dict]) -> dict:
     for county in counties:
         county_name = county["county"]
         matched = False
+
         for area_name, area_counties in PEMA_AREAS.items():
             if county_name in area_counties:
                 totals[area_name] += county["customers_out"]
                 matched = True
                 break
+
         if not matched:
             totals["Unmapped"] += county["customers_out"]
 
@@ -228,6 +245,7 @@ def build_trend(current_total: int, previous_total: int | None) -> dict:
             "delta": delta,
             "display": f"▲ +{delta:,}",
         }
+
     if delta < 0:
         return {
             "direction": "down",
@@ -251,11 +269,23 @@ def write_previous_snapshot(payload: dict) -> None:
         json.dump(previous_payload, f, indent=2)
 
 
-def main():
-    response = requests.get(URL, headers=HEADERS, timeout=30)
-    response.raise_for_status()
+def fetch_page(url: str) -> str:
+    session = requests.Session()
+    response = session.get(url, headers=HEADERS, timeout=30)
 
-    text = normalize_text(response.text)
+    print(f"Fetch status: {response.status_code}")
+
+    if response.status_code != 200:
+        print("Response preview:")
+        print(response.text[:1000])
+        response.raise_for_status()
+
+    return response.text
+
+
+def main():
+    html = fetch_page(URL)
+    text = normalize_text(html)
 
     statewide = extract_statewide(text)
     counties = extract_counties(text)
@@ -299,4 +329,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"Script failed: {e}")
+        raise
