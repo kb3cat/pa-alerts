@@ -9,7 +9,7 @@ import shutil
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
@@ -29,45 +29,6 @@ def iso_utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def safe_int(value: Any) -> Optional[int]:
-    if value is None:
-        return None
-    if isinstance(value, int):
-        return value
-    text = str(value).strip().replace(",", "")
-    if not text:
-        return None
-    m = re.search(r"-?\d+", text)
-    if not m:
-        return None
-    try:
-        return int(m.group(0))
-    except ValueError:
-        return None
-
-
-def safe_float(value: Any) -> Optional[float]:
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    text = str(value).replace("%", "").replace(",", "").strip()
-    if not text:
-        return None
-    try:
-        return float(text)
-    except ValueError:
-        return None
-
-
-def clean_text(v: Any) -> str:
-    return re.sub(r"\s+", " ", str(v or "")).strip()
-
-
-def make_key(county: str, municipality: str) -> str:
-    return f"{clean_text(county).lower()}|{clean_text(municipality).lower()}"
-
-
 def write_debug_files(
     page,
     debug_html_path: Path,
@@ -80,8 +41,7 @@ def write_debug_files(
     debug_screenshot_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        html = page.content()
-        debug_html_path.write_text(html, encoding="utf-8")
+        debug_html_path.write_text(page.content(), encoding="utf-8")
     except Exception as exc:
         extra["html_error"] = str(exc)
 
@@ -103,12 +63,63 @@ def scrape(
     debug_json_path = Path(debug_json)
     debug_screenshot_path = Path(debug_screenshot)
 
+    network_events: List[Dict[str, Any]] = []
+
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=not show_browser,
             args=["--no-sandbox", "--disable-dev-shm-usage"],
         )
-        page = browser.new_page(viewport={"width": 1600, "height": 2400})
+
+        context = browser.new_context(
+            viewport={"width": 1600, "height": 2400},
+            user_agent=(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            ),
+        )
+
+        page = context.new_page()
+
+        def log_request(request) -> None:
+            url = request.url
+            if "firstenergycorp.com" in url or "firstenergy" in url.lower():
+                network_events.append(
+                    {
+                        "kind": "request",
+                        "resource_type": request.resource_type,
+                        "method": request.method,
+                        "url": url,
+                    }
+                )
+
+        def log_response(response) -> None:
+            url = response.url
+            if "firstenergycorp.com" in url or "firstenergy" in url.lower():
+                entry: Dict[str, Any] = {
+                    "kind": "response",
+                    "status": response.status,
+                    "url": url,
+                }
+                try:
+                    headers = response.headers
+                    entry["content_type"] = headers.get("content-type")
+                except Exception:
+                    pass
+
+                try:
+                    ctype = (entry.get("content_type") or "").lower()
+                    if "json" in ctype:
+                        text = response.text()
+                        entry["body_preview"] = text[:2000]
+                except Exception as exc:
+                    entry["body_preview_error"] = str(exc)
+
+                network_events.append(entry)
+
+        page.on("request", log_request)
+        page.on("response", log_response)
 
         try:
             page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
@@ -120,13 +131,11 @@ def scrape(
                 "text=CLOSE",
                 "text=Close",
                 "[aria-label='Close']",
-                ".modal button",
-                ".fe-dialog button",
             ]:
                 try:
                     loc = page.locator(selector).first
-                    if loc.is_visible(timeout=1500):
-                        loc.click(timeout=1500)
+                    if loc.is_visible(timeout=1000):
+                        loc.click(timeout=1000)
                         page.wait_for_timeout(1500)
                         break
                 except Exception:
@@ -139,14 +148,14 @@ def scrape(
             ]:
                 try:
                     loc = page.locator(selector).first
-                    if loc.is_visible(timeout=1500):
-                        loc.click(timeout=1500)
+                    if loc.is_visible(timeout=1000):
+                        loc.click(timeout=1000)
                         page.wait_for_timeout(3000)
                         break
                 except Exception:
                     pass
 
-            page.wait_for_timeout(6000)
+            page.wait_for_timeout(10000)
 
             extracted = page.evaluate(
                 """
@@ -157,112 +166,39 @@ def scrape(
                       .trim();
                   }
 
-                  const tables = Array.from(document.querySelectorAll("table"));
-                  const rawRows = [];
-
-                  for (const [tableIndex, table] of tables.entries()) {
-                    const trs = Array.from(table.querySelectorAll("tr"));
-                    for (const [rowIndex, tr] of trs.entries()) {
-                      const cells = Array.from(tr.querySelectorAll("td,th")).map(txt).filter(Boolean);
-                      if (cells.length) {
-                        rawRows.push({
-                          table_index: tableIndex,
-                          row_index: rowIndex,
-                          cells
-                        });
-                      }
-                    }
-                  }
-
                   return {
                     title: document.title,
                     url_seen_in_browser: window.location.href,
-                    table_count: tables.length,
+                    table_count: document.querySelectorAll("table").length,
                     headings: Array.from(document.querySelectorAll("h1,h2,h3,h4")).map(txt).filter(Boolean),
-                    buttons: Array.from(document.querySelectorAll("button,a")).map(txt).filter(Boolean).slice(0, 200),
-                    body_text_sample: txt(document.body).slice(0, 12000),
-                    raw_rows_preview: rawRows.slice(0, 100)
+                    body_text_sample: txt(document.body).slice(0, 12000)
                   };
                 }
                 """
             )
 
-            raw_rows = extracted.get("raw_rows_preview", [])
-            cleaned: List[Dict[str, Any]] = []
+            debug_payload = {
+                "fetched_at": iso_utc_now(),
+                "page_url": PAGE_URL,
+                "reason": "Network inspection run",
+                "title": extracted.get("title"),
+                "url_seen_in_browser": extracted.get("url_seen_in_browser"),
+                "table_count": extracted.get("table_count"),
+                "headings": extracted.get("headings"),
+                "body_text_sample": extracted.get("body_text_sample"),
+                "network_events": network_events[-200:],
+            }
 
-            for row in raw_rows:
-                cells = row.get("cells", [])
-                if not isinstance(cells, list) or len(cells) < 2:
-                    continue
-
-                joined = " | ".join(str(c) for c in cells).lower()
-                if any(bad in joined for bad in [
-                    "pennsylvania search",
-                    "new york search",
-                    "municipality",
-                    "county",
-                    "customers out",
-                    "customers served",
-                    "percent out",
-                    "etr",
-                    "no outages",
-                ]):
-                    continue
-
-                item = {
-                    "municipality": clean_text(cells[0]) if len(cells) > 0 else "",
-                    "county": clean_text(cells[1]) if len(cells) > 1 else "",
-                    "customers_out": safe_int(cells[2]) if len(cells) > 2 else 0,
-                    "customers_served": safe_int(cells[3]) if len(cells) > 3 else None,
-                    "percent_out": safe_float(cells[4]) if len(cells) > 4 else None,
-                    "etr": clean_text(cells[5]) if len(cells) > 5 else None,
-                    "raw_cells": cells,
-                }
-
-                if item["municipality"] or item["county"]:
-                    cleaned.append(item)
-
-            deduped: List[Dict[str, Any]] = []
-            seen = set()
-            for item in cleaned:
-                key = (
-                    item["municipality"].lower(),
-                    item["county"].lower(),
-                    item["customers_out"],
-                    item["customers_served"],
-                    item["percent_out"],
-                    item["etr"],
-                )
-                if key in seen:
-                    continue
-                seen.add(key)
-                deduped.append(item)
-
-            if not deduped:
-                debug_payload = {
-                    "fetched_at": iso_utc_now(),
-                    "page_url": PAGE_URL,
-                    "reason": "No usable outage rows found",
-                    "title": extracted.get("title"),
-                    "url_seen_in_browser": extracted.get("url_seen_in_browser"),
-                    "table_count": extracted.get("table_count"),
-                    "headings": extracted.get("headings"),
-                    "buttons": extracted.get("buttons"),
-                    "body_text_sample": extracted.get("body_text_sample"),
-                    "raw_rows_preview": extracted.get("raw_rows_preview"),
-                }
-                write_debug_files(
-                    page,
-                    debug_html_path=debug_html_path,
-                    debug_json_path=debug_json_path,
-                    debug_screenshot_path=debug_screenshot_path,
-                    extra=debug_payload,
-                )
-                browser.close()
-                raise RuntimeError("No outage rows found")
+            write_debug_files(
+                page,
+                debug_html_path=debug_html_path,
+                debug_json_path=debug_json_path,
+                debug_screenshot_path=debug_screenshot_path,
+                extra=debug_payload,
+            )
 
             browser.close()
-            return deduped
+            raise RuntimeError("Inspection run complete; check debug JSON for network events.")
 
         except PlaywrightTimeoutError as exc:
             write_debug_files(
@@ -277,12 +213,9 @@ def scrape(
                     "error_type": type(exc).__name__,
                     "error": str(exc),
                     "traceback": traceback.format_exc(),
+                    "network_events": network_events[-200:],
                 },
             )
-            browser.close()
-            raise
-
-        except RuntimeError:
             browser.close()
             raise
 
@@ -299,91 +232,11 @@ def scrape(
                     "error_type": type(exc).__name__,
                     "error": str(exc),
                     "traceback": traceback.format_exc(),
+                    "network_events": network_events[-200:],
                 },
             )
             browser.close()
             raise
-
-
-def load_previous(path: Path) -> Dict[str, Dict[str, Any]]:
-    if not path.exists():
-        return {}
-
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    items = data.get("items", [])
-    if not isinstance(items, list):
-        return {}
-
-    out: Dict[str, Dict[str, Any]] = {}
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        key = make_key(item.get("county", ""), item.get("municipality", ""))
-        if key == "|":
-            continue
-        out[key] = item
-    return out
-
-
-def apply_changes(
-    current: List[Dict[str, Any]],
-    previous: Dict[str, Dict[str, Any]],
-) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
-    summary = {"new": 0, "increasing": 0, "decreasing": 0, "unchanged": 0, "restored": 0}
-    results: List[Dict[str, Any]] = []
-    seen = set()
-
-    for item in current:
-        key = make_key(item["county"], item["municipality"])
-        seen.add(key)
-
-        prev = previous.get(key, {})
-        prev_out = safe_int(prev.get("customers_out")) or 0
-        curr_out = safe_int(item.get("customers_out")) or 0
-
-        change = curr_out - prev_out
-
-        if prev_out == 0 and curr_out > 0:
-            status = "new"
-        elif curr_out == 0 and prev_out > 0:
-            status = "restored"
-        elif curr_out > prev_out:
-            status = "increasing"
-        elif curr_out < prev_out:
-            status = "decreasing"
-        else:
-            status = "unchanged"
-
-        summary[status] += 1
-
-        enriched = dict(item)
-        enriched["previous_customers_out"] = prev_out
-        enriched["change"] = change
-        enriched["status"] = status
-        results.append(enriched)
-
-    for key, prev in previous.items():
-        if key not in seen and (safe_int(prev.get("customers_out")) or 0) > 0:
-            results.append(
-                {
-                    "municipality": prev.get("municipality", ""),
-                    "county": prev.get("county", ""),
-                    "customers_out": 0,
-                    "customers_served": safe_int(prev.get("customers_served")),
-                    "percent_out": 0.0,
-                    "etr": None,
-                    "previous_customers_out": safe_int(prev.get("customers_out")) or 0,
-                    "change": -(safe_int(prev.get("customers_out")) or 0),
-                    "status": "restored",
-                }
-            )
-            summary["restored"] += 1
-
-    return results, summary
 
 
 def main() -> int:
@@ -405,27 +258,12 @@ def main() -> int:
     if output.exists():
         shutil.copyfile(output, previous)
 
-    prev_data = load_previous(previous)
-    current = scrape(
+    scrape(
         show_browser=args.show_browser,
         debug_html=args.debug_html,
         debug_json=args.debug_json,
         debug_screenshot=args.debug_screenshot,
     )
-
-    items, summary = apply_changes(current, prev_data)
-
-    result = {
-        "fetched_at": iso_utc_now(),
-        "count": len(items),
-        "summary": summary,
-        "items": items,
-    }
-
-    output.write_text(json.dumps(result, indent=2), encoding="utf-8")
-
-    print(f"Wrote {len(items)} rows to {output}")
-    print("Summary:", summary)
     return 0
 
 
