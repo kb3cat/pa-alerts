@@ -53,6 +53,7 @@ def fetch():
         page = context.new_page()
 
         network_log = []
+        captured = {"text": None, "url": None, "status": None, "content_type": None}
 
         def log_response(resp):
             url = resp.url
@@ -67,17 +68,41 @@ def fetch():
                     pass
                 network_log.append(entry)
 
+            if "omap.prod.pplweb.com/omap/Tabular?opco=PA" in url and resp.status == 200:
+                try:
+                    captured["text"] = resp.text()
+                    captured["url"] = url
+                    captured["status"] = resp.status
+                    captured["content_type"] = resp.headers.get("content-type", "")
+                except Exception as exc:
+                    captured["text"] = None
+                    captured["url"] = url
+                    captured["status"] = resp.status
+                    captured["content_type"] = ""
+                    network_log.append({
+                        "url": url,
+                        "status": resp.status,
+                        "capture_error": str(exc),
+                    })
+
         page.on("response", log_response)
 
         try:
             page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
 
-            response = page.wait_for_response(
-                lambda r: "omap.prod.pplweb.com/omap/Tabular?opco=PA" in r.url and r.status == 200,
-                timeout=30000,
-            )
+            # Give the app time to initialize and make its own calls
+            page.wait_for_timeout(15000)
 
-            text = response.text()
+            if not captured["text"]:
+                write_debug({
+                    "fetched_at": iso_utc_now(),
+                    "reason": "No Tabular response captured",
+                    "network_log": network_log,
+                })
+                browser.close()
+                raise RuntimeError("No PPL Tabular response captured")
+
+            text = captured["text"]
 
             try:
                 data = json.loads(text)
@@ -85,20 +110,21 @@ def fetch():
                 write_debug({
                     "fetched_at": iso_utc_now(),
                     "reason": "Tabular response was not JSON",
-                    "response_url": response.url,
-                    "status": response.status,
-                    "content_type": response.headers.get("content-type", ""),
+                    "response_url": captured["url"],
+                    "status": captured["status"],
+                    "content_type": captured["content_type"],
                     "preview": text[:2000],
                     "network_log": network_log,
                 })
+                browser.close()
                 raise RuntimeError("PPL Tabular response was not JSON")
 
             write_debug({
                 "fetched_at": iso_utc_now(),
                 "reason": "Successful PPL capture",
-                "response_url": response.url,
-                "status": response.status,
-                "content_type": response.headers.get("content-type", ""),
+                "response_url": captured["url"],
+                "status": captured["status"],
+                "content_type": captured["content_type"],
                 "top_level_keys": list(data.keys()) if isinstance(data, dict) else [],
                 "network_log": network_log[-25:],
             })
@@ -109,7 +135,7 @@ def fetch():
         except PlaywrightTimeoutError as exc:
             write_debug({
                 "fetched_at": iso_utc_now(),
-                "reason": "Timed out waiting for PPL Tabular response",
+                "reason": "Timed out loading PPL page",
                 "error_type": type(exc).__name__,
                 "error": str(exc),
                 "traceback": traceback.format_exc(),
