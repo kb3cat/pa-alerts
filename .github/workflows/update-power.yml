@@ -31,15 +31,37 @@ jobs:
         run: mkdir -p data
 
       - name: Run FirstEnergy outage script
+        id: fe
+        continue-on-error: true
         run: python3 scripts/power_outages.py
 
       - name: Run PPL outage script
+        id: ppl
+        continue-on-error: true
         run: python3 scripts/power_outages_ppl.py
 
       - name: List data directory
         if: always()
         run: |
+          echo "==== DATA DIRECTORY ===="
           ls -lah data || true
+
+      - name: Show PPL debug file
+        if: always()
+        run: |
+          echo "==== PPL DEBUG JSON ===="
+          cat data/power_outages_ppl_debug.json || true
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: power-outages-debug
+          path: |
+            data/*.json
+            data/*.html
+            data/*.png
+          if-no-files-found: ignore
 
       - name: Commit and push if changed
         if: always()
@@ -56,3 +78,15 @@ jobs:
             git pull --rebase origin main
             git push origin main
           fi
+
+      - name: Fail workflow if FirstEnergy failed
+        if: steps.fe.outcome == 'failure'
+        run: |
+          echo "FirstEnergy script failed"
+          exit 1
+
+      - name: Fail workflow if PPL failed
+        if: steps.ppl.outcome == 'failure'
+        run: |
+          echo "PPL script failed"
+          exit 1
