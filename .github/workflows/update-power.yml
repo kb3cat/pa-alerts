@@ -31,18 +31,28 @@ jobs:
         run: mkdir -p data
 
       - name: Run power outage script
-        run: python scripts/power_outages.py --output data/power_outages_pa.json
-
-      - name: Verify output file
         run: |
-          ls -l data
-          test -f data/power_outages_pa.json
+          python scripts/power_outages.py \
+            --output data/power_outages_pa.json \
+            --previous data/previous_power_outages_pa.json
+
+      - name: Verify output files
+        run: |
+          echo "Listing data directory:"
+          ls -lah data || true
 
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/power_outages_pa.json
+
+          git add \
+            data/power_outages_pa.json \
+            data/previous_power_outages_pa.json \
+            data/power_outages_debug.html \
+            data/power_outages_debug.json \
+            data/power_outages_debug.png || true
+
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
