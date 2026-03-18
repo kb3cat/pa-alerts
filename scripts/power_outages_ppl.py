@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
 import json
+import re
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-PAGE_URL = "https://omap.prod.pplweb.com/omap"
-TABULAR_URL = "https://omap.prod.pplweb.com/omap/Tabular?opco=PA"
+PAGE_URL = "https://omap.prod.pplweb.com/omap#pg-tabular"
 
 OUTPUT_FILE = "data/power_outages_ppl.json"
 DEBUG_FILE = "data/power_outages_ppl_debug.json"
@@ -20,16 +20,18 @@ def iso_utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
-def parse_percent(value):
+def clean_text(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def safe_int(value):
     if value is None:
-        return None
-    text = str(value).replace("%", "").replace("<", "").strip()
+        return 0
+    text = str(value).replace(",", "").strip()
     if not text:
-        return None
-    try:
-        return float(text)
-    except ValueError:
-        return None
+        return 0
+    m = re.search(r"-?\d+", text)
+    return int(m.group(0)) if m else 0
 
 
 def write_debug(payload, page=None):
@@ -50,9 +52,35 @@ def write_debug(payload, page=None):
         json.dump(payload, f, indent=2)
 
 
-def fetch():
-    Path("data").mkdir(parents=True, exist_ok=True)
+def extract_table(page):
+    return page.evaluate("""
+        () => {
+            function txt(el) {
+                return (el && el.innerText ? el.innerText : "").replace(/\\s+/g, " ").trim();
+            }
 
+            const all = [];
+            const tables = Array.from(document.querySelectorAll("table"));
+
+            for (const table of tables) {
+                const rows = Array.from(table.querySelectorAll("tr"));
+                for (const tr of rows) {
+                    const cells = Array.from(tr.querySelectorAll("td, th")).map(txt).filter(Boolean);
+                    if (cells.length) all.push(cells);
+                }
+            }
+
+            return {
+                title: document.title,
+                body_sample: txt(document.body).slice(0, 5000),
+                table_count: tables.length,
+                rows: all
+            };
+        }
+    """)
+
+
+def fetch():
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
@@ -73,15 +101,15 @@ def fetch():
 
         try:
             page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
-            page.wait_for_timeout(10000)
+            page.wait_for_timeout(12000)
 
-            # Try to activate tabular/county view first.
+            # Click county/tabular view if present
             click_result = page.evaluate("""
                 () => {
                     const patterns = [
                         /view outages by county/i,
                         /by county/i,
-                        /tabular/i
+                        /county & municipality/i
                     ];
 
                     const els = Array.from(document.querySelectorAll("a, button, div, span, li"));
@@ -102,140 +130,133 @@ def fetch():
                 }
             """)
 
-            page.wait_for_timeout(8000)
+            page.wait_for_timeout(10000)
 
-            # Browser-context request with browser-ish headers.
-            result = page.evaluate(f"""
-                async () => {{
-                    try {{
-                        const res = await fetch("{TABULAR_URL}", {{
-                            method: "GET",
-                            credentials: "include",
-                            headers: {{
-                                "Accept": "application/json, text/plain, */*",
-                                "X-Requested-With": "XMLHttpRequest"
-                            }}
-                        }});
+            extracted = extract_table(page)
+            rows = extracted.get("rows", [])
 
-                        const text = await res.text();
-
-                        return {{
-                            ok: true,
-                            status: res.status,
-                            content_type: res.headers.get("content-type"),
-                            text: text
-                        }};
-                    }} catch (e) {{
-                        return {{
-                            ok: false,
-                            error: String(e)
-                        }};
-                    }}
-                }}
-            """)
-
-            if not result.get("ok"):
+            if not rows:
                 write_debug({
                     "fetched_at": iso_utc_now(),
-                    "reason": "fetch failed",
+                    "reason": "No table rows found",
                     "click_result": click_result,
-                    "result": result,
-                    "page_url": page.url,
-                    "title": page.title(),
-                    "body_sample": page.evaluate("() => document.body.innerText.slice(0, 3000)")
+                    "table_count": extracted.get("table_count"),
+                    "title": extracted.get("title"),
+                    "body_sample": extracted.get("body_sample"),
                 }, page=page)
                 browser.close()
-                raise RuntimeError("PPL fetch failed")
-
-            text = result.get("text", "")
-            content_type = result.get("content_type", "")
-            status = result.get("status")
-
-            try:
-                data = json.loads(text)
-            except Exception:
-                write_debug({
-                    "fetched_at": iso_utc_now(),
-                    "reason": "response not json",
-                    "click_result": click_result,
-                    "status": status,
-                    "content_type": content_type,
-                    "preview": text[:3000],
-                    "page_url": page.url,
-                    "title": page.title(),
-                    "body_sample": page.evaluate("() => document.body.innerText.slice(0, 3000)")
-                }, page=page)
-                browser.close()
-                raise RuntimeError("Response not JSON")
+                raise RuntimeError("No PPL table rows found")
 
             write_debug({
                 "fetched_at": iso_utc_now(),
-                "reason": "successful ppl capture",
+                "reason": "Successful PPL table capture",
                 "click_result": click_result,
-                "status": status,
-                "content_type": content_type,
-                "top_level_keys": list(data.keys()) if isinstance(data, dict) else [],
-                "page_url": page.url,
-                "title": page.title()
+                "table_count": extracted.get("table_count"),
+                "title": extracted.get("title"),
+                "row_count": len(rows),
+                "row_preview": rows[:20],
             }, page=page)
 
             browser.close()
-            return data
-
-        except RuntimeError:
-            browser.close()
-            raise
+            return extracted
 
         except Exception as e:
             write_debug({
                 "fetched_at": iso_utc_now(),
                 "reason": "exception",
                 "error": str(e),
-                "traceback": traceback.format_exc()
+                "traceback": traceback.format_exc(),
             }, page=page)
             browser.close()
             raise
 
 
-def transform(raw):
-    counties = []
+def transform(extracted):
+    rows = extracted.get("rows", [])
 
-    for row in raw.get("data", []):
-        county = row.get("nm")
-        if not county:
+    counties = []
+    municipalities = []
+
+    current_county = None
+
+    for cells in rows:
+        joined = " | ".join(cells).lower()
+
+        # Skip headers / junk
+        if any(x in joined for x in [
+            "county & municipality",
+            "customers affected",
+            "customers served",
+            "view on map",
+            "outage information by county",
+        ]):
             continue
 
-        counties.append({
-            "county": county,
-            "customers_out": row.get("nc"),
-            "customers_served": row.get("tc"),
-            "percent_out": parse_percent(row.get("p")),
-            "source": "PPL"
-        })
+        if len(cells) < 3:
+            continue
 
-    counties.sort(key=lambda x: x["customers_out"] or 0, reverse=True)
+        name = clean_text(cells[0])
+        affected = safe_int(cells[1])
+        served = safe_int(cells[2])
+
+        # Heuristic:
+        # county rows appear as CountyName + totals
+        # municipality rows follow underneath
+        is_county = (
+            current_county is None
+            or name.lower().endswith("county")
+            or ("twp" not in name.lower() and "boro" not in name.lower() and "township" not in name.lower()
+                and "city" not in name.lower() and "borough" not in name.lower()
+                and "town" not in name.lower() and "village" not in name.lower()
+                and served > 10000)
+        )
+
+        if is_county:
+            current_county = name
+            percent = round((affected / served) * 100, 2) if served else None
+            counties.append({
+                "county": name,
+                "customers_out": affected,
+                "customers_served": served,
+                "percent_out": percent,
+                "source": "PPL"
+            })
+        else:
+            municipalities.append({
+                "municipality": name,
+                "county": current_county,
+                "customers_out": affected,
+                "customers_served": served,
+                "percent_out": round((affected / served) * 100, 2) if served else None,
+                "source": "PPL"
+            })
+
+    counties.sort(key=lambda x: x["customers_out"], reverse=True)
+    municipalities.sort(key=lambda x: x["customers_out"], reverse=True)
+
+    total_out = sum(c["customers_out"] for c in counties)
 
     return {
         "name": "ppl_power_outages_pa",
         "fetched_at": iso_utc_now(),
-        "total_customers_out": raw.get("nc"),
-        "customers_served_total": raw.get("cc"),
-        "percent_out_total": parse_percent(raw.get("pc")),
-        "source_last_updated": raw.get("dt"),
-        "county_summary": counties
+        "source": "PPL",
+        "total_customers_out": total_out,
+        "county_summary": counties,
+        "items": municipalities
     }
 
 
 def main():
-    raw = fetch()
-    parsed = transform(raw)
+    extracted = fetch()
+    parsed = transform(extracted)
 
     Path("data").mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(parsed, f, indent=2)
 
     print("PPL SUCCESS")
-    print(f"Counties: {len(parsed['county_summary'])}")
+    print(f"County rows: {len(parsed['county_summary'])}")
+    print(f"Municipality rows: {len(parsed['items'])}")
 
 
 if __name__ == "__main__":
