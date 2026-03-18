@@ -8,6 +8,8 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 PAGE_URL = "https://omap.prod.pplweb.com/omap#pg-tabular"
+TABULAR_URL = "https://omap.prod.pplweb.com/omap/Tabular?opco=PA"
+
 OUTPUT_FILE = "data/power_outages_ppl.json"
 DEBUG_FILE = "data/power_outages_ppl_debug.json"
 
@@ -57,7 +59,7 @@ def fetch():
 
         def log_response(resp):
             url = resp.url
-            if "omap.prod.pplweb.com/omap/" in url:
+            if "omap.prod.pplweb.com/omap" in url:
                 entry = {
                     "url": url,
                     "status": resp.status,
@@ -75,10 +77,6 @@ def fetch():
                     captured["status"] = resp.status
                     captured["content_type"] = resp.headers.get("content-type", "")
                 except Exception as exc:
-                    captured["text"] = None
-                    captured["url"] = url
-                    captured["status"] = resp.status
-                    captured["content_type"] = ""
                     network_log.append({
                         "url": url,
                         "status": resp.status,
@@ -88,28 +86,109 @@ def fetch():
         page.on("response", log_response)
 
         try:
-           page.goto("https://omap.prod.pplweb.com/omap", wait_until="domcontentloaded", timeout=60000)
+            page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=60000)
+            page.wait_for_timeout(10000)
 
-# Force navigation to tabular view (this triggers the API)
-page.evaluate("""
-    () => {
-        window.location.hash = "#pg-tabular";
-    }
-""")
+            # Try to trigger the tabular / county UI explicitly.
+            try:
+                clicked = page.evaluate("""
+                    () => {
+                        const texts = [
+                            /view outages by county/i,
+                            /by county/i,
+                            /tabular/i,
+                            /county/i
+                        ];
 
-# Wait for app to react
-page.wait_for_timeout(20000)
+                        const els = Array.from(document.querySelectorAll("a, button, div, span, li"));
+                        for (const el of els) {
+                            const t = (el.innerText || "").trim();
+                            if (!t) continue;
+                            if (texts.some(rx => rx.test(t))) {
+                                try {
+                                    el.click();
+                                    return { clicked: true, text: t };
+                                } catch (e) {}
+                            }
+                        }
 
-            if not captured["text"]:
-                write_debug({
-                    "fetched_at": iso_utc_now(),
-                    "reason": "No Tabular response captured",
-                    "network_log": network_log,
-                })
-                browser.close()
-                raise RuntimeError("No PPL Tabular response captured")
+                        const hashLink = document.querySelector('a[href="#pg-tabular"]');
+                        if (hashLink) {
+                            hashLink.click();
+                            return { clicked: true, text: "#pg-tabular link" };
+                        }
 
-            text = captured["text"]
+                        window.location.hash = "#pg-tabular";
+                        window.dispatchEvent(new HashChangeEvent("hashchange"));
+                        return { clicked: false, text: "forced hashchange" };
+                    }
+                """)
+                network_log.append({"ui_trigger": clicked})
+            except Exception as exc:
+                network_log.append({"ui_trigger_error": str(exc)})
+
+            page.wait_for_timeout(15000)
+
+            # If app-request capture worked, use it.
+            if captured["text"]:
+                text = captured["text"]
+            else:
+                # Fallback: make XHR from inside page context using the browser session.
+                xhr_result = page.evaluate(f"""
+                    () => new Promise((resolve) => {{
+                        try {{
+                            const xhr = new XMLHttpRequest();
+                            xhr.open("GET", "{TABULAR_URL}", true);
+                            xhr.setRequestHeader("Accept", "application/json, text/plain, */*");
+                            xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+
+                            xhr.onload = function() {{
+                                resolve({{
+                                    ok: true,
+                                    status: xhr.status,
+                                    content_type: xhr.getResponseHeader("content-type") || "",
+                                    text: xhr.responseText || ""
+                                }});
+                            }};
+
+                            xhr.onerror = function() {{
+                                resolve({{
+                                    ok: false,
+                                    error: "xhr_error"
+                                }});
+                            }};
+
+                            xhr.send();
+                        }} catch (e) {{
+                            resolve({{
+                                ok: false,
+                                error: String(e)
+                            }});
+                        }}
+                    }})
+                """)
+
+                network_log.append({"xhr_fallback": {
+                    "status": xhr_result.get("status"),
+                    "content_type": xhr_result.get("content_type"),
+                    "ok": xhr_result.get("ok"),
+                    "error": xhr_result.get("error"),
+                    "preview": (xhr_result.get("text") or "")[:500],
+                }})
+
+                if not xhr_result.get("ok"):
+                    write_debug({
+                        "fetched_at": iso_utc_now(),
+                        "reason": "XHR fallback failed",
+                        "xhr_result": xhr_result,
+                        "network_log": network_log,
+                        "page_url": page.url,
+                        "title": page.title(),
+                    })
+                    browser.close()
+                    raise RuntimeError("PPL XHR fallback failed")
+
+                text = xhr_result.get("text") or ""
 
             try:
                 data = json.loads(text)
@@ -117,11 +196,13 @@ page.wait_for_timeout(20000)
                 write_debug({
                     "fetched_at": iso_utc_now(),
                     "reason": "Tabular response was not JSON",
-                    "response_url": captured["url"],
                     "status": captured["status"],
                     "content_type": captured["content_type"],
                     "preview": text[:2000],
                     "network_log": network_log,
+                    "page_url": page.url,
+                    "title": page.title(),
+                    "body_sample": page.evaluate("() => document.body.innerText.slice(0, 3000)"),
                 })
                 browser.close()
                 raise RuntimeError("PPL Tabular response was not JSON")
@@ -129,11 +210,13 @@ page.wait_for_timeout(20000)
             write_debug({
                 "fetched_at": iso_utc_now(),
                 "reason": "Successful PPL capture",
-                "response_url": captured["url"],
+                "response_url": captured["url"] or TABULAR_URL,
                 "status": captured["status"],
                 "content_type": captured["content_type"],
                 "top_level_keys": list(data.keys()) if isinstance(data, dict) else [],
-                "network_log": network_log[-25:],
+                "network_log": network_log[-50:],
+                "page_url": page.url,
+                "title": page.title(),
             })
 
             browser.close()
