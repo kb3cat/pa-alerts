@@ -30,9 +30,25 @@ def parse_percent(value):
 
 
 def fetch():
-    r = requests.get(URL, headers=HEADERS, timeout=30)
-    r.raise_for_status()
-    return r.json()
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json, text/plain, */*",
+        "Referer": "https://omap.prod.pplweb.com/omap",
+        "Origin": "https://omap.prod.pplweb.com"
+    }
+
+    r = requests.get(URL, headers=headers, timeout=30)
+
+    # DEBUG (super important for this API)
+    if not r.text.strip():
+        raise RuntimeError("Empty response from PPL")
+
+    try:
+        return r.json()
+    except Exception:
+        print("Non-JSON response received:")
+        print(r.text[:500])
+        raise
 
 
 def parse(data):
