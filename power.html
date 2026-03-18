@@ -18,7 +18,6 @@
   --yellow:#ffe600;
   --orange:#ffb000;
   --red:#ff2b2b;
-  --blue:#00bfff;
   --darkred:#8b0000;
 
   --badge:#2b2b30;
@@ -41,7 +40,6 @@ body{
 
 .board{
   display:grid;
-  grid-template-rows:auto auto auto 1fr auto auto auto;
   gap:14px;
   min-height:100vh;
 }
@@ -140,6 +138,12 @@ body{
 .main-grid{
   display:grid;
   grid-template-columns:1.7fr 1fr;
+  gap:14px;
+  align-items:start;
+}
+
+.right-column{
+  display:grid;
   gap:14px;
 }
 
@@ -395,12 +399,6 @@ body{
   font-size:12px;
 }
 
-.lower-grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:14px;
-}
-
 .county-detail-grid{
   display:grid;
   grid-template-columns:repeat(3, 1fr);
@@ -442,37 +440,6 @@ body{
   outline:1px solid rgba(255,255,255,0.18);
 }
 
-.ticker-panel{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:12px;
-  box-shadow:var(--shadow);
-  overflow:hidden;
-}
-
-.ticker-header{
-  padding:12px 16px;
-  background:#202023;
-  border-bottom:1px solid var(--border);
-  font-size:18px;
-  font-weight:700;
-}
-
-.ticker-body{
-  padding:14px 16px;
-}
-
-.ticker-line{
-  color:var(--text);
-  font-size:18px;
-  line-height:1.5;
-}
-
-.ticker-line .minor{ color:var(--yellow); font-weight:700; }
-.ticker-line .moderate{ color:var(--orange); font-weight:700; }
-.ticker-line .significant{ color:var(--red); font-weight:700; }
-.ticker-line .major{ color:#ff6b6b; font-weight:700; }
-
 .loading,
 .error,
 .empty{
@@ -482,6 +449,39 @@ body{
 
 .error{ color:#ff9b9b; }
 
+/* Modal */
+.modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.65);
+  z-index:9999;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+}
+
+.modal-content{
+  width:min(900px, 100%);
+  max-height:90vh;
+  overflow:auto;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+}
+
+.modal-close{
+  cursor:pointer;
+  font-size:20px;
+  line-height:1;
+  color:var(--muted);
+}
+
+.modal-close:hover{
+  color:var(--text);
+}
+
 @media (max-width: 1300px){
   .severity-wall{
     grid-template-columns:repeat(3, minmax(0, 1fr));
@@ -489,8 +489,7 @@ body{
 }
 
 @media (max-width: 1100px){
-  .main-grid,
-  .lower-grid{
+  .main-grid{
     grid-template-columns:1fr;
   }
 }
@@ -524,10 +523,6 @@ body{
 
   .region-value{
     font-size:24px;
-  }
-
-  .ticker-line{
-    font-size:16px;
   }
 }
 
@@ -617,74 +612,74 @@ body{
       </div>
     </div>
 
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">Top Impacted Counties</h2>
-          <div class="panel-subtitle">Sorted by percent out where available, then by customers out</div>
-        </div>
-      </div>
-      <div class="panel-body">
-        <div class="ranked-list" id="topImpactedList">
-          <div class="loading">Loading county impacts...</div>
-        </div>
+    <div class="right-column">
 
-        <div class="small-note" id="topImpactedNote">
-          Showing top impacted counties in the merged statewide dataset.
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Outages by Utility</h2>
+            <div class="panel-subtitle">Current contribution by source in the merged statewide feed</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="table-like" id="utilityBreakdown">
+            <div class="loading">Loading utility totals...</div>
+          </div>
         </div>
       </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Top Impacted Counties</h2>
+            <div class="panel-subtitle">Top 5 counties by percent out, then customers out</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="ranked-list" id="topImpactedList">
+            <div class="loading">Loading county impacts...</div>
+          </div>
+
+          <div class="small-note">
+            Showing top impacted counties in the merged statewide dataset.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Top Municipalities</h2>
+            <div class="panel-subtitle">Top 5 municipality outage totals across FirstEnergy and PPL</div>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="table-like" id="topMunicipalities">
+            <div class="loading">Loading municipalities...</div>
+          </div>
+        </div>
+      </div>
+
     </div>
+
   </section>
 
-  <section class="lower-grid">
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">Outages by Utility</h2>
-          <div class="panel-subtitle">Current contribution by source in the merged statewide feed</div>
-        </div>
-      </div>
-      <div class="panel-body">
-        <div class="table-like" id="utilityBreakdown">
-          <div class="loading">Loading utility totals...</div>
-        </div>
-      </div>
-    </div>
+</div>
 
-    <div class="panel">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">Top Municipalities</h2>
-          <div class="panel-subtitle">Highest outage totals across FirstEnergy and PPL municipality rows</div>
-        </div>
-      </div>
-      <div class="panel-body">
-        <div class="table-like" id="topMunicipalities">
-          <div class="loading">Loading municipalities...</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel" id="countyDetailPanel">
+<!-- County Detail Modal -->
+<div id="countyModal" class="modal" aria-hidden="true">
+  <div class="modal-content">
     <div class="panel-header">
       <div>
-        <h2 class="panel-title">Selected County Detail</h2>
-        <div class="panel-subtitle">Click a county tile or county row to view source contribution</div>
+        <h2 class="panel-title" id="countyModalTitle">County Detail</h2>
+        <div class="panel-subtitle">Source contribution for selected county</div>
       </div>
+      <div class="modal-close" id="countyModalClose" title="Close">✕</div>
     </div>
     <div class="panel-body">
-      <div id="countyDetailContent" class="empty">Select a county to view detail.</div>
+      <div id="countyModalBody" class="empty">Select a county to view detail.</div>
     </div>
-  </section>
-
-  <section class="ticker-panel">
-    <div class="ticker-header">⚡ Significant Outage Ticker</div>
-    <div class="ticker-body">
-      <div class="ticker-line" id="tickerLine">Loading live outage ticker...</div>
-    </div>
-  </section>
-
+  </div>
 </div>
 
 <script>
@@ -716,15 +711,6 @@ function tileClass(percent) {
   if (p >= 5) return "tile-red";
   if (p >= 3) return "tile-orange";
   return "tile-yellow";
-}
-
-function tickerClass(percent) {
-  const p = Number(percent);
-  if (Number.isNaN(p) || p < 1) return "minor";
-  if (p >= 10) return "major";
-  if (p >= 5) return "significant";
-  if (p >= 3) return "moderate";
-  return "minor";
 }
 
 function formatTimestamp(isoString) {
@@ -775,17 +761,35 @@ function buildSourceBadges(sources) {
   `;
 }
 
+function openCountyModal() {
+  const modal = document.getElementById("countyModal");
+  modal.style.display = "flex";
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeCountyModal() {
+  const modal = document.getElementById("countyModal");
+  modal.style.display = "none";
+  modal.setAttribute("aria-hidden", "true");
+}
+
 function renderCountyDetail(county) {
-  const target = document.getElementById("countyDetailContent");
+  const body = document.getElementById("countyModalBody");
+  const title = document.getElementById("countyModalTitle");
+
   if (!county) {
-    target.innerHTML = `<div class="empty">Select a county to view detail.</div>`;
+    title.textContent = "County Detail";
+    body.innerHTML = `<div class="empty">No county detail available.</div>`;
+    openCountyModal();
     return;
   }
 
   const fe = county.firstenergy || null;
   const ppl = county.ppl || null;
 
-  target.innerHTML = `
+  title.textContent = county.county;
+
+  body.innerHTML = `
     <div class="county-detail-grid">
       <div class="county-detail-card">
         <div class="county-detail-label">${escapeHtml(county.county)} Total</div>
@@ -801,7 +805,7 @@ function renderCountyDetail(county) {
         <div class="county-detail-label">FirstEnergy</div>
         <div class="county-detail-value">${fe ? formatNumber(fe.customers_out) : "—"}</div>
         <div class="county-detail-sub">
-          ${fe ? `${formatPercent(fe.percent_out)} out • ${formatNumber(fe.customers_served)} served` : "No FE contribution in merged data"}
+          ${fe ? `${formatPercent(fe.percent_out)} out • ${formatNumber(fe.customers_served)} served` : "No FirstEnergy contribution in merged data"}
         </div>
       </div>
 
@@ -814,6 +818,8 @@ function renderCountyDetail(county) {
       </div>
     </div>
   `;
+
+  openCountyModal();
 }
 
 function wireCountyClicks(counties) {
@@ -822,11 +828,6 @@ function wireCountyClicks(counties) {
       const countyName = el.getAttribute("data-county-name");
       const county = counties.find(c => c.county === countyName);
       renderCountyDetail(county);
-
-      const panel = document.getElementById("countyDetailPanel");
-      if (panel) {
-        panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
     });
   });
 }
@@ -891,7 +892,7 @@ function buildTopImpacted(counties) {
       if (bp !== ap) return bp - ap;
       return Number(b.customers_out || 0) - Number(a.customers_out || 0);
     })
-    .slice(0, 8);
+    .slice(0, 5);
 
   if (!active.length) {
     target.innerHTML = `<div class="empty">No active county outages in the current merged dataset.</div>`;
@@ -1001,7 +1002,7 @@ function buildTopMunicipalities(data) {
   const rows = [...normalizedFe, ...normalizedPpl]
     .filter(i => i.municipality && Number(i.customers_out || 0) > 0)
     .sort((a, b) => Number(b.customers_out || 0) - Number(a.customers_out || 0))
-    .slice(0, 10);
+    .slice(0, 5);
 
   if (!rows.length) {
     target.innerHTML = `<div class="empty">No active municipality outages in the current merged payload.</div>`;
@@ -1022,28 +1023,6 @@ function buildTopMunicipalities(data) {
       <div class="table-right">${formatNumber(row.customers_out)}</div>
     </div>
   `).join("");
-}
-
-function buildTicker(counties) {
-  const target = document.getElementById("tickerLine");
-  const rows = [...counties]
-    .filter(c => Number(c.customers_out || 0) > 0)
-    .sort((a, b) => {
-      const ap = a.percent_out ?? -1;
-      const bp = b.percent_out ?? -1;
-      if (bp !== ap) return bp - ap;
-      return Number(b.customers_out || 0) - Number(a.customers_out || 0);
-    })
-    .slice(0, 10);
-
-  if (!rows.length) {
-    target.textContent = "No active county outages in the current merged dataset.";
-    return;
-  }
-
-  target.innerHTML = rows.map(row => (
-    `<span class="${tickerClass(row.percent_out)}">${row.county}: ${formatPercent(row.percent_out)} (${formatNumber(row.customers_out)})</span>`
-  )).join(" | ");
 }
 
 async function loadPowerData() {
@@ -1068,26 +1047,28 @@ async function loadPowerData() {
     document.getElementById("restoredCount").textContent = formatNumber(data.summary?.restored || 0);
 
     buildSeverityWall(data);
-    buildTopImpacted(counties);
     buildUtilityBreakdown(data);
+    buildTopImpacted(counties);
     buildTopMunicipalities(data);
-    buildTicker(counties);
     wireCountyClicks(counties);
-
-    const topCounty = counties.find(c => Number(c.customers_out || 0) > 0) || counties[0] || null;
-    renderCountyDetail(topCounty);
 
   } catch (err) {
     const msg = `Unable to load live merged outage data: ${err.message}`;
     document.getElementById("lastUpdated").textContent = "Last Updated: Data load failed";
     document.getElementById("overviewPanel").innerHTML = `<div class="error">${msg}</div>`;
-    document.getElementById("topImpactedList").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("utilityBreakdown").innerHTML = `<div class="error">${msg}</div>`;
+    document.getElementById("topImpactedList").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("topMunicipalities").innerHTML = `<div class="error">${msg}</div>`;
-    document.getElementById("countyDetailContent").innerHTML = `<div class="error">${msg}</div>`;
-    document.getElementById("tickerLine").textContent = msg;
   }
 }
+
+document.getElementById("countyModalClose").addEventListener("click", closeCountyModal);
+document.getElementById("countyModal").addEventListener("click", (e) => {
+  if (e.target.id === "countyModal") closeCountyModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeCountyModal();
+});
 
 loadPowerData();
 setInterval(loadPowerData, AUTO_REFRESH_MS);
