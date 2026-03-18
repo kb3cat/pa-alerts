@@ -1,271 +1,397 @@
 #!/usr/bin/env python3
+"""
+power_outages.py
+----------------
+Scrapes FirstEnergy Pennsylvania "My Town" outage data using Playwright page-context
+fetch() so the request is made from inside the browser session/origin.
 
+Why this version:
+- Avoids curl/requests issues with direct endpoint access
+- Uses page.evaluate(...) -> fetch(...) from the FirstEnergy page context
+- Filters Pennsylvania only
+- Writes a normalized JSON file
+
+Requirements:
+    pip install playwright
+    playwright install chromium
+
+Usage:
+    python3 power_outages.py
+
+Optional:
+    python3 power_outages.py --output data/power_outages.json
+    python3 power_outages.py --show-browser
+"""
+
+from __future__ import annotations
+
+import argparse
 import json
+import re
+import sys
 from datetime import datetime
-from zoneinfo import ZoneInfo
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
-OUTPUT_FILE = "data/power_outages_pa.json"
-PREVIOUS_FILE = "data/previous_power_outages_pa.json"
-LOCAL_TZ = ZoneInfo("America/New_York")
-
-FIRSTENERGY_PAGE_URL = (
-    "https://www.firstenergycorp.com/outages_help/current_outages_maps/"
-    "my-town-search.html"
+# FirstEnergy "My Town" page for NY & PA
+PAGE_URL = (
+    "https://www.firstenergycorp.com/content/customer/outages_help/"
+    "current_outages_maps/my-town-search.html?selectedTab=2"
 )
-FIRSTENERGY_DATA_URL = (
+
+# This is the endpoint that has been used for municipality/area search JSON.
+# We call it from the browser page context instead of directly from Python.
+AREA_SEARCH_URL = (
     "https://www.firstenergycorp.com/content/customer/outages_help/"
     "current_outages_maps/my-town-search.areaSearch.json"
 )
 
-COUNTY_THRESHOLD_PERCENT = 1.0
-COUNTY_THRESHOLD_OUTAGES = 50
-
-PEMA_AREAS = {
-    "Western Area": {
-        "Allegheny", "Armstrong", "Beaver", "Bedford", "Blair", "Butler",
-        "Cambria", "Cameron", "Clarion", "Clearfield", "Crawford", "Elk",
-        "Erie", "Fayette", "Forest", "Greene", "Indiana", "Jefferson",
-        "Lawrence", "McKean", "Mercer", "Potter", "Somerset", "Venango",
-        "Warren", "Washington", "Westmoreland"
-    },
-    "Central Area": {
-        "Adams", "Berks", "Bradford", "Centre", "Clinton", "Columbia",
-        "Cumberland", "Dauphin", "Franklin", "Fulton", "Huntingdon",
-        "Juniata", "Lackawanna", "Lancaster", "Lebanon", "Luzerne",
-        "Lycoming", "Mifflin", "Montour", "Northumberland", "Perry",
-        "Schuylkill", "Snyder", "Sullivan", "Susquehanna", "Tioga",
-        "Union", "Wyoming", "York"
-    },
-    "Eastern Area": {
-        "Bucks", "Carbon", "Chester", "Delaware", "Lehigh", "Monroe",
-        "Montgomery", "Northampton", "Philadelphia", "Pike", "Wayne"
-    },
-}
+DEFAULT_OUTPUT = "data/power_outages.json"
 
 
-def parse_percent(value) -> float:
+def iso_utc_now() -> str:
+    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def safe_int(value: Any) -> Optional[int]:
     if value is None:
-        return 0.0
-
-    s = str(value).strip().replace("%", "")
-    if s in {"", "-", "--"}:
-        return 0.0
-    if s.startswith("<"):
-        return 0.0
-
+        return None
+    if isinstance(value, int):
+        return value
+    text = str(value).strip().replace(",", "")
+    if text == "":
+        return None
+    match = re.search(r"-?\d+", text)
+    if not match:
+        return None
     try:
-        return float(s)
+        return int(match.group(0))
     except ValueError:
-        return 0.0
-
-
-def load_previous_total():
-    try:
-        with open(PREVIOUS_FILE, "r", encoding="utf-8") as f:
-            return json.load(f).get("statewide", {}).get("customers_out")
-    except Exception:
         return None
 
 
-def build_trend(current, previous):
-    if previous is None:
-        return {"direction": "flat", "delta": 0, "display": "No Change"}
-
-    delta = current - previous
-
-    if delta > 0:
-        return {"direction": "up", "delta": delta, "display": f"▲ +{delta:,}"}
-    if delta < 0:
-        return {"direction": "down", "delta": delta, "display": f"▼ {delta:,}"}
-
-    return {"direction": "flat", "delta": 0, "display": "No Change"}
+def first_nonempty(d: Dict[str, Any], keys: List[str], default: Any = None) -> Any:
+    for key in keys:
+        if key in d:
+            value = d[key]
+            if value is not None and str(value).strip() != "":
+                return value
+    return default
 
 
-def build_significant(counties):
-    rows = [
-        c for c in counties
-        if c["percent_out"] >= COUNTY_THRESHOLD_PERCENT
-        and c["customers_out"] >= COUNTY_THRESHOLD_OUTAGES
-    ]
-    return sorted(rows, key=lambda x: (-x["percent_out"], -x["customers_out"], x["county"]))
+def looks_like_pa(record: Dict[str, Any]) -> bool:
+    # Be generous; FE field names can shift.
+    state = str(first_nonempty(record, ["state", "stateCode", "st", "serviceState"], "")).strip().upper()
+    company = str(first_nonempty(record, ["company", "operatingCompany", "utility", "opco"], "")).strip().upper()
+    county = str(first_nonempty(record, ["county", "countyName"], "")).strip()
+    muni = str(first_nonempty(record, ["municipality", "municipalityName", "areaName", "city", "town"], "")).strip()
+
+    if state == "PA" or state == "PENNSYLVANIA":
+        return True
+
+    # Common FirstEnergy PA operating companies
+    pa_companies = {
+        "PENELEC",
+        "MET-ED",
+        "MET ED",
+        "PENN POWER",
+        "WEST PENN POWER",
+    }
+    if company in pa_companies:
+        return True
+
+    # Sometimes records include enough fields to infer they're valid area rows;
+    # keep them only if not explicitly another state.
+    other_states = {"OH", "NJ", "NY", "MD", "WV"}
+    if state and state in other_states:
+        return False
+
+    # If it has a PA-looking company or no state at all, keep it for now.
+    if county or muni:
+        return True
+
+    return False
 
 
-def build_ticker(counties):
-    return [
-        f'{c["county"]}: {c["percent_out"]:.1f}% ({c["customers_out"]:,})'
-        for c in counties
-    ]
+def normalize_record(raw: Dict[str, Any]) -> Dict[str, Any]:
+    municipality = first_nonempty(
+        raw,
+        [
+            "municipality",
+            "municipalityName",
+            "areaName",
+            "city",
+            "town",
+            "name",
+            "area",
+        ],
+        "",
+    )
 
+    county = first_nonempty(raw, ["county", "countyName"], "")
+    state = first_nonempty(raw, ["state", "stateCode", "st", "serviceState"], "PA")
+    company = first_nonempty(raw, ["company", "operatingCompany", "utility", "opco"], "")
 
-def build_pema_totals(counties):
-    totals = {
-        "Western Area": 0,
-        "Central Area": 0,
-        "Eastern Area": 0,
-        "Unmapped": 0,
+    customers_out = safe_int(
+        first_nonempty(
+            raw,
+            [
+                "customersOut",
+                "custOut",
+                "out",
+                "outages",
+                "affectedCustomers",
+                "customerCount",
+            ],
+        )
+    )
+
+    customers_served = safe_int(
+        first_nonempty(
+            raw,
+            [
+                "customersServed",
+                "custServed",
+                "served",
+                "totalCustomers",
+            ],
+        )
+    )
+
+    percent_out = first_nonempty(raw, ["percentOut", "pctOut", "percent"], None)
+    if percent_out is not None:
+        try:
+            percent_out = float(str(percent_out).replace("%", "").strip())
+        except ValueError:
+            percent_out = None
+
+    last_updated = first_nonempty(
+        raw,
+        ["lastUpdated", "last_updated", "updateTime", "timestamp", "asOf"],
+        None,
+    )
+
+    etr = first_nonempty(
+        raw,
+        [
+            "etr",
+            "ETR",
+            "estimatedRestoration",
+            "estimatedRestorationTime",
+            "restorationTime",
+        ],
+        None,
+    )
+
+    cause = first_nonempty(raw, ["cause", "outageCause"], None)
+
+    normalized = {
+        "municipality": municipality,
+        "county": county,
+        "state": state,
+        "company": company,
+        "customers_out": customers_out,
+        "customers_served": customers_served,
+        "percent_out": percent_out,
+        "etr": etr,
+        "cause": cause,
+        "last_updated": last_updated,
+        "raw": raw,
     }
 
-    for county in counties:
-        county_name = county["county"]
-        matched = False
-
-        for area_name, area_counties in PEMA_AREAS.items():
-            if county_name in area_counties:
-                totals[area_name] += county["customers_out"]
-                matched = True
-                break
-
-        if not matched:
-            totals["Unmapped"] += county["customers_out"]
-
-    return totals
+    return normalized
 
 
-def fetch_firstenergy_data() -> dict:
+def extract_records(payload: Any) -> List[Dict[str, Any]]:
+    """
+    Handle common JSON shapes:
+    - list[dict]
+    - {"data":[...]}
+    - {"items":[...]}
+    - {"results":[...]}
+    - {"areas":[...]}
+    """
+    if isinstance(payload, list):
+        return [x for x in payload if isinstance(x, dict)]
+
+    if isinstance(payload, dict):
+        for key in ["data", "items", "results", "areas", "rows", "municipalities"]:
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [x for x in value if isinstance(x, dict)]
+
+        # Fallback: if dict itself looks like a record collection container but nested oddly,
+        # gather dicts from top-level lists.
+        out: List[Dict[str, Any]] = []
+        for value in payload.values():
+            if isinstance(value, list):
+                out.extend([x for x in value if isinstance(x, dict)])
+        if out:
+            return out
+
+    return []
+
+
+def fetch_area_json(show_browser: bool = False, timeout_ms: int = 45000) -> Any:
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) "
-                "Gecko/20100101 Firefox/148.0"
-            ),
-            locale="en-US",
-        )
-        page = context.new_page()
-
-        print("Loading FirstEnergy My Town page...")
-        page.goto(FIRSTENERGY_PAGE_URL, wait_until="networkidle", timeout=60000)
-        page.wait_for_timeout(3000)
-
-        print("Posting to FirstEnergy outage endpoint from browser context...")
-        api_response = context.request.post(
-            FIRSTENERGY_DATA_URL,
-            headers={
-                "Accept": "application/json, text/javascript, */*; q=0.01",
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                "Origin": "https://www.firstenergycorp.com",
-                "Referer": FIRSTENERGY_PAGE_URL,
-                "X-Requested-With": "XMLHttpRequest",
-            },
-            form={"stateAbbreviation": "pa"},
-            timeout=60000,
-        )
-
-        print(f"HTTP status: {api_response.status}")
-        print(f"Content-Type: {api_response.headers.get('content-type')}")
-
-        text = api_response.text()
-        print("Response preview:")
-        print(text[:500])
-
-        if api_response.status != 200:
-            raise RuntimeError(f"FirstEnergy returned HTTP {api_response.status}")
-
-        if not text.strip():
-            raise RuntimeError("FirstEnergy returned empty response")
+        browser = p.chromium.launch(headless=not show_browser)
+        page = browser.new_page()
 
         try:
-            data = json.loads(text)
-        except json.JSONDecodeError as e:
-            raise RuntimeError(
-                f"FirstEnergy did not return JSON. "
-                f"Content-Type={api_response.headers.get('content-type')}, "
-                f"Preview={text[:300]!r}"
-            ) from e
-        finally:
+            page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=timeout_ms)
+            page.wait_for_timeout(3000)
+
+            result = page.evaluate(
+                """
+                async ({ areaUrl }) => {
+                  try {
+                    const resp = await fetch(areaUrl, {
+                      method: "GET",
+                      credentials: "include",
+                      headers: {
+                        "Accept": "application/json, text/plain, */*",
+                        "X-Requested-With": "XMLHttpRequest"
+                      }
+                    });
+
+                    const text = await resp.text();
+                    let data = null;
+                    let parseError = null;
+
+                    try {
+                      data = JSON.parse(text);
+                    } catch (err) {
+                      parseError = String(err);
+                    }
+
+                    return {
+                      ok: resp.ok,
+                      status: resp.status,
+                      statusText: resp.statusText,
+                      url: resp.url,
+                      text: text,
+                      data: data,
+                      parseError: parseError
+                    };
+                  } catch (err) {
+                    return {
+                      ok: false,
+                      status: 0,
+                      statusText: "FETCH_ERROR",
+                      url: areaUrl,
+                      text: "",
+                      data: null,
+                      parseError: String(err)
+                    };
+                  }
+                }
+                """,
+                {"areaUrl": AREA_SEARCH_URL},
+            )
+
+        except PlaywrightTimeoutError as exc:
             browser.close()
+            raise RuntimeError(f"Timed out loading FirstEnergy page: {exc}") from exc
+        except Exception:
+            browser.close()
+            raise
 
-        return data
+        browser.close()
 
+    if not result.get("ok"):
+        raise RuntimeError(
+            f"FirstEnergy fetch failed: status={result.get('status')} "
+            f"statusText={result.get('statusText')} "
+            f"parseError={result.get('parseError')}"
+        )
 
-def parse_firstenergy(data: dict):
-    counties = []
-    municipalities = []
+    if result.get("data") is not None:
+        return result["data"]
 
-    map_counties = data.get("mapCounties", {})
+    # Sometimes server may respond with JSON-ish text but the parse fails
+    text = result.get("text", "").strip()
+    if not text:
+        raise RuntimeError("FirstEnergy fetch returned empty response text.")
 
-    for county_key, county_obj in map_counties.items():
-        county_name = county_obj.get("name", county_key.title())
-        area = county_obj.get("areaData", {})
-
-        counties.append({
-            "county": county_name,
-            "customers_out": int(area.get("customerOutages", 0) or 0),
-            "customers_tracked": int(area.get("totalCustomers", 0) or 0),
-            "percent_out": parse_percent(area.get("percentOut")),
-            "etr": area.get("estimatedTimeRestored") or "",
-            "source": "FirstEnergy",
-        })
-
-        for _, town_obj in county_obj.get("mapTowns", {}).items():
-            t_area = town_obj.get("areaData", {})
-            municipalities.append({
-                "county": county_name,
-                "municipality": town_obj.get("name"),
-                "customers_out": int(t_area.get("customerOutages", 0) or 0),
-                "customers_tracked": int(t_area.get("totalCustomers", 0) or 0),
-                "percent_out": parse_percent(t_area.get("percentOut")),
-                "etr": t_area.get("estimatedTimeRestored") or "",
-                "source": "FirstEnergy",
-            })
-
-    counties.sort(key=lambda x: x["county"])
-    municipalities.sort(key=lambda x: (x["county"], x["municipality"] or ""))
-
-    return counties, municipalities
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        preview = text[:500].replace("\n", " ")
+        raise RuntimeError(
+            f"Response was not valid JSON. Parse error: {exc}. Preview: {preview}"
+        ) from exc
 
 
-def main():
-    raw = fetch_firstenergy_data()
-    counties, municipalities = parse_firstenergy(raw)
+def build_output(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    cleaned: List[Dict[str, Any]] = []
 
-    total_out = sum(c["customers_out"] for c in counties)
-    total_tracked = sum(c["customers_tracked"] for c in counties)
+    for raw in records:
+        if not looks_like_pa(raw):
+            continue
+        cleaned.append(normalize_record(raw))
 
-    statewide = {
-        "customers_out": total_out,
-        "customers_tracked": total_tracked,
-        "percent_out": round((total_out / total_tracked) * 100, 2) if total_tracked else 0.0,
-        "updated_text": datetime.now(LOCAL_TZ).strftime("%m/%d/%y %I:%M %p"),
+    # Sort: largest outages first, then county, then municipality
+    cleaned.sort(
+        key=lambda x: (
+            -(x["customers_out"] if isinstance(x["customers_out"], int) else -1),
+            str(x["county"]).lower(),
+            str(x["municipality"]).lower(),
+        )
+    )
+
+    return {
+        "name": "firstenergy_power_outages_pa",
+        "fetched_at": iso_utc_now(),
+        "source_page": PAGE_URL,
+        "source_api": AREA_SEARCH_URL,
+        "count": len(cleaned),
+        "items": cleaned,
     }
 
-    prev = load_previous_total()
-    trend = build_trend(total_out, prev)
-    significant = build_significant(counties)
-    pema_totals = build_pema_totals(counties)
 
-    payload = {
-        "generated_at": datetime.now(LOCAL_TZ).isoformat(),
-        "source_strategy": "FirstEnergy via Playwright browser session",
-        "statewide": statewide,
-        "trend_since_last_update": trend,
-        "pema_areas": pema_totals,
-        "utilities": [{
-            "utility": "FirstEnergy",
-            "customers_out": total_out,
-            "customers_tracked": total_tracked,
-            "percent_out": statewide["percent_out"],
-        }],
-        "counties": counties,
-        "significant_counties": significant,
-        "ticker_items": build_ticker(significant),
-        "municipalities": municipalities,
-    }
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Fetch FirstEnergy Pennsylvania municipality outage data via Playwright page-context fetch()."
+    )
+    parser.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help=f"Output JSON path (default: {DEFAULT_OUTPUT})",
+    )
+    parser.add_argument(
+        "--show-browser",
+        action="store_true",
+        help="Show Chromium while running.",
+    )
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
+    args = parser.parse_args()
+    output_path = Path(args.output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(PREVIOUS_FILE, "w", encoding="utf-8") as f:
-        json.dump({"statewide": statewide}, f, indent=2)
+    try:
+        payload = fetch_area_json(show_browser=args.show_browser)
+        records = extract_records(payload)
 
-    print("SUCCESS")
-    print(f"Counties: {len(counties)}")
-    print(f"Municipalities: {len(municipalities)}")
-    print(f"Statewide Out: {total_out:,}")
-    print(f"Trend: {trend['display']}")
+        if not records:
+            # Write debug payload too, so you can inspect shape changes
+            debug_path = output_path.with_suffix(".debug.json")
+            debug_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            raise RuntimeError(
+                f"No records found in response. Wrote raw payload to {debug_path}"
+            )
+
+        output = build_output(records)
+        output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
+
+        print(f"Wrote {output['count']} Pennsylvania outage rows to {output_path}")
+        return 0
+
+    except Exception as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
