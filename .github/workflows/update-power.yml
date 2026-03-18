@@ -1,0 +1,45 @@
+name: Update Power Outages
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-power:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+
+      - name: Ensure data directory exists
+        run: mkdir -p data scripts
+
+      - name: Run power outage script
+        run: python scripts/power_outages.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/power_outages_pa.json data/previous_power_outages_pa.json
+
+          git diff --cached --quiet && exit 0
+
+          git commit -m "Update PA power outage data"
+          git push
