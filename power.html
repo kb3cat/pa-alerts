@@ -41,7 +41,7 @@ body{
 
 .board{
   display:grid;
-  grid-template-rows:auto auto auto 1fr auto auto;
+  grid-template-rows:auto auto auto 1fr auto auto auto;
   gap:14px;
   min-height:100vh;
 }
@@ -401,6 +401,47 @@ body{
   gap:14px;
 }
 
+.county-detail-grid{
+  display:grid;
+  grid-template-columns:repeat(3, 1fr);
+  gap:12px;
+}
+
+.county-detail-card{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:12px;
+}
+
+.county-detail-label{
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.5px;
+  margin-bottom:8px;
+}
+
+.county-detail-value{
+  font-size:24px;
+  font-weight:700;
+  line-height:1.1;
+}
+
+.county-detail-sub{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.county-clickable{
+  cursor:pointer;
+}
+
+.county-clickable:hover{
+  outline:1px solid rgba(255,255,255,0.18);
+}
+
 .ticker-panel{
   background:var(--panel);
   border:1px solid var(--border);
@@ -456,7 +497,8 @@ body{
 
 @media (max-width: 900px){
   .severity-wall,
-  .overview-strip{
+  .overview-strip,
+  .county-detail-grid{
     grid-template-columns:repeat(2, minmax(0, 1fr));
   }
 }
@@ -491,7 +533,8 @@ body{
 
 @media (max-width: 560px){
   .severity-wall,
-  .overview-strip{
+  .overview-strip,
+  .county-detail-grid{
     grid-template-columns:1fr;
   }
 }
@@ -623,6 +666,18 @@ body{
     </div>
   </section>
 
+  <section class="panel" id="countyDetailPanel">
+    <div class="panel-header">
+      <div>
+        <h2 class="panel-title">Selected County Detail</h2>
+        <div class="panel-subtitle">Click a county tile or county row to view source contribution</div>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="countyDetailContent" class="empty">Select a county to view detail.</div>
+    </div>
+  </section>
+
   <section class="ticker-panel">
     <div class="ticker-header">⚡ Significant Outage Ticker</div>
     <div class="ticker-body">
@@ -701,6 +756,15 @@ function deltaMarkup(change) {
   return `<span class="county-delta delta-flat">— 0</span>`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function buildSourceBadges(sources) {
   const list = Array.isArray(sources) ? sources : [];
   if (!list.length) return "";
@@ -709,6 +773,62 @@ function buildSourceBadges(sources) {
       ${list.map(src => `<span class="source-badge">${src}</span>`).join("")}
     </div>
   `;
+}
+
+function renderCountyDetail(county) {
+  const target = document.getElementById("countyDetailContent");
+  if (!county) {
+    target.innerHTML = `<div class="empty">Select a county to view detail.</div>`;
+    return;
+  }
+
+  const fe = county.firstenergy || null;
+  const ppl = county.ppl || null;
+
+  target.innerHTML = `
+    <div class="county-detail-grid">
+      <div class="county-detail-card">
+        <div class="county-detail-label">${escapeHtml(county.county)} Total</div>
+        <div class="county-detail-value">${formatNumber(county.customers_out)}</div>
+        <div class="county-detail-sub">
+          ${formatPercent(county.percent_out)} out
+          ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : ""}
+        </div>
+        ${buildSourceBadges(county.sources)}
+      </div>
+
+      <div class="county-detail-card">
+        <div class="county-detail-label">FirstEnergy</div>
+        <div class="county-detail-value">${fe ? formatNumber(fe.customers_out) : "—"}</div>
+        <div class="county-detail-sub">
+          ${fe ? `${formatPercent(fe.percent_out)} out • ${formatNumber(fe.customers_served)} served` : "No FE contribution in merged data"}
+        </div>
+      </div>
+
+      <div class="county-detail-card">
+        <div class="county-detail-label">PPL</div>
+        <div class="county-detail-value">${ppl ? formatNumber(ppl.customers_out) : "—"}</div>
+        <div class="county-detail-sub">
+          ${ppl ? `${formatPercent(ppl.percent_out)} out • ${formatNumber(ppl.customers_served)} served` : "No PPL contribution in merged data"}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireCountyClicks(counties) {
+  document.querySelectorAll("[data-county-name]").forEach(el => {
+    el.addEventListener("click", () => {
+      const countyName = el.getAttribute("data-county-name");
+      const county = counties.find(c => c.county === countyName);
+      renderCountyDetail(county);
+
+      const panel = document.getElementById("countyDetailPanel");
+      if (panel) {
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
 }
 
 function buildSeverityWall(data) {
@@ -745,7 +865,7 @@ function buildSeverityWall(data) {
 
     <div class="severity-wall">
       ${wallRows.map(county => `
-        <div class="county-tile ${tileClass(county.percent_out)}">
+        <div class="county-tile county-clickable ${tileClass(county.percent_out)}" data-county-name="${escapeHtml(county.county)}">
           <div class="county-tile-top">
             <div class="county-name">${county.county}</div>
             <div class="county-percent">${formatPercent(county.percent_out)}</div>
@@ -779,7 +899,7 @@ function buildTopImpacted(counties) {
   }
 
   target.innerHTML = active.map(county => `
-    <div class="rank-row">
+    <div class="rank-row county-clickable" data-county-name="${escapeHtml(county.county)}">
       <div class="rank-left">
         <div class="rank-county">${county.county}</div>
         <div class="rank-meta">
@@ -952,6 +1072,10 @@ async function loadPowerData() {
     buildUtilityBreakdown(data);
     buildTopMunicipalities(data);
     buildTicker(counties);
+    wireCountyClicks(counties);
+
+    const topCounty = counties.find(c => Number(c.customers_out || 0) > 0) || counties[0] || null;
+    renderCountyDetail(topCounty);
 
   } catch (err) {
     const msg = `Unable to load live merged outage data: ${err.message}`;
@@ -960,6 +1084,7 @@ async function loadPowerData() {
     document.getElementById("topImpactedList").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("utilityBreakdown").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("topMunicipalities").innerHTML = `<div class="error">${msg}</div>`;
+    document.getElementById("countyDetailContent").innerHTML = `<div class="error">${msg}</div>`;
     document.getElementById("tickerLine").textContent = msg;
   }
 }
