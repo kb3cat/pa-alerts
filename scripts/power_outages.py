@@ -2,25 +2,23 @@
 """
 power_outages.py
 ----------------
-Scrapes FirstEnergy Pennsylvania "My Town" outage data using Playwright page-context
-fetch() so the request is made from inside the browser session/origin.
+Scrape FirstEnergy Pennsylvania outage data from the rendered "My Town" page
+using Playwright DOM extraction instead of the older .areaSearch.json endpoint.
 
 Why this version:
-- Avoids curl/requests issues with direct endpoint access
-- Uses page.evaluate(...) -> fetch(...) from the FirstEnergy page context
-- Filters Pennsylvania only
-- Writes a normalized JSON file
+- Avoids the 400/HTML response from my-town-search.areaSearch.json
+- Works from the rendered page itself
+- Extracts Pennsylvania rows from the visible PA search table
+- Writes normalized JSON for your dashboard/workflow
 
 Requirements:
     pip install playwright
     playwright install chromium
 
 Usage:
-    python3 power_outages.py
-
-Optional:
-    python3 power_outages.py --output data/power_outages.json
-    python3 power_outages.py --show-browser
+    python3 scripts/power_outages.py
+    python3 scripts/power_outages.py --output data/power_outages.json
+    python3 scripts/power_outages.py --show-browser
 """
 
 from __future__ import annotations
@@ -29,30 +27,22 @@ import argparse
 import json
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
-# FirstEnergy "My Town" page for NY & PA
 PAGE_URL = (
     "https://www.firstenergycorp.com/content/customer/outages_help/"
     "current_outages_maps/my-town-search.html?selectedTab=2"
-)
-
-# This is the endpoint that has been used for municipality/area search JSON.
-# We call it from the browser page context instead of directly from Python.
-AREA_SEARCH_URL = (
-    "https://www.firstenergycorp.com/content/customer/outages_help/"
-    "current_outages_maps/my-town-search.areaSearch.json"
 )
 
 DEFAULT_OUTPUT = "data/power_outages.json"
 
 
 def iso_utc_now() -> str:
-    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def safe_int(value: Any) -> Optional[int]:
@@ -61,133 +51,44 @@ def safe_int(value: Any) -> Optional[int]:
     if isinstance(value, int):
         return value
     text = str(value).strip().replace(",", "")
-    if text == "":
+    if not text:
         return None
-    match = re.search(r"-?\d+", text)
-    if not match:
+    m = re.search(r"-?\d+", text)
+    if not m:
         return None
     try:
-        return int(match.group(0))
+        return int(m.group(0))
     except ValueError:
         return None
 
 
-def first_nonempty(d: Dict[str, Any], keys: List[str], default: Any = None) -> Any:
-    for key in keys:
-        if key in d:
-            value = d[key]
-            if value is not None and str(value).strip() != "":
-                return value
-    return default
+def clean_text(value: Any) -> str:
+    if value is None:
+        return ""
+    text = str(value)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
 
 
-def looks_like_pa(record: Dict[str, Any]) -> bool:
-    # Be generous; FE field names can shift.
-    state = str(first_nonempty(record, ["state", "stateCode", "st", "serviceState"], "")).strip().upper()
-    company = str(first_nonempty(record, ["company", "operatingCompany", "utility", "opco"], "")).strip().upper()
-    county = str(first_nonempty(record, ["county", "countyName"], "")).strip()
-    muni = str(first_nonempty(record, ["municipality", "municipalityName", "areaName", "city", "town"], "")).strip()
+def normalize_item(raw: Dict[str, Any]) -> Dict[str, Any]:
+    municipality = clean_text(raw.get("municipality"))
+    county = clean_text(raw.get("county"))
+    company = clean_text(raw.get("company"))
+    state = clean_text(raw.get("state") or "PA")
+    customers_out = safe_int(raw.get("customers_out"))
+    customers_served = safe_int(raw.get("customers_served"))
+    percent_out = raw.get("percent_out")
+    etr = clean_text(raw.get("etr")) or None
+    last_updated = clean_text(raw.get("last_updated")) or None
+    details = clean_text(raw.get("details")) or None
 
-    if state == "PA" or state == "PENNSYLVANIA":
-        return True
-
-    # Common FirstEnergy PA operating companies
-    pa_companies = {
-        "PENELEC",
-        "MET-ED",
-        "MET ED",
-        "PENN POWER",
-        "WEST PENN POWER",
-    }
-    if company in pa_companies:
-        return True
-
-    # Sometimes records include enough fields to infer they're valid area rows;
-    # keep them only if not explicitly another state.
-    other_states = {"OH", "NJ", "NY", "MD", "WV"}
-    if state and state in other_states:
-        return False
-
-    # If it has a PA-looking company or no state at all, keep it for now.
-    if county or muni:
-        return True
-
-    return False
-
-
-def normalize_record(raw: Dict[str, Any]) -> Dict[str, Any]:
-    municipality = first_nonempty(
-        raw,
-        [
-            "municipality",
-            "municipalityName",
-            "areaName",
-            "city",
-            "town",
-            "name",
-            "area",
-        ],
-        "",
-    )
-
-    county = first_nonempty(raw, ["county", "countyName"], "")
-    state = first_nonempty(raw, ["state", "stateCode", "st", "serviceState"], "PA")
-    company = first_nonempty(raw, ["company", "operatingCompany", "utility", "opco"], "")
-
-    customers_out = safe_int(
-        first_nonempty(
-            raw,
-            [
-                "customersOut",
-                "custOut",
-                "out",
-                "outages",
-                "affectedCustomers",
-                "customerCount",
-            ],
-        )
-    )
-
-    customers_served = safe_int(
-        first_nonempty(
-            raw,
-            [
-                "customersServed",
-                "custServed",
-                "served",
-                "totalCustomers",
-            ],
-        )
-    )
-
-    percent_out = first_nonempty(raw, ["percentOut", "pctOut", "percent"], None)
     if percent_out is not None:
         try:
             percent_out = float(str(percent_out).replace("%", "").strip())
         except ValueError:
             percent_out = None
 
-    last_updated = first_nonempty(
-        raw,
-        ["lastUpdated", "last_updated", "updateTime", "timestamp", "asOf"],
-        None,
-    )
-
-    etr = first_nonempty(
-        raw,
-        [
-            "etr",
-            "ETR",
-            "estimatedRestoration",
-            "estimatedRestorationTime",
-            "restorationTime",
-        ],
-        None,
-    )
-
-    cause = first_nonempty(raw, ["cause", "outageCause"], None)
-
-    normalized = {
+    return {
         "municipality": municipality,
         "county": county,
         "state": state,
@@ -196,99 +97,195 @@ def normalize_record(raw: Dict[str, Any]) -> Dict[str, Any]:
         "customers_served": customers_served,
         "percent_out": percent_out,
         "etr": etr,
-        "cause": cause,
         "last_updated": last_updated,
+        "details": details,
         "raw": raw,
     }
 
-    return normalized
 
-
-def extract_records(payload: Any) -> List[Dict[str, Any]]:
-    """
-    Handle common JSON shapes:
-    - list[dict]
-    - {"data":[...]}
-    - {"items":[...]}
-    - {"results":[...]}
-    - {"areas":[...]}
-    """
-    if isinstance(payload, list):
-        return [x for x in payload if isinstance(x, dict)]
-
-    if isinstance(payload, dict):
-        for key in ["data", "items", "results", "areas", "rows", "municipalities"]:
-            value = payload.get(key)
-            if isinstance(value, list):
-                return [x for x in value if isinstance(x, dict)]
-
-        # Fallback: if dict itself looks like a record collection container but nested oddly,
-        # gather dicts from top-level lists.
-        out: List[Dict[str, Any]] = []
-        for value in payload.values():
-            if isinstance(value, list):
-                out.extend([x for x in value if isinstance(x, dict)])
-        if out:
-            return out
-
-    return []
-
-
-def fetch_area_json(show_browser: bool = False, timeout_ms: int = 45000) -> Any:
+def scrape_pa_rows(show_browser: bool = False, timeout_ms: int = 60000) -> List[Dict[str, Any]]:
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not show_browser)
+        browser = p.chromium.launch(
+            headless=not show_browser,
+            args=["--disable-dev-shm-usage", "--no-sandbox"],
+        )
         page = browser.new_page()
 
         try:
             page.goto(PAGE_URL, wait_until="domcontentloaded", timeout=timeout_ms)
-            page.wait_for_timeout(3000)
+            page.wait_for_timeout(5000)
 
-            result = page.evaluate(
+            # Try to dismiss the "Oops / taking longer than expected" overlay if present.
+            for selector in [
+                "text=CLOSE",
+                "button:has-text('CLOSE')",
+                "[aria-label='Close']",
+                ".modal button",
+            ]:
+                try:
+                    locator = page.locator(selector).first
+                    if locator.is_visible(timeout=1000):
+                        locator.click(timeout=1000)
+                        page.wait_for_timeout(750)
+                        break
+                except Exception:
+                    pass
+
+            # Force NY & PA tab if needed.
+            tab_candidates = [
+                "text='NY & PA'",
+                "a:has-text('NY & PA')",
+                "button:has-text('NY & PA')",
+            ]
+            for selector in tab_candidates:
+                try:
+                    locator = page.locator(selector).first
+                    if locator.is_visible(timeout=1500):
+                        locator.click(timeout=1500)
+                        page.wait_for_timeout(2500)
+                        break
+                except Exception:
+                    pass
+
+            # Wait for the Pennsylvania Search heading to exist.
+            page.wait_for_selector("text=Pennsylvania Search", timeout=timeout_ms)
+
+            rows = page.evaluate(
                 """
-                async ({ areaUrl }) => {
-                  try {
-                    const resp = await fetch(areaUrl, {
-                      method: "GET",
-                      credentials: "include",
-                      headers: {
-                        "Accept": "application/json, text/plain, */*",
-                        "X-Requested-With": "XMLHttpRequest"
-                      }
-                    });
+                () => {
+                  function txt(el) {
+                    return (el && el.innerText ? el.innerText : "").replace(/\\s+/g, " ").trim();
+                  }
 
-                    const text = await resp.text();
-                    let data = null;
-                    let parseError = null;
+                  function pickSectionRoot() {
+                    const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4"));
+                    const paHeading = headings.find(h => /Pennsylvania Search/i.test(txt(h)));
+                    if (!paHeading) return null;
 
-                    try {
-                      data = JSON.parse(text);
-                    } catch (err) {
-                      parseError = String(err);
+                    let node = paHeading.parentElement;
+                    while (node) {
+                      const tables = node.querySelectorAll("table");
+                      if (tables.length) return node;
+                      node = node.parentElement;
+                    }
+                    return paHeading.parentElement || document.body;
+                  }
+
+                  function tableToObjects(table) {
+                    const trs = Array.from(table.querySelectorAll("tr"));
+                    if (!trs.length) return [];
+
+                    let headers = [];
+                    const firstCells = Array.from(trs[0].querySelectorAll("th,td")).map(txt);
+                    const maybeHeader = firstCells.some(v =>
+                      /county|municipality|town|city|customers|out|served|percent|etr|updated/i.test(v)
+                    );
+
+                    let startIndex = 0;
+                    if (maybeHeader) {
+                      headers = firstCells.map(h => h.toLowerCase());
+                      startIndex = 1;
                     }
 
-                    return {
-                      ok: resp.ok,
-                      status: resp.status,
-                      statusText: resp.statusText,
-                      url: resp.url,
-                      text: text,
-                      data: data,
-                      parseError: parseError
-                    };
-                  } catch (err) {
-                    return {
-                      ok: false,
-                      status: 0,
-                      statusText: "FETCH_ERROR",
-                      url: areaUrl,
-                      text: "",
-                      data: null,
-                      parseError: String(err)
-                    };
+                    const out = [];
+                    for (let i = startIndex; i < trs.length; i++) {
+                      const cells = Array.from(trs[i].querySelectorAll("td,th")).map(txt).filter(Boolean);
+                      if (!cells.length) continue;
+                      if (cells.length === 1 && /no outages/i.test(cells[0])) continue;
+
+                      let row = {};
+                      if (headers.length && headers.length === cells.length) {
+                        headers.forEach((h, idx) => { row[h] = cells[idx]; });
+                      } else {
+                        row = { cells };
+                      }
+                      out.push(row);
+                    }
+                    return out;
                   }
+
+                  function normalizeRows(rawRows) {
+                    const normalized = [];
+
+                    for (const row of rawRows) {
+                      const keys = Object.keys(row);
+                      let municipality = "";
+                      let county = "";
+                      let company = "";
+                      let customers_out = null;
+                      let customers_served = null;
+                      let percent_out = null;
+                      let etr = "";
+                      let last_updated = "";
+                      let details = "";
+
+                      if (row.cells) {
+                        const cells = row.cells;
+
+                        // Flexible positional fallback
+                        if (cells.length >= 1) municipality = cells[0];
+                        if (cells.length >= 2) county = cells[1];
+                        if (cells.length >= 3) customers_out = cells[2];
+                        if (cells.length >= 4) customers_served = cells[3];
+                        if (cells.length >= 5) percent_out = cells[4];
+                        if (cells.length >= 6) etr = cells[5];
+                        if (cells.length >= 7) details = cells.slice(6).join(" | ");
+                      } else {
+                        for (const [k, v] of Object.entries(row)) {
+                          const key = k.toLowerCase();
+                          if (/municipality|town|city|area|name/.test(key) && !municipality) municipality = v;
+                          else if (/county/.test(key) && !county) county = v;
+                          else if (/company|utility|operating/.test(key) && !company) company = v;
+                          else if (/customers.*out|cust.*out|affected|outages|out\\b/.test(key) && customers_out === null) customers_out = v;
+                          else if (/customers.*served|cust.*served|served|total customers/.test(key) && customers_served === null) customers_served = v;
+                          else if (/percent|pct/.test(key) && percent_out === null) percent_out = v;
+                          else if (/etr|estimated restoration|restoration/.test(key) && !etr) etr = v;
+                          else if (/updated|last updated|timestamp|as of/.test(key) && !last_updated) last_updated = v;
+                          else details += (details ? " | " : "") + `${k}: ${v}`;
+                        }
+                      }
+
+                      const useful =
+                        municipality || county || customers_out !== null || customers_served !== null || percent_out !== null;
+
+                      if (!useful) continue;
+
+                      normalized.push({
+                        municipality,
+                        county,
+                        company,
+                        state: "PA",
+                        customers_out,
+                        customers_served,
+                        percent_out,
+                        etr,
+                        last_updated,
+                        details
+                      });
+                    }
+
+                    return normalized;
+                  }
+
+                  const root = pickSectionRoot();
+                  const tables = root ? Array.from(root.querySelectorAll("table")) : [];
+                  let rows = [];
+
+                  for (const table of tables) {
+                    rows = rows.concat(tableToObjects(table));
+                  }
+
+                  // Fallback: if PA section tables were not found, scan all tables on page.
+                  if (!rows.length) {
+                    const allTables = Array.from(document.querySelectorAll("table"));
+                    for (const table of allTables) {
+                      rows = rows.concat(tableToObjects(table));
+                    }
+                  }
+
+                  return normalizeRows(rows);
                 }
-                """,
-                {"areaUrl": AREA_SEARCH_URL},
+                """
             )
 
         except PlaywrightTimeoutError as exc:
@@ -300,60 +297,69 @@ def fetch_area_json(show_browser: bool = False, timeout_ms: int = 45000) -> Any:
 
         browser.close()
 
-    if not result.get("ok"):
-        raise RuntimeError(
-            f"FirstEnergy fetch failed: status={result.get('status')} "
-            f"statusText={result.get('statusText')} "
-            f"parseError={result.get('parseError')}"
-        )
+    if not isinstance(rows, list):
+        raise RuntimeError("Unexpected scrape result: rows is not a list.")
 
-    if result.get("data") is not None:
-        return result["data"]
-
-    # Sometimes server may respond with JSON-ish text but the parse fails
-    text = result.get("text", "").strip()
-    if not text:
-        raise RuntimeError("FirstEnergy fetch returned empty response text.")
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError as exc:
-        preview = text[:500].replace("\n", " ")
-        raise RuntimeError(
-            f"Response was not valid JSON. Parse error: {exc}. Preview: {preview}"
-        ) from exc
-
-
-def build_output(records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    cleaned: List[Dict[str, Any]] = []
-
-    for raw in records:
-        if not looks_like_pa(raw):
+    cleaned = []
+    for row in rows:
+        if not isinstance(row, dict):
             continue
-        cleaned.append(normalize_record(raw))
 
-    # Sort: largest outages first, then county, then municipality
-    cleaned.sort(
+        item = normalize_item(row)
+
+        # Keep only rows that look like actual PA municipality records.
+        if not any([
+            item["municipality"],
+            item["county"],
+            item["customers_out"] is not None,
+            item["customers_served"] is not None,
+            item["percent_out"] is not None,
+        ]):
+            continue
+
+        cleaned.append(item)
+
+    # Deduplicate loosely.
+    deduped = []
+    seen = set()
+    for item in cleaned:
+        key = (
+            item["municipality"].lower(),
+            item["county"].lower(),
+            item["customers_out"],
+            item["customers_served"],
+            item["percent_out"],
+            item["etr"],
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+
+    deduped.sort(
         key=lambda x: (
             -(x["customers_out"] if isinstance(x["customers_out"], int) else -1),
-            str(x["county"]).lower(),
-            str(x["municipality"]).lower(),
+            x["county"].lower(),
+            x["municipality"].lower(),
         )
     )
 
+    return deduped
+
+
+def build_output(items: List[Dict[str, Any]]) -> Dict[str, Any]:
     return {
         "name": "firstenergy_power_outages_pa",
         "fetched_at": iso_utc_now(),
         "source_page": PAGE_URL,
-        "source_api": AREA_SEARCH_URL,
-        "count": len(cleaned),
-        "items": cleaned,
+        "count": len(items),
+        "items": items,
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Fetch FirstEnergy Pennsylvania municipality outage data via Playwright page-context fetch()."
+        description="Scrape FirstEnergy Pennsylvania outage data from rendered page via Playwright."
     )
     parser.add_argument(
         "--output",
@@ -365,26 +371,15 @@ def main() -> int:
         action="store_true",
         help="Show Chromium while running.",
     )
-
     args = parser.parse_args()
+
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        payload = fetch_area_json(show_browser=args.show_browser)
-        records = extract_records(payload)
-
-        if not records:
-            # Write debug payload too, so you can inspect shape changes
-            debug_path = output_path.with_suffix(".debug.json")
-            debug_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-            raise RuntimeError(
-                f"No records found in response. Wrote raw payload to {debug_path}"
-            )
-
-        output = build_output(records)
+        items = scrape_pa_rows(show_browser=args.show_browser)
+        output = build_output(items)
         output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
-
         print(f"Wrote {output['count']} Pennsylvania outage rows to {output_path}")
         return 0
 
