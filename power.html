@@ -79,15 +79,13 @@ body{
   white-space:nowrap;
 }
 
-.stats-grid,
-.region-grid{
+.stats-grid{
   display:grid;
   grid-template-columns:repeat(3, 1fr);
   gap:14px;
 }
 
-.stat-card,
-.region-card{
+.stat-card{
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:12px;
@@ -95,8 +93,7 @@ body{
   box-shadow:var(--shadow);
 }
 
-.stat-label,
-.region-label{
+.stat-label{
   color:var(--muted);
   font-size:13px;
   text-transform:uppercase;
@@ -108,18 +105,6 @@ body{
   font-size:34px;
   font-weight:700;
   line-height:1;
-}
-
-.region-value{
-  font-size:28px;
-  font-weight:700;
-  line-height:1;
-}
-
-.region-sub{
-  margin-top:8px;
-  color:var(--muted);
-  font-size:12px;
 }
 
 .trend{
@@ -401,7 +386,7 @@ body{
 
 .county-detail-grid{
   display:grid;
-  grid-template-columns:repeat(3, 1fr);
+  grid-template-columns:repeat(4, 1fr);
   gap:12px;
 }
 
@@ -440,29 +425,19 @@ body{
   outline:1px solid rgba(255,255,255,0.18);
 }
 
-.loading,
-.error,
-.empty{
-  color:var(--muted);
-  font-size:14px;
-}
-
-.error{ color:#ff9b9b; }
-
-/* Modal */
 .modal{
   display:none;
   position:fixed;
   inset:0;
   background:rgba(0,0,0,0.65);
   z-index:9999;
+  padding:24px;
   align-items:center;
   justify-content:center;
-  padding:24px;
 }
 
 .modal-content{
-  width:min(900px, 100%);
+  width:min(1000px, 100%);
   max-height:90vh;
   overflow:auto;
   background:var(--panel);
@@ -481,6 +456,15 @@ body{
 .modal-close:hover{
   color:var(--text);
 }
+
+.loading,
+.error,
+.empty{
+  color:var(--muted);
+  font-size:14px;
+}
+
+.error{ color:#ff9b9b; }
 
 @media (max-width: 1300px){
   .severity-wall{
@@ -503,8 +487,7 @@ body{
 }
 
 @media (max-width: 800px){
-  .stats-grid,
-  .region-grid{
+  .stats-grid{
     grid-template-columns:1fr;
   }
 
@@ -519,10 +502,6 @@ body{
 
   .stat-value{
     font-size:30px;
-  }
-
-  .region-value{
-    font-size:24px;
   }
 }
 
@@ -563,26 +542,6 @@ body{
     <div class="stat-card">
       <div class="stat-label">Trend Since Last Update</div>
       <div class="stat-value" id="trendSinceUpdate">--</div>
-    </div>
-  </section>
-
-  <section class="region-grid">
-    <div class="region-card">
-      <div class="region-label">New Municipal Outages</div>
-      <div class="region-value" id="newCount">--</div>
-      <div class="region-sub">Rows marked new since prior FirstEnergy update</div>
-    </div>
-
-    <div class="region-card">
-      <div class="region-label">Increasing</div>
-      <div class="region-value" id="increasingCount">--</div>
-      <div class="region-sub">FirstEnergy rows with increasing outages</div>
-    </div>
-
-    <div class="region-card">
-      <div class="region-label">Restored</div>
-      <div class="region-value" id="restoredCount">--</div>
-      <div class="region-sub">FirstEnergy rows treated as restored</div>
     </div>
   </section>
 
@@ -639,10 +598,7 @@ body{
           <div class="ranked-list" id="topImpactedList">
             <div class="loading">Loading county impacts...</div>
           </div>
-
-          <div class="small-note">
-            Showing top impacted counties in the merged statewide dataset.
-          </div>
+          <div class="small-note">Showing top impacted counties in the merged statewide dataset.</div>
         </div>
       </div>
 
@@ -666,13 +622,12 @@ body{
 
 </div>
 
-<!-- County Detail Modal -->
 <div id="countyModal" class="modal" aria-hidden="true">
   <div class="modal-content">
     <div class="panel-header">
       <div>
         <h2 class="panel-title" id="countyModalTitle">County Detail</h2>
-        <div class="panel-subtitle">Source contribution for selected county</div>
+        <div class="panel-subtitle">Source contribution and top municipalities for selected county</div>
       </div>
       <div class="modal-close" id="countyModalClose" title="Close">✕</div>
     </div>
@@ -732,14 +687,14 @@ function buildTrendMarkup(change) {
   const n = Number(change || 0);
   if (n > 0) return `<span class="trend up">▲ +${formatNumber(n)}</span>`;
   if (n < 0) return `<span class="trend down">▼ ${formatNumber(Math.abs(n))}</span>`;
-  return `<span class="trend flat">— 0</span>`;
+  return `<span class="trend flat">No Change</span>`;
 }
 
 function deltaMarkup(change) {
   const n = Number(change || 0);
   if (n > 0) return `<span class="county-delta delta-up">▲ +${formatNumber(n)}</span>`;
   if (n < 0) return `<span class="county-delta delta-down">▼ ${formatNumber(Math.abs(n))}</span>`;
-  return `<span class="county-delta delta-flat">— 0</span>`;
+  return `<span class="county-delta delta-flat">No Change</span>`;
 }
 
 function escapeHtml(value) {
@@ -773,7 +728,7 @@ function closeCountyModal() {
   modal.setAttribute("aria-hidden", "true");
 }
 
-function renderCountyDetail(county) {
+function renderCountyDetail(county, data) {
   const body = document.getElementById("countyModalBody");
   const title = document.getElementById("countyModalTitle");
 
@@ -787,6 +742,27 @@ function renderCountyDetail(county) {
   const fe = county.firstenergy || null;
   const ppl = county.ppl || null;
 
+  const feItems = Array.isArray(data.items_firstenergy) ? data.items_firstenergy : [];
+  const pplItems = Array.isArray(data.items_ppl) ? data.items_ppl : [];
+
+  const mergedMunicipalities = [
+    ...feItems.map(row => ({
+      municipality: row.municipality,
+      county: row.county,
+      customers_out: Number(row.customers_out || 0),
+      source: "FirstEnergy"
+    })),
+    ...pplItems.map(row => ({
+      municipality: row.municipality,
+      county: row.county,
+      customers_out: Number(row.customers_out || 0),
+      source: "PPL"
+    }))
+  ]
+    .filter(row => row.county === county.county && row.municipality && row.customers_out > 0)
+    .sort((a, b) => b.customers_out - a.customers_out)
+    .slice(0, 3);
+
   title.textContent = county.county;
 
   body.innerHTML = `
@@ -796,7 +772,7 @@ function renderCountyDetail(county) {
         <div class="county-detail-value">${formatNumber(county.customers_out)}</div>
         <div class="county-detail-sub">
           ${formatPercent(county.percent_out)} out
-          ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : ""}
+          ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : " • No Change"}
         </div>
         ${buildSourceBadges(county.sources)}
       </div>
@@ -816,18 +792,32 @@ function renderCountyDetail(county) {
           ${ppl ? `${formatPercent(ppl.percent_out)} out • ${formatNumber(ppl.customers_served)} served` : "No PPL contribution in merged data"}
         </div>
       </div>
+
+      <div class="county-detail-card">
+        <div class="county-detail-label">Top 3 Municipalities</div>
+        ${
+          mergedMunicipalities.length
+            ? mergedMunicipalities.map(row => `
+              <div style="margin-bottom:8px;">
+                <div style="font-weight:700;">${escapeHtml(row.municipality)}</div>
+                <div class="county-detail-sub">${formatNumber(row.customers_out)} out • ${escapeHtml(row.source)}</div>
+              </div>
+            `).join("")
+            : `<div class="county-detail-sub">No active municipality rows for this county.</div>`
+        }
+      </div>
     </div>
   `;
 
   openCountyModal();
 }
 
-function wireCountyClicks(counties) {
+function wireCountyClicks(counties, data) {
   document.querySelectorAll("[data-county-name]").forEach(el => {
     el.addEventListener("click", () => {
       const countyName = el.getAttribute("data-county-name");
       const county = counties.find(c => c.county === countyName);
-      renderCountyDetail(county);
+      renderCountyDetail(county, data);
     });
   });
 }
@@ -905,7 +895,7 @@ function buildTopImpacted(counties) {
         <div class="rank-county">${county.county}</div>
         <div class="rank-meta">
           ${formatNumber(county.customers_out)} customers out
-          ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : ""}
+          ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : " • No Change"}
         </div>
         ${buildSourceBadges(county.sources)}
       </div>
@@ -935,8 +925,6 @@ function buildUtilityBreakdown(data) {
     }
   }
 
-  const statewideOut = Number(data.total_customers_out || 0);
-
   const utilities = [
     {
       name: "FirstEnergy",
@@ -949,12 +937,6 @@ function buildUtilityBreakdown(data) {
       sub: "PPL county / municipality table",
       out: pplOut,
       served: pplServed
-    },
-    {
-      name: "Statewide Total",
-      sub: "Merged total across active sources",
-      out: statewideOut,
-      served: feServed + pplServed
     }
   ];
 
@@ -1042,15 +1024,11 @@ async function loadPowerData() {
       counties.reduce((sum, c) => sum + Number(c.change || 0), 0)
     );
 
-    document.getElementById("newCount").textContent = formatNumber(data.summary?.new || 0);
-    document.getElementById("increasingCount").textContent = formatNumber(data.summary?.increasing || 0);
-    document.getElementById("restoredCount").textContent = formatNumber(data.summary?.restored || 0);
-
     buildSeverityWall(data);
     buildUtilityBreakdown(data);
     buildTopImpacted(counties);
     buildTopMunicipalities(data);
-    wireCountyClicks(counties);
+    wireCountyClicks(counties, data);
 
   } catch (err) {
     const msg = `Unable to load live merged outage data: ${err.message}`;
