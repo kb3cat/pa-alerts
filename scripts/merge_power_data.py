@@ -41,6 +41,7 @@ def normalize_county_name(name: str) -> str:
 def merge_counties(fe_data, ppl_data, duq_data):
     merged = {}
 
+    # ---- FirstEnergy ----
     fe_counties = fe_data.get("county_summary", [])
     for row in fe_counties:
         county = normalize_county_name(row.get("county"))
@@ -63,6 +64,7 @@ def merge_counties(fe_data, ppl_data, duq_data):
             "duquesne": None,
         }
 
+    # ---- PPL ----
     ppl_counties = ppl_data.get("county_summary", [])
     for row in ppl_counties:
         county = normalize_county_name(row.get("county"))
@@ -86,6 +88,7 @@ def merge_counties(fe_data, ppl_data, duq_data):
 
         merged[county]["customers_out"] += ppl_out
         merged[county]["customers_served"] += ppl_served
+
         if "PPL" not in merged[county]["sources"]:
             merged[county]["sources"].append("PPL")
 
@@ -95,6 +98,7 @@ def merge_counties(fe_data, ppl_data, duq_data):
             "percent_out": row.get("percent_out"),
         }
 
+    # ---- Duquesne ----
     duq_counties = duq_data.get("county_summary", [])
     for row in duq_counties:
         county = normalize_county_name(row.get("county"))
@@ -118,6 +122,7 @@ def merge_counties(fe_data, ppl_data, duq_data):
 
         merged[county]["customers_out"] += duq_out
         merged[county]["customers_served"] += duq_served
+
         if "Duquesne Light" not in merged[county]["sources"]:
             merged[county]["sources"].append("Duquesne Light")
 
@@ -179,6 +184,44 @@ def build_summary(fe_data, county_rows):
     }, total_customers_out
 
 
+def build_utility_summary(fe_data, ppl_data, duq_data):
+    rows = []
+
+    fe_total = to_int(fe_data.get("total_customers_out") or fe_data.get("total_outages"))
+    ppl_total = to_int(ppl_data.get("total_customers_out") or ppl_data.get("total_outages"))
+    duq_total = to_int(duq_data.get("total_outages"))
+
+    if fe_total > 0:
+        rows.append({
+            "utility": "FirstEnergy",
+            "customers_out": fe_total,
+        })
+
+    if ppl_total > 0:
+        rows.append({
+            "utility": "PPL",
+            "customers_out": ppl_total,
+        })
+
+    if duq_total > 0:
+        rows.append({
+            "utility": "Duquesne Light",
+            "customers_out": duq_total,
+        })
+
+    rows.sort(key=lambda x: (-to_int(x["customers_out"]), x["utility"]))
+    return rows
+
+
+def build_municipality_summary(duq_data):
+    rows = duq_data.get("municipality_summary", [])
+    rows = sorted(
+        rows,
+        key=lambda x: (-to_int(x.get("customers_out")), x.get("municipality", "").lower())
+    )
+    return rows
+
+
 def main():
     fe_data = load_json(FE_FILE)
     ppl_data = load_json(PPL_FILE)
@@ -186,6 +229,8 @@ def main():
 
     county_rows = merge_counties(fe_data, ppl_data, duq_data)
     summary, total_customers_out = build_summary(fe_data, county_rows)
+    utility_summary = build_utility_summary(fe_data, ppl_data, duq_data)
+    municipality_summary = build_municipality_summary(duq_data)
 
     output = {
         "name": "pa_power_outages_combined",
@@ -201,7 +246,9 @@ def main():
         },
         "total_customers_out": total_customers_out,
         "summary": summary,
+        "utility_summary": utility_summary,
         "county_summary": county_rows,
+        "municipality_summary": municipality_summary,
         "items_firstenergy": fe_data.get("items", []),
         "items_ppl": ppl_data.get("items", []),
         "items_duquesne": duq_data.get("items", []),
@@ -213,6 +260,8 @@ def main():
 
     print(f"Wrote {OUTPUT_FILE}")
     print(f"County rows: {len(county_rows)}")
+    print(f"Utility rows: {len(utility_summary)}")
+    print(f"Municipality rows: {len(municipality_summary)}")
     print(f"Total customers out: {total_customers_out}")
 
 
