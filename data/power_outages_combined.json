@@ -1,25 +1,25 @@
 {
   "name": "pa_power_outages_combined",
-  "fetched_at": "2026-03-19T11:31:03Z",
+  "fetched_at": "2026-03-19T11:34:02Z",
   "sources": {
     "firstenergy_file": "data/power_outages_pa.json",
     "ppl_file": "data/power_outages_ppl.json",
     "duquesne_file": "data/power_outages_duq.json",
     "peco_file": "data/power_outages_peco.json",
-    "firstenergy_fetched_at": "2026-03-19T11:30:27Z",
-    "ppl_fetched_at": "2026-03-19T11:30:51Z",
-    "duquesne_fetched_at": "2026-03-19T11:31:02.747Z",
-    "peco_fetched_at": "2026-03-19T11:31:03Z",
+    "firstenergy_fetched_at": "2026-03-19T11:33:26Z",
+    "ppl_fetched_at": "2026-03-19T11:33:50Z",
+    "duquesne_fetched_at": "2026-03-19T11:34:01.297Z",
+    "peco_fetched_at": "2026-03-19T11:34:02Z",
     "ppl_source_last_updated": null,
     "peco_source_date_generated": null
   },
-  "total_customers_out": 1287,
+  "total_customers_out": 1328,
   "summary": {
-    "new": 0,
+    "new": 1,
     "increasing": 0,
     "decreasing": 0,
-    "unchanged": 1527,
-    "restored": 0,
+    "unchanged": 1525,
+    "restored": 1,
     "counties_over_one_percent": 0,
     "total_customers_served": 4969622,
     "total_percent_out": 0.03
@@ -27,7 +27,7 @@
   "utility_summary": [
     {
       "utility": "FirstEnergy",
-      "customers_out": 1193
+      "customers_out": 1234
     },
     {
       "utility": "PECO",
@@ -179,6 +179,25 @@
         "etr": "ETR-EXP",
         "masked": true
       }
+    },
+    {
+      "county": "Centre",
+      "customers_out": 42,
+      "customers_served": 69370,
+      "percent_out": 0.06,
+      "change": 42,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 42,
+        "customers_served": 69370,
+        "percent_out": 0.06,
+        "change": 42
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
     },
     {
       "county": "Berks",
@@ -334,33 +353,6 @@
       "ppl": null,
       "duquesne": null,
       "peco": null
-    },
-    {
-      "county": "York",
-      "customers_out": 1,
-      "customers_served": 187319,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy",
-        "PECO"
-      ],
-      "firstenergy": {
-        "customers_out": 1,
-        "customers_served": 183204,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": {
-        "customers_out": 0,
-        "customers_served": 4115,
-        "percent_out": 0.0,
-        "outages": 2,
-        "etr": "2026-03-19T11:30:00Z",
-        "masked": true
-      }
     },
     {
       "county": "Adams",
@@ -553,25 +545,6 @@
       "firstenergy": {
         "customers_out": 0,
         "customers_served": 3954,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Centre",
-      "customers_out": 0,
-      "customers_served": 69370,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 69370,
         "percent_out": 0.0,
         "change": 0
       },
@@ -1247,6 +1220,33 @@
       "ppl": null,
       "duquesne": null,
       "peco": null
+    },
+    {
+      "county": "York",
+      "customers_out": 0,
+      "customers_served": 187319,
+      "percent_out": 0.0,
+      "change": -1,
+      "sources": [
+        "FirstEnergy",
+        "PECO"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 183204,
+        "percent_out": 0.0,
+        "change": -1
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": {
+        "customers_out": 0,
+        "customers_served": 4115,
+        "percent_out": 0.0,
+        "outages": 2,
+        "etr": "2026-03-19T11:30:00Z",
+        "masked": true
+      }
     }
   ],
   "municipality_summary": [
@@ -1324,6 +1324,17 @@
       "percent_out": 1.0,
       "outages": null,
       "etr": "03/19/2026 08:00 AM",
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Bellefonte Borough",
+      "county": "Centre",
+      "customers_out": 42,
+      "customers_served": 4119,
+      "percent_out": 1.0,
+      "outages": null,
+      "etr": "03/19/2026 11:30 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -1511,17 +1522,6 @@
       "percent_out": null,
       "outages": null,
       "etr": "03/19/2026 04:00 PM",
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
-      "municipality": "Chanceford Township",
-      "county": "York",
-      "customers_out": 1,
-      "customers_served": 2505,
-      "percent_out": null,
-      "outages": null,
-      "etr": "03/19/2026 11:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -2388,17 +2388,6 @@
       "county": "Fayette",
       "customers_out": 0,
       "customers_served": 856,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
-      "municipality": "Bellefonte Borough",
-      "county": "Centre",
-      "customers_out": 0,
-      "customers_served": 4119,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -3724,6 +3713,17 @@
       "etr": null,
       "masked": true,
       "source": "PECO"
+    },
+    {
+      "municipality": "Chanceford Township",
+      "county": "York",
+      "customers_out": 0,
+      "customers_served": 2505,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
     },
     {
       "municipality": "Chapman Borough",
@@ -17291,6 +17291,38 @@
   ],
   "items_firstenergy": [
     {
+      "municipality": "Bellefonte Borough",
+      "county": "Centre",
+      "state": "PA",
+      "company": null,
+      "customers_out": 42,
+      "customers_served": 4119,
+      "percent_out": 1.0,
+      "etr": "03/19/2026 11:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 42,
+      "status": "new"
+    },
+    {
+      "municipality": "Chanceford Township",
+      "county": "York",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 2505,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 1,
+      "change": -1,
+      "status": "restored"
+    },
+    {
       "municipality": "Fairview Township",
       "county": "Erie",
       "state": "PA",
@@ -17747,22 +17779,6 @@
       "customers_served": 675,
       "percent_out": null,
       "etr": "03/19/2026 09:30 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 1,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Chanceford Township",
-      "county": "York",
-      "state": "PA",
-      "company": null,
-      "customers_out": 1,
-      "customers_served": 2505,
-      "percent_out": null,
-      "etr": "03/19/2026 11:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -24625,22 +24641,6 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 1443,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Bellefonte Borough",
-      "county": "Centre",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 4119,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
