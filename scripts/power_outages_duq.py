@@ -5,7 +5,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 
-URL = "https://dlc.datacapable.com/map/?disableLinks=&utm_source=chatgpt.com"
+URL = "https://dlc.datacapable.com/map/"
 OUTPUT_FILE = Path("data/power_outages_duq.json")
 
 
@@ -33,15 +33,37 @@ def calc_percent(out_val, served_val):
     return round((out_num / served_num) * 100, 2)
 
 
-def build_output(events_data, count_data):
-    events = events_data if isinstance(events_data, list) else []
-    counts = count_data if isinstance(count_data, list) else []
+def is_valid_event_list(data):
+    if not isinstance(data, list) or not data:
+        return False
+    sample = data[0]
+    return isinstance(sample, dict) and (
+        "numPeople" in sample
+        or "status" in sample
+        or "additionalProperties" in sample
+        or "latitude" in sample
+        or "longitude" in sample
+    )
 
+
+def is_valid_count_list(data):
+    if not isinstance(data, list) or not data:
+        return False
+    sample = data[0]
+    return isinstance(sample, dict) and (
+        "type" in sample
+        or "customersAffected" in sample
+        or "customersServed" in sample
+        or "name" in sample
+    )
+
+
+def extract_events(events_data):
     items = []
     counties_from_items = {}
     municipalities_from_items = {}
 
-    for e in events:
+    for e in events_data:
         props = e.get("additionalProperties") or []
 
         def get_prop(key):
@@ -75,11 +97,15 @@ def build_output(events_data, count_data):
         counties_from_items[county] = counties_from_items.get(county, 0) + outages
         municipalities_from_items[municipality] = municipalities_from_items.get(municipality, 0) + outages
 
+    return items, counties_from_items, municipalities_from_items
+
+
+def extract_counts(count_data):
     county_summary = []
     municipality_summary = []
     zip_summary = []
 
-    for row in counts:
+    for row in count_data:
         row_type = str(row.get("type") or "").upper()
         name = str(row.get("name") or "").strip()
         customers_affected = to_int(row.get("customersAffected"))
@@ -114,12 +140,19 @@ def build_output(events_data, count_data):
     municipality_summary.sort(key=lambda x: (-to_int(x["customers_out"]), x["municipality"]))
     zip_summary.sort(key=lambda x: (-to_int(x["customers_out"]), x["zip"]))
 
+    return county_summary, municipality_summary, zip_summary
+
+
+def build_output(events_data, count_data, fetched_at):
+    items, counties_from_items, municipalities_from_items = extract_events(events_data)
+    county_summary, municipality_summary, zip_summary = extract_counts(count_data)
+
     total_outages = sum(to_int(i.get("outages")) for i in items)
 
-    output = {
+    return {
         "name": "power_outages_duq",
         "utility": "Duquesne Light",
-        "fetched_at": None,
+        "fetched_at": fetched_at,
         "total_outages": total_outages,
         "counties": counties_from_items,
         "municipalities": municipalities_from_items,
@@ -130,13 +163,10 @@ def build_output(events_data, count_data):
         "items": items,
     }
 
-    return output
-
 
 def main():
-    events_data = None
-    count_data = None
-    fetched_at = None
+    captured_events = None
+    captured_count = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -147,86 +177,82 @@ def main():
         page = context.new_page()
 
         def handle_response(response):
-            nonlocal events_data, count_data
+            nonlocal captured_events, captured_count
             url = response.url
 
             try:
-                if "/datacapable/v2/p/dlc/map/events" in url:
+                if "utilisocial.io/datacapable/v2/p/dlc/map/events" in url:
                     data = response.json()
-                    if isinstance(data, list):
-                        events_data = data
+                    if is_valid_event_list(data):
+                        captured_events = data
 
-                if "/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY" in url:
+                if "utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY" in url:
                     data = response.json()
-                    if isinstance(data, list):
-                        count_data = data
+                    if is_valid_count_list(data):
+                        captured_count = data
             except Exception:
                 pass
 
         page.on("response", handle_response)
 
-        page.goto(URL, wait_until="networkidle", timeout=120000)
+        page.goto(URL, wait_until="domcontentloaded", timeout=120000)
+        page.wait_for_timeout(8000)
+
+        # Browser-context fetch fallback for exact endpoints
+        events_data = None
+        count_data = None
 
         try:
-            page.locator("text=COUNTY").click(timeout=10000)
-        except Exception:
-            pass
-
-        try:
-            page.wait_for_response(
-                lambda r: "count?types=ZIP,COUNTY,MUNICIPALITY" in r.url,
-                timeout=15000
+            events_data = page.evaluate(
+                """
+                async () => {
+                    const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/events", {
+                        credentials: "include"
+                    });
+                    const data = await r.json();
+                    return data;
+                }
+                """
             )
         except Exception:
-            print("Count API not detected during wait")
+            events_data = None
 
-        page.wait_for_timeout(2000)
-
-        if events_data is None:
-            try:
-                events_data = page.evaluate(
-                    """
-                    async () => {
-                        const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/events", {
-                            credentials: "include"
-                        });
-                        return await r.json();
-                    }
-                    """
-                )
-            except Exception:
-                events_data = []
-
-        if count_data is None:
-            try:
-                count_data = page.evaluate(
-                    """
-                    async () => {
-                        const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY", {
-                            credentials: "include"
-                        });
-                        return await r.json();
-                    }
-                    """
-                )
-            except Exception:
-                count_data = []
+        try:
+            count_data = page.evaluate(
+                """
+                async () => {
+                    const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY", {
+                        credentials: "include"
+                    });
+                    const data = await r.json();
+                    return data;
+                }
+                """
+            )
+        except Exception:
+            count_data = None
 
         fetched_at = page.evaluate("() => new Date().toISOString()")
 
-        print("EVENTS captured:", isinstance(events_data, list), len(events_data) if isinstance(events_data, list) else 0)
-        print("COUNT captured:", isinstance(count_data, list), len(count_data) if isinstance(count_data, list) else 0)
-
         browser.close()
 
-    if not isinstance(events_data, list):
-        raise RuntimeError("Failed to capture Duquesne events data")
+    # Prefer in-page fetch results if valid; otherwise fall back to captured responses
+    if not is_valid_event_list(events_data):
+        events_data = captured_events
+    if not is_valid_count_list(count_data):
+        count_data = captured_count
 
-    if not isinstance(count_data, list):
-        raise RuntimeError("Failed to capture Duquesne count data")
+    print("EVENTS valid:", is_valid_event_list(events_data), "rows:", len(events_data) if isinstance(events_data, list) else 0)
+    print("COUNT valid:", is_valid_count_list(count_data), "rows:", len(count_data) if isinstance(count_data, list) else 0)
 
-    output = build_output(events_data, count_data)
-    output["fetched_at"] = fetched_at
+    if not is_valid_event_list(events_data):
+        raise RuntimeError("Failed to capture valid Duquesne events data")
+
+    if not is_valid_count_list(count_data):
+        print("Warning: valid count data not captured; summaries will be empty")
+        count_data = []
+
+    output = build_output(events_data, count_data, fetched_at)
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
