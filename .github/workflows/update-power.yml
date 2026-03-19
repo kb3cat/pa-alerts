@@ -50,6 +50,11 @@ jobs:
         continue-on-error: true
         run: python3 scripts/power_outages_duq.py
 
+      - name: Run PECO outage script
+        id: peco
+        continue-on-error: true
+        run: python3 scripts/power_outages_peco.py
+
       - name: Merge Utilities
         id: merge
         continue-on-error: true
@@ -110,6 +115,12 @@ jobs:
         if: steps.duq.outcome == 'failure'
         run: |
           echo "Duquesne script failed"
+          exit 1
+
+      - name: Fail workflow if PECO failed
+        if: steps.peco.outcome == 'failure'
+        run: |
+          echo "PECO script failed"
           exit 1
 
       - name: Fail workflow if merge failed
