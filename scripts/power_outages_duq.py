@@ -136,6 +136,7 @@ def build_output(events_data, count_data):
 def main():
     events_data = None
     count_data = None
+    fetched_at = None
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -171,20 +172,25 @@ def main():
         except Exception:
             pass
 
-       page.wait_for_response(
-    lambda r: "count?types=ZIP,COUNTY,MUNICIPALITY" in r.url,
-    timeout=15000
-)
+        try:
+            page.wait_for_response(
+                lambda r: "count?types=ZIP,COUNTY,MUNICIPALITY" in r.url,
+                timeout=15000
+            )
+        except Exception:
+            print("Count API not detected during wait")
+
+        page.wait_for_timeout(2000)
 
         if events_data is None:
             try:
                 events_data = page.evaluate(
                     """
                     async () => {
-                      const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/events", {
-                        credentials: "include"
-                      });
-                      return await r.json();
+                        const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/events", {
+                            credentials: "include"
+                        });
+                        return await r.json();
                     }
                     """
                 )
@@ -196,10 +202,10 @@ def main():
                 count_data = page.evaluate(
                     """
                     async () => {
-                      const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY", {
-                        credentials: "include"
-                      });
-                      return await r.json();
+                        const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY", {
+                            credentials: "include"
+                        });
+                        return await r.json();
                     }
                     """
                 )
@@ -207,6 +213,9 @@ def main():
                 count_data = []
 
         fetched_at = page.evaluate("() => new Date().toISOString()")
+
+        print("EVENTS captured:", isinstance(events_data, list), len(events_data) if isinstance(events_data, list) else 0)
+        print("COUNT captured:", isinstance(count_data, list), len(count_data) if isinstance(count_data, list) else 0)
 
         browser.close()
 
