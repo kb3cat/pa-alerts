@@ -21,6 +21,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -40,7 +45,12 @@ jobs:
         continue-on-error: true
         run: python3 scripts/power_outages_ppl.py
 
-      - name: Merge FE + PPL
+      - name: Run Duquesne outage script
+        id: duq
+        continue-on-error: true
+        run: node scripts/power_outages_duq.js
+
+      - name: Merge Utilities
         id: merge
         continue-on-error: true
         run: python3 scripts/merge_power_data.py
