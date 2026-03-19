@@ -7,6 +7,7 @@ from pathlib import Path
 
 FE_FILE = Path("data/power_outages_pa.json")
 PPL_FILE = Path("data/power_outages_ppl.json")
+DUQ_FILE = Path("data/power_outages_duq.json")
 OUTPUT_FILE = Path("data/power_outages_combined.json")
 
 
@@ -37,9 +38,10 @@ def normalize_county_name(name: str) -> str:
     return str(name or "").strip()
 
 
-def merge_counties(fe_data, ppl_data):
+def merge_counties(fe_data, ppl_data, duq_data):
     merged = {}
 
+    # ---- FirstEnergy ----
     fe_counties = fe_data.get("county_summary", [])
     for row in fe_counties:
         county = normalize_county_name(row.get("county"))
@@ -59,8 +61,10 @@ def merge_counties(fe_data, ppl_data):
                 "change": to_int(row.get("change")),
             },
             "ppl": None,
+            "duquesne": None,
         }
 
+    # ---- PPL ----
     ppl_counties = ppl_data.get("county_summary", [])
     for row in ppl_counties:
         county = normalize_county_name(row.get("county"))
@@ -79,6 +83,7 @@ def merge_counties(fe_data, ppl_data):
                 "sources": [],
                 "firstenergy": None,
                 "ppl": None,
+                "duquesne": None,
             }
 
         merged[county]["customers_out"] += ppl_out
@@ -90,6 +95,37 @@ def merge_counties(fe_data, ppl_data):
             "customers_out": ppl_out,
             "customers_served": ppl_served,
             "percent_out": row.get("percent_out"),
+        }
+
+    # ---- Duquesne ----
+    duq_counties = duq_data.get("counties", {})
+    for county, outages in duq_counties.items():
+        county = normalize_county_name(county)
+        if not county:
+            continue
+
+        duq_out = to_int(outages)
+
+        if county not in merged:
+            merged[county] = {
+                "county": county,
+                "customers_out": 0,
+                "customers_served": 0,
+                "change": 0,
+                "sources": [],
+                "firstenergy": None,
+                "ppl": None,
+                "duquesne": None,
+            }
+
+        merged[county]["customers_out"] += duq_out
+        if "Duquesne Light" not in merged[county]["sources"]:
+            merged[county]["sources"].append("Duquesne Light")
+
+        merged[county]["duquesne"] = {
+            "customers_out": duq_out,
+            "customers_served": None,
+            "percent_out": None,
         }
 
     county_rows = []
@@ -107,6 +143,7 @@ def merge_counties(fe_data, ppl_data):
             "sources": row.get("sources", []),
             "firstenergy": row.get("firstenergy"),
             "ppl": row.get("ppl"),
+            "duquesne": row.get("duquesne"),
         })
 
     county_rows.sort(
@@ -146,8 +183,9 @@ def build_summary(fe_data, county_rows):
 def main():
     fe_data = load_json(FE_FILE)
     ppl_data = load_json(PPL_FILE)
+    duq_data = load_json(DUQ_FILE)
 
-    county_rows = merge_counties(fe_data, ppl_data)
+    county_rows = merge_counties(fe_data, ppl_data, duq_data)
     summary, total_customers_out = build_summary(fe_data, county_rows)
 
     output = {
@@ -156,8 +194,10 @@ def main():
         "sources": {
             "firstenergy_file": str(FE_FILE),
             "ppl_file": str(PPL_FILE),
+            "duquesne_file": str(DUQ_FILE),
             "firstenergy_fetched_at": fe_data.get("fetched_at"),
             "ppl_fetched_at": ppl_data.get("fetched_at"),
+            "duquesne_fetched_at": duq_data.get("fetched_at"),
             "ppl_source_last_updated": ppl_data.get("source_last_updated"),
         },
         "total_customers_out": total_customers_out,
@@ -165,6 +205,7 @@ def main():
         "county_summary": county_rows,
         "items_firstenergy": fe_data.get("items", []),
         "items_ppl": ppl_data.get("items", []),
+        "items_duquesne": duq_data.get("items", []),
     }
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
