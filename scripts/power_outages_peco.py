@@ -34,15 +34,6 @@ def to_int(v):
             return 0
 
 
-def to_float(v):
-    try:
-        if isinstance(v, dict):
-            return float(v.get("val", 0))
-        return float(v)
-    except Exception:
-        return 0.0
-
-
 def has_mask(v):
     return isinstance(v, dict) and "mask" in v
 
@@ -59,8 +50,64 @@ def percent_display(percent_value, masked=False):
     return f"{percent_value:.2f}%"
 
 
+def count_display(count_value, masked=False):
+    if masked:
+        return "<5"
+    return str(int(count_value or 0))
+
+
 def is_philly_zip(name):
-    return name.isdigit() and name.startswith("19") and len(name) == 5
+    return str(name).isdigit() and str(name).startswith("19") and len(str(name)) == 5
+
+
+def build_county_row(county):
+    county_name = county.get("name", "").title()
+    county_masked = has_mask(county.get("cust_a")) or has_mask(county.get("percent_cust_a"))
+
+    # For masked county rows, do not trust the raw customer count.
+    county_out = 0 if county_masked else to_int(county.get("cust_a"))
+    county_served = to_int(county.get("cust_s"))
+    county_outages = to_int(county.get("n_out"))
+    county_percent = calc_percent(county_out, county_served)
+
+    return {
+        "name": county_name,
+        "customers_affected": county_out,
+        "customers_affected_display": count_display(county_out, county_masked),
+        "customers_served": county_served,
+        "percent_affected": county_percent,
+        "percent_affected_display": percent_display(county_percent, county_masked),
+        "outages": county_outages,
+        "etr": county.get("etr"),
+        "masked": county_masked,
+    }
+
+
+def build_muni_row(muni, county_name):
+    name_raw = muni.get("name", "")
+    name = name_raw.title()
+
+    masked = has_mask(muni.get("cust_a")) or has_mask(muni.get("percent_cust_a"))
+
+    # For masked muni rows, do not trust the raw customer count.
+    cust = 0 if masked else to_int(muni.get("cust_a"))
+    served = to_int(muni.get("cust_s"))
+    outages = to_int(muni.get("n_out"))
+    percent = calc_percent(cust, served)
+
+    return {
+        "name": name,
+        "county": county_name,
+        "customers_affected": cust,
+        "customers_affected_display": count_display(cust, masked),
+        "customers_served": served,
+        "percent_affected": percent,
+        "percent_affected_display": percent_display(percent, masked),
+        "outages": outages,
+        "etr": muni.get("etr"),
+        "masked": masked,
+        "_raw_name": name_raw,
+    }
 
 
 def main():
@@ -75,67 +122,46 @@ def main():
     philly_total = 0
     philly_served = 0
     philly_outages = 0
+    philly_masked = False
 
     for county in file_data.get("areas", []):
-        county_name = county.get("name", "").title()
-
-        county_out = to_int(county.get("cust_a"))
-        county_served = to_int(county.get("cust_s"))
-        county_outages = to_int(county.get("n_out"))
-        county_masked = has_mask(county.get("cust_a")) or has_mask(county.get("percent_cust_a"))
-        county_percent = calc_percent(county_out, county_served)
-
-        counties.append({
-            "name": county_name,
-            "customers_affected": county_out,
-            "customers_served": county_served,
-            "percent_affected": county_percent,
-            "percent_affected_display": percent_display(county_percent, county_masked),
-            "outages": county_outages,
-            "etr": county.get("etr"),
-            "masked": county_masked,
-        })
+        county_row = build_county_row(county)
+        county_name = county_row["name"]
+        counties.append(county_row)
 
         for muni in county.get("areas", []):
-            name_raw = muni.get("name", "")
-            name = name_raw.title()
+            muni_row = build_muni_row(muni, county_name)
+            name_raw = muni_row.pop("_raw_name", "")
 
-            cust = to_int(muni.get("cust_a"))
-            served = to_int(muni.get("cust_s"))
-            outages = to_int(muni.get("n_out"))
-            masked = has_mask(muni.get("cust_a")) or has_mask(muni.get("percent_cust_a"))
-            percent = calc_percent(cust, served)
-
+            # Aggregate Philadelphia ZIPs into one Philadelphia row
             if county_name == "Philadelphia" and is_philly_zip(name_raw):
-                philly_total += cust
-                philly_served += served
-                philly_outages += outages
+                philly_served += muni_row["customers_served"]
+                philly_outages += muni_row["outages"]
+
+                if muni_row["masked"]:
+                    philly_masked = True
+                else:
+                    philly_total += muni_row["customers_affected"]
+
                 continue
 
-            municipalities.append({
-                "name": name,
-                "county": county_name,
-                "customers_affected": cust,
-                "customers_served": served,
-                "percent_affected": percent,
-                "percent_affected_display": percent_display(percent, masked),
-                "outages": outages,
-                "etr": muni.get("etr"),
-                "masked": masked,
-            })
+            municipalities.append(muni_row)
 
-    if philly_total > 0:
+    # Add aggregated Philadelphia row
+    if philly_served > 0 or philly_outages > 0 or philly_total > 0:
         philly_percent = calc_percent(philly_total, philly_served)
+
         municipalities.append({
             "name": "Philadelphia",
             "county": "Philadelphia",
             "customers_affected": philly_total,
+            "customers_affected_display": count_display(philly_total, philly_masked),
             "customers_served": philly_served,
             "percent_affected": philly_percent,
-            "percent_affected_display": f"{philly_percent:.2f}%",
+            "percent_affected_display": percent_display(philly_percent, philly_masked),
             "outages": philly_outages,
             "etr": None,
-            "masked": False,
+            "masked": philly_masked,
         })
 
     counties.sort(key=lambda x: (-x["customers_affected"], x["name"]))
@@ -152,6 +178,7 @@ def main():
         "utility": {
             "name": "PECO",
             "customers_affected": total_out,
+            "customers_affected_display": str(total_out),
             "customers_served": total_served,
             "outages": to_int(totals_item.get("total_outages")),
             "percent_affected": total_percent,
