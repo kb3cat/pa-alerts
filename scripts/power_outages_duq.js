@@ -2,7 +2,7 @@
 import fs from "fs/promises";
 
 const EVENTS_URL = "https://utilisocial.io/datacapable/v2/p/dlc/map/events";
-const COUNTS_URL = "https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY";
+const COUNT_URL = "https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY";
 
 function getProp(props, key) {
   const found = (props || []).find((p) => p.property === key);
@@ -23,60 +23,13 @@ function calcPercent(out, served) {
   return served > 0 ? Number(((out / served) * 100).toFixed(2)) : null;
 }
 
-function extractGroupedCounts(payload) {
-  // Supports a few possible response shapes.
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.results)) return payload.results;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.items)) return payload.items;
-  return [];
-}
-
-function pickGroupType(row) {
-  return String(
-    row?.type ??
-    row?.groupType ??
-    row?.category ??
-    row?.name ??
-    ""
-  ).toUpperCase();
-}
-
-function pickLabel(row) {
-  return String(
-    row?.label ??
-    row?.key ??
-    row?.value ??
-    row?.name ??
-    row?.title ??
-    row?.group ??
-    ""
-  ).trim();
-}
-
-function pickCustomersOut(row) {
-  return toInt(
-    row?.customersOut ??
-    row?.customers_out ??
-    row?.numPeople ??
-    row?.out ??
-    row?.count
-  );
-}
-
-function pickCustomersServed(row) {
-  return toInt(
-    row?.customersServed ??
-    row?.customers_served ??
-    row?.served
-  );
-}
-
 async function fetchJson(url) {
   const res = await fetch(url, {
     headers: {
       "accept": "application/json, text/plain, */*",
-      "user-agent": "PennAlerts Power Outages Duquesne Script"
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "referer": "https://dlc.datacapable.com/",
+      "origin": "https://dlc.datacapable.com"
     }
   });
 
@@ -89,12 +42,13 @@ async function fetchJson(url) {
 
 async function main() {
   try {
-    const [eventsData, countsData] = await Promise.all([
+    const [eventsData, countData] = await Promise.all([
       fetchJson(EVENTS_URL),
-      fetchJson(COUNTS_URL)
+      fetchJson(COUNT_URL)
     ]);
 
     const events = Array.isArray(eventsData) ? eventsData : [];
+    const counts = Array.isArray(countData) ? countData : [];
 
     const items = events.map((e) => {
       const props = e.additionalProperties || [];
@@ -116,62 +70,46 @@ async function main() {
 
     const totalOutages = items.reduce((sum, item) => sum + toInt(item.outages), 0);
 
-    // Municipalities from events
-    const municipalitiesAgg = {};
+    const counties = {};
+    const municipalities = {};
+
     for (const item of items) {
-      const muni = item.municipality || "UNKNOWN";
-      municipalitiesAgg[muni] = (municipalitiesAgg[muni] || 0) + toInt(item.outages);
+      counties[item.county] = (counties[item.county] || 0) + toInt(item.outages);
+      municipalities[item.municipality] = (municipalities[item.municipality] || 0) + toInt(item.outages);
     }
 
-    // Parse grouped counts
-    const grouped = extractGroupedCounts(countsData);
-
     const countySummary = [];
-    const countiesAgg = {};
-    const zipSummary = [];
     const municipalitySummary = [];
+    const zipSummary = [];
 
-    for (const row of grouped) {
-      const type = pickGroupType(row);
-      const label = normalizeName(pickLabel(row));
-      const out = pickCustomersOut(row);
-      const served = pickCustomersServed(row);
+    for (const row of counts) {
+      const type = String(row.type || "").toUpperCase();
+      const name = String(row.name || "").trim();
+      const affected = toInt(row.customersAffected);
+      const served = toInt(row.customersServed);
 
-      if (!label) continue;
+      if (!name || !type) continue;
 
       if (type === "COUNTY") {
         countySummary.push({
-          county: label,
-          customers_out: out,
+          county: normalizeName(name),
+          customers_out: affected,
           customers_served: served,
-          percent_out: calcPercent(out, served)
-        });
-        countiesAgg[label] = out;
-      } else if (type === "ZIP") {
-        zipSummary.push({
-          zip: String(pickLabel(row)).trim(),
-          customers_out: out,
-          customers_served: served,
-          percent_out: calcPercent(out, served)
+          percent_out: calcPercent(affected, served)
         });
       } else if (type === "MUNICIPALITY") {
         municipalitySummary.push({
-          municipality: label,
-          customers_out: out,
+          municipality: normalizeName(name),
+          customers_out: affected,
           customers_served: served,
-          percent_out: calcPercent(out, served)
+          percent_out: calcPercent(affected, served)
         });
-      }
-    }
-
-    // Fallback if grouped municipality counts are absent
-    if (municipalitySummary.length === 0) {
-      for (const [municipality, outages] of Object.entries(municipalitiesAgg)) {
-        municipalitySummary.push({
-          municipality,
-          customers_out: outages,
-          customers_served: null,
-          percent_out: null
+      } else if (type === "ZIP") {
+        zipSummary.push({
+          zip: name,
+          customers_out: affected,
+          customers_served: served,
+          percent_out: calcPercent(affected, served)
         });
       }
     }
@@ -199,8 +137,8 @@ async function main() {
       utility: "Duquesne Light",
       fetched_at: new Date().toISOString(),
       total_outages: totalOutages,
-      counties: countiesAgg,
-      municipalities: municipalitiesAgg,
+      counties,
+      municipalities,
       county_summary: countySummary,
       municipality_summary: municipalitySummary,
       zip_summary: zipSummary,
