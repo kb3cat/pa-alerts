@@ -858,11 +858,11 @@ function buildSeverityWall(data) {
       </div>
       <div class="overview-chip">
         <div class="overview-chip-label">Highest % County</div>
-        <div class="overview-chip-value">${topByPercent ? titleCase(topByPercent.county) : "None"}</div>
+        <div class="overview-chip-value">${topByPercent ? `${titleCase(topByPercent.county)} (${topByPercent.customers_out.toLocaleString()})` : "None"}</div>
       </div>
       <div class="overview-chip">
         <div class="overview-chip-label">Largest Outage Count</div>
-        <div class="overview-chip-value">${topByOut ? titleCase(topByOut.county) : "None"}</div>
+        <div class="overview-chip-value">${topByOut ? `${titleCase(topByOut.county)} (${topByOut.customers_out.toLocaleString()})` : "None"}</div>
       </div>
     </div>
 
