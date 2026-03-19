@@ -650,6 +650,12 @@ function formatPercent(value) {
   return `${Number(value).toFixed(1)}%`;
 }
 
+function titleCase(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function severityClass(percent) {
   const p = Number(percent);
   if (Number.isNaN(p) || p < 1) return "sev-minor";
@@ -743,23 +749,12 @@ function renderCountyDetail(county, data) {
   const ppl = county.ppl || null;
   const duq = county.duquesne || null;
 
-  const mergedMunicipalities = [
-    ...(Array.isArray(data.municipality_summary) ? data.municipality_summary : [])
-      .filter(row => Number(row.customers_out || 0) > 0)
-      .map(row => ({
-        municipality: row.municipality,
-        customers_out: Number(row.customers_out || 0),
-        customers_served: Number(row.customers_served || 0),
-        source: "Merged"
-      }))
-  ];
-
-  title.textContent = county.county;
+  title.textContent = titleCase(county.county);
 
   body.innerHTML = `
     <div class="county-detail-grid">
       <div class="county-detail-card">
-        <div class="county-detail-label">${escapeHtml(county.county)} Total</div>
+        <div class="county-detail-label">${escapeHtml(titleCase(county.county))} Total</div>
         <div class="county-detail-value">${formatNumber(county.customers_out)}</div>
         <div class="county-detail-sub">
           ${formatPercent(county.percent_out)} out
@@ -831,11 +826,11 @@ function buildSeverityWall(data) {
       </div>
       <div class="overview-chip">
         <div class="overview-chip-label">Highest % County</div>
-        <div class="overview-chip-value">${topByPercent ? topByPercent.county : "None"}</div>
+        <div class="overview-chip-value">${topByPercent ? titleCase(topByPercent.county) : "None"}</div>
       </div>
       <div class="overview-chip">
         <div class="overview-chip-label">Largest Outage Count</div>
-        <div class="overview-chip-value">${topByOut ? topByOut.county : "None"}</div>
+        <div class="overview-chip-value">${topByOut ? titleCase(topByOut.county) : "None"}</div>
       </div>
     </div>
 
@@ -843,7 +838,7 @@ function buildSeverityWall(data) {
       ${wallRows.map(county => `
         <div class="county-tile county-clickable ${tileClass(county.percent_out)}" data-county-name="${escapeHtml(county.county)}">
           <div class="county-tile-top">
-            <div class="county-name">${county.county}</div>
+            <div class="county-name">${titleCase(county.county)}</div>
             <div class="county-percent">${formatPercent(county.percent_out)}</div>
           </div>
           <div class="county-out">${formatNumber(county.customers_out)}</div>
@@ -877,7 +872,7 @@ function buildTopImpacted(counties) {
   target.innerHTML = active.map(county => `
     <div class="rank-row county-clickable" data-county-name="${escapeHtml(county.county)}">
       <div class="rank-left">
-        <div class="rank-county">${county.county}</div>
+        <div class="rank-county">${titleCase(county.county)}</div>
         <div class="rank-meta">
           ${formatNumber(county.customers_out)} customers out
           ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : " • No Change"}
@@ -891,8 +886,28 @@ function buildTopImpacted(counties) {
 
 function buildUtilityBreakdown(data) {
   const target = document.getElementById("utilityBreakdown");
-  const utilities = Array.isArray(data.utility_summary) ? data.utility_summary : [];
   const statewideOut = Number(data.total_customers_out || 0);
+
+  let utilities = Array.isArray(data.utility_summary) ? data.utility_summary : [];
+
+  if (!utilities.length) {
+    const counties = Array.isArray(data.county_summary) ? data.county_summary : [];
+    let feOut = 0;
+    let pplOut = 0;
+    let duqOut = 0;
+
+    for (const county of counties) {
+      if (county.firstenergy) feOut += Number(county.firstenergy.customers_out || 0);
+      if (county.ppl) pplOut += Number(county.ppl.customers_out || 0);
+      if (county.duquesne) duqOut += Number(county.duquesne.customers_out || 0);
+    }
+
+    utilities = [
+      { utility: "FirstEnergy", customers_out: feOut },
+      { utility: "PPL", customers_out: pplOut },
+      { utility: "Duquesne Light", customers_out: duqOut }
+    ].filter(u => Number(u.customers_out || 0) > 0);
+  }
 
   if (!utilities.length) {
     target.innerHTML = `<div class="empty">No utility totals in merged payload.</div>`;
@@ -919,7 +934,17 @@ function buildUtilityBreakdown(data) {
 
 function buildTopMunicipalities(data) {
   const target = document.getElementById("topMunicipalities");
-  const rows = Array.isArray(data.municipality_summary) ? data.municipality_summary : [];
+  let rows = Array.isArray(data.municipality_summary) ? data.municipality_summary : [];
+
+  if (!rows.length) {
+    const duqRows = Array.isArray(data.items_duquesne) ? data.items_duquesne : [];
+    rows = duqRows.map(row => ({
+      municipality: row.municipality,
+      customers_out: Number(row.outages || 0),
+      customers_served: 0,
+      percent_out: null
+    }));
+  }
 
   const top = [...rows]
     .filter(row => Number(row.customers_out || 0) > 0)
@@ -934,9 +959,11 @@ function buildTopMunicipalities(data) {
   target.innerHTML = top.map(row => `
     <div class="table-row">
       <div class="table-left">
-        <div class="table-main">${escapeHtml(row.municipality)}</div>
+        <div class="table-main">${escapeHtml(titleCase(row.municipality))}</div>
         <div class="table-sub">
-          ${formatNumber(row.customers_served || 0)} served • ${formatPercent(row.percent_out)} out
+          ${Number(row.customers_served || 0) > 0
+            ? `${formatNumber(row.customers_served)} served • ${formatPercent(row.percent_out)} out`
+            : `Active municipality outage`}
         </div>
         <div class="source-badges">
           <span class="source-badge">Merged</span>
