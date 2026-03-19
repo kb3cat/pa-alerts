@@ -116,7 +116,6 @@ def extract_counts(count_data):
         if not name or not row_type:
             continue
 
-        # Keep only rows with actual outages
         if customers_affected <= 0:
             continue
 
