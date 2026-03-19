@@ -272,14 +272,55 @@ def build_utility_summary(fe_data, ppl_data, duq_data, peco_data):
     return rows
 
 
-def build_municipality_summary(duq_data, peco_data):
+def build_municipality_summary(fe_data, ppl_data, duq_data, peco_data):
     rows = []
 
+    # ---- FirstEnergy municipality rows ----
+    for row in fe_data.get("municipality_summary", []):
+        rows.append({
+            "municipality": row.get("municipality"),
+            "county": row.get("county"),
+            "customers_out": to_int(row.get("customers_out")),
+            "customers_served": to_int(row.get("customers_served")),
+            "percent_out": row.get("percent_out"),
+            "outages": None,
+            "etr": row.get("etr"),
+            "masked": False,
+            "source": "FirstEnergy",
+        })
+
+    # ---- PPL municipality-like rows ----
+    # PPL appears to use the field name "county" for locality names like Bethlehem.
+    for row in ppl_data.get("municipality_summary", []):
+        rows.append({
+            "municipality": row.get("municipality") or row.get("county"),
+            "county": None,
+            "customers_out": to_int(row.get("customers_out")),
+            "customers_served": to_int(row.get("customers_served")),
+            "percent_out": row.get("percent_out"),
+            "outages": None,
+            "etr": row.get("etr"),
+            "masked": False,
+            "source": "PPL",
+        })
+
+    # ---- Duquesne municipality rows ----
     for row in duq_data.get("municipality_summary", []):
         item = dict(row)
         item.setdefault("source", "Duquesne Light")
-        rows.append(item)
+        rows.append({
+            "municipality": item.get("municipality"),
+            "county": item.get("county"),
+            "customers_out": to_int(item.get("customers_out")),
+            "customers_served": to_int(item.get("customers_served")),
+            "percent_out": item.get("percent_out"),
+            "outages": item.get("outages"),
+            "etr": item.get("etr"),
+            "masked": False,
+            "source": item.get("source"),
+        })
 
+    # ---- PECO municipality rows ----
     for row in peco_data.get("municipalities", []):
         rows.append({
             "municipality": row.get("name"),
@@ -295,7 +336,10 @@ def build_municipality_summary(duq_data, peco_data):
 
     rows = sorted(
         rows,
-        key=lambda x: (-to_int(x.get("customers_out")), x.get("municipality", "").lower())
+        key=lambda x: (
+            -to_int(x.get("customers_out")),
+            (x.get("municipality") or "").lower()
+        )
     )
     return rows
 
@@ -309,7 +353,7 @@ def main():
     county_rows = merge_counties(fe_data, ppl_data, duq_data, peco_data)
     summary, total_customers_out = build_summary(fe_data, county_rows)
     utility_summary = build_utility_summary(fe_data, ppl_data, duq_data, peco_data)
-    municipality_summary = build_municipality_summary(duq_data, peco_data)
+    municipality_summary = build_municipality_summary(fe_data, ppl_data, duq_data, peco_data)
 
     output = {
         "name": "pa_power_outages_combined",
