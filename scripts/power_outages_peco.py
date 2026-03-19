@@ -61,6 +61,10 @@ def pretty_name(name: str) -> str:
     return name.title() if name.isupper() else name
 
 
+def is_philly_zip(name: str) -> bool:
+    return name.isdigit() and name.startswith("19") and len(name) == 5
+
+
 def parse_totals(totals_data: dict, report_data: dict) -> dict:
     summary = totals_data.get("summaryFileData", {})
     totals_list = summary.get("totals", [])
@@ -91,6 +95,20 @@ def parse_report(report_data: dict) -> tuple[list, list]:
     counties = []
     municipalities = []
 
+    philly_aggregate = {
+        "name": "Philadelphia",
+        "raw_name": "PHILADELPHIA",
+        "county": "Philadelphia",
+        "customers_affected": 0,
+        "customers_affected_display": "0",
+        "customers_served": 0,
+        "percent_affected": 0,
+        "percent_affected_display": "0.00%",
+        "outages": 0,
+        "etr": None,
+        "masked": False,
+    }
+
     for county in areas:
         county_name_raw = (county.get("name") or "").strip()
         county_name = pretty_name(county_name_raw)
@@ -120,6 +138,21 @@ def parse_report(report_data: dict) -> tuple[list, list]:
             muni_cust_a = muni.get("cust_a", {"val": 0})
             muni_percent = muni.get("percent_cust_a", {"val": 0})
 
+            # Aggregate Philadelphia ZIP-code buckets into one Philadelphia row
+            if county_name == "Philadelphia" and is_philly_zip(muni_name_raw):
+                philly_aggregate["customers_affected"] += num_val(muni_cust_a)
+                philly_aggregate["customers_served"] += muni.get("cust_s", 0)
+                philly_aggregate["outages"] += muni.get("n_out", 0)
+
+                # Keep the latest non-null ETR we see
+                if muni.get("etr"):
+                    philly_aggregate["etr"] = muni.get("etr")
+
+                if has_mask(muni_cust_a):
+                    philly_aggregate["masked"] = True
+
+                continue
+
             municipalities.append(
                 {
                     "name": muni_name,
@@ -135,6 +168,24 @@ def parse_report(report_data: dict) -> tuple[list, list]:
                     "masked": has_mask(muni_cust_a),
                 }
             )
+
+    # Add aggregated Philadelphia entry if there are active affected customers
+    if philly_aggregate["customers_affected"] > 0:
+        if philly_aggregate["customers_served"] > 0:
+            percent = (philly_aggregate["customers_affected"] / philly_aggregate["customers_served"]) * 100
+        else:
+            percent = 0
+
+        philly_aggregate["percent_affected"] = percent
+
+        if philly_aggregate["masked"]:
+            philly_aggregate["customers_affected_display"] = "Less than 5"
+            philly_aggregate["percent_affected_display"] = "Less than 5%"
+        else:
+            philly_aggregate["customers_affected_display"] = str(philly_aggregate["customers_affected"])
+            philly_aggregate["percent_affected_display"] = f"{percent:.2f}%"
+
+        municipalities.append(philly_aggregate)
 
     counties.sort(key=lambda x: (-x["customers_affected"], -x["outages"], x["name"]))
     municipalities.sort(key=lambda x: (-x["customers_affected"], -x["outages"], x["county"], x["name"]))
