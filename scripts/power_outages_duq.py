@@ -6,6 +6,8 @@ from playwright.sync_api import sync_playwright
 
 
 URL = "https://dlc.datacapable.com/map/"
+EVENTS_URL = "https://utilisocial.io/datacapable/v2/p/dlc/map/events"
+COUNT_URL = "https://utilisocial.io/datacapable/v2/p/dlc/map/events/count?types=ZIP,COUNTY,MUNICIPALITY"
 OUTPUT_FILE = Path("data/power_outages_duq.json")
 
 
@@ -181,12 +183,12 @@ def main():
             url = response.url
 
             try:
-                if "utilisocial.io/datacapable/v2/p/dlc/map/events" in url:
+                if EVENTS_URL in url:
                     data = response.json()
                     if is_valid_event_list(data):
                         captured_events = data
 
-                if "utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY" in url:
+                if "utilisocial.io/datacapable/v2/p/dlc/map/events/count" in url:
                     data = response.json()
                     if is_valid_count_list(data):
                         captured_count = data
@@ -198,20 +200,18 @@ def main():
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
         page.wait_for_timeout(8000)
 
-        # Browser-context fetch fallback for exact endpoints
         events_data = None
         count_data = None
 
         try:
             events_data = page.evaluate(
-                """
-                async () => {
-                    const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/events", {
+                f"""
+                async () => {{
+                    const r = await fetch("{EVENTS_URL}", {{
                         credentials: "include"
-                    });
-                    const data = await r.json();
-                    return data;
-                }
+                    }});
+                    return await r.json();
+                }}
                 """
             )
         except Exception:
@@ -219,14 +219,13 @@ def main():
 
         try:
             count_data = page.evaluate(
-                """
-                async () => {
-                    const r = await fetch("https://utilisocial.io/datacapable/v2/p/dlc/map/count?types=ZIP,COUNTY,MUNICIPALITY", {
+                f"""
+                async () => {{
+                    const r = await fetch("{COUNT_URL}", {{
                         credentials: "include"
-                    });
-                    const data = await r.json();
-                    return data;
-                }
+                    }});
+                    return await r.json();
+                }}
                 """
             )
         except Exception:
@@ -236,7 +235,6 @@ def main():
 
         browser.close()
 
-    # Prefer in-page fetch results if valid; otherwise fall back to captured responses
     if not is_valid_event_list(events_data):
         events_data = captured_events
     if not is_valid_count_list(count_data):
