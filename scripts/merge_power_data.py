@@ -41,7 +41,6 @@ def normalize_county_name(name: str) -> str:
 def merge_counties(fe_data, ppl_data, duq_data):
     merged = {}
 
-    # ---- FirstEnergy ----
     fe_counties = fe_data.get("county_summary", [])
     for row in fe_counties:
         county = normalize_county_name(row.get("county"))
@@ -64,7 +63,6 @@ def merge_counties(fe_data, ppl_data, duq_data):
             "duquesne": None,
         }
 
-    # ---- PPL ----
     ppl_counties = ppl_data.get("county_summary", [])
     for row in ppl_counties:
         county = normalize_county_name(row.get("county"))
@@ -97,14 +95,14 @@ def merge_counties(fe_data, ppl_data, duq_data):
             "percent_out": row.get("percent_out"),
         }
 
-    # ---- Duquesne ----
-    duq_counties = duq_data.get("counties", {})
-    for county, outages in duq_counties.items():
-        county = normalize_county_name(county)
+    duq_counties = duq_data.get("county_summary", [])
+    for row in duq_counties:
+        county = normalize_county_name(row.get("county"))
         if not county:
             continue
 
-        duq_out = to_int(outages)
+        duq_out = to_int(row.get("customers_out"))
+        duq_served = to_int(row.get("customers_served"))
 
         if county not in merged:
             merged[county] = {
@@ -119,13 +117,14 @@ def merge_counties(fe_data, ppl_data, duq_data):
             }
 
         merged[county]["customers_out"] += duq_out
+        merged[county]["customers_served"] += duq_served
         if "Duquesne Light" not in merged[county]["sources"]:
             merged[county]["sources"].append("Duquesne Light")
 
         merged[county]["duquesne"] = {
             "customers_out": duq_out,
-            "customers_served": None,
-            "percent_out": None,
+            "customers_served": duq_served,
+            "percent_out": row.get("percent_out"),
         }
 
     county_rows = []
