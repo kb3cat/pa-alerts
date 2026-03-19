@@ -273,31 +273,92 @@ def build_utility_summary(fe_data, ppl_data, duq_data, peco_data):
 
 
 def build_municipality_summary(fe_data, ppl_data, duq_data, peco_data):
-    rows = []
+    merged = {}
+
+    def add_row(row):
+        municipality = str(row.get("municipality") or "").strip()
+        source = str(row.get("source") or "").strip()
+
+        if not municipality or not source:
+            return
+
+        key = (municipality.lower(), source.lower())
+
+        customers_out = to_int(row.get("customers_out"))
+        customers_served = to_int(row.get("customers_served"))
+        outages = row.get("outages")
+        outages = None if outages is None else to_int(outages)
+
+        if key not in merged:
+            merged[key] = {
+                "municipality": municipality,
+                "county": row.get("county"),
+                "customers_out": customers_out,
+                "customers_served": customers_served,
+                "percent_out": row.get("percent_out"),
+                "outages": outages,
+                "etr": row.get("etr"),
+                "masked": row.get("masked", False),
+                "source": source,
+            }
+            return
+
+        existing = merged[key]
+
+        # Keep the larger outage count if duplicate rows appear
+        if customers_out > to_int(existing.get("customers_out")):
+            existing["customers_out"] = customers_out
+            existing["percent_out"] = row.get("percent_out")
+            existing["etr"] = row.get("etr")
+            existing["masked"] = row.get("masked", False)
+
+        # Keep the larger served count if present
+        if customers_served > to_int(existing.get("customers_served")):
+            existing["customers_served"] = customers_served
+
+        # Keep county if existing county is blank
+        if not existing.get("county") and row.get("county"):
+            existing["county"] = row.get("county")
+
+        # Keep the larger outages count if present
+        if outages is not None:
+            existing_outages = existing.get("outages")
+            if existing_outages is None or outages > to_int(existing_outages):
+                existing["outages"] = outages
 
     # ---- FirstEnergy municipality rows ----
-    for row in fe_data.get("municipality_summary", []):
-        rows.append({
-            "municipality": row.get("municipality"),
+    # FE muni data appears to live in items
+    for row in fe_data.get("items", []):
+        municipality = row.get("municipality")
+        if not municipality:
+            continue
+
+        add_row({
+            "municipality": municipality,
             "county": row.get("county"),
-            "customers_out": to_int(row.get("customers_out")),
-            "customers_served": to_int(row.get("customers_served")),
+            "customers_out": row.get("customers_out"),
+            "customers_served": row.get("customers_served"),
             "percent_out": row.get("percent_out"),
-            "outages": None,
+            "outages": row.get("outages"),
             "etr": row.get("etr"),
             "masked": False,
             "source": "FirstEnergy",
         })
 
-    # ---- PPL municipality rows from items ----
+    # ---- PPL municipality rows ----
+    # PPL appears to use county as the locality name in items
     for row in ppl_data.get("items", []):
-        rows.append({
-            "municipality": row.get("municipality") or row.get("county"),
+        locality = row.get("municipality") or row.get("county")
+        if not locality:
+            continue
+
+        add_row({
+            "municipality": locality,
             "county": None,
-            "customers_out": to_int(row.get("customers_out")),
-            "customers_served": to_int(row.get("customers_served")),
+            "customers_out": row.get("customers_out"),
+            "customers_served": row.get("customers_served"),
             "percent_out": row.get("percent_out"),
-            "outages": None,
+            "outages": row.get("outages"),
             "etr": row.get("etr"),
             "masked": False,
             "source": "PPL",
@@ -305,39 +366,47 @@ def build_municipality_summary(fe_data, ppl_data, duq_data, peco_data):
 
     # ---- Duquesne municipality rows ----
     for row in duq_data.get("municipality_summary", []):
-        item = dict(row)
-        item.setdefault("source", "Duquesne Light")
-        rows.append({
-            "municipality": item.get("municipality"),
-            "county": item.get("county"),
-            "customers_out": to_int(item.get("customers_out")),
-            "customers_served": to_int(item.get("customers_served")),
-            "percent_out": item.get("percent_out"),
-            "outages": item.get("outages"),
-            "etr": item.get("etr"),
+        municipality = row.get("municipality")
+        if not municipality:
+            continue
+
+        add_row({
+            "municipality": municipality,
+            "county": row.get("county"),
+            "customers_out": row.get("customers_out"),
+            "customers_served": row.get("customers_served"),
+            "percent_out": row.get("percent_out"),
+            "outages": row.get("outages"),
+            "etr": row.get("etr"),
             "masked": False,
-            "source": item.get("source"),
+            "source": "Duquesne Light",
         })
 
     # ---- PECO municipality rows ----
     for row in peco_data.get("municipalities", []):
-        rows.append({
-            "municipality": row.get("name"),
+        municipality = row.get("name")
+        if not municipality:
+            continue
+
+        add_row({
+            "municipality": municipality,
             "county": row.get("county"),
-            "customers_out": to_int(row.get("customers_affected") or row.get("customers_out")),
-            "customers_served": to_int(row.get("customers_served")),
+            "customers_out": row.get("customers_affected") or row.get("customers_out"),
+            "customers_served": row.get("customers_served"),
             "percent_out": row.get("percent_affected"),
-            "outages": to_int(row.get("outages")),
+            "outages": row.get("outages"),
             "etr": row.get("etr"),
             "masked": row.get("masked"),
             "source": "PECO",
         })
 
-    rows = sorted(
-        rows,
+    rows = list(merged.values())
+
+    rows.sort(
         key=lambda x: (
             -to_int(x.get("customers_out")),
-            (x.get("municipality") or "").lower()
+            (x.get("municipality") or "").lower(),
+            (x.get("source") or "").lower(),
         )
     )
     return rows
