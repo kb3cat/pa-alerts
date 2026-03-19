@@ -289,9 +289,8 @@ def build_municipality_summary(fe_data, ppl_data, duq_data, peco_data):
             "source": "FirstEnergy",
         })
 
-    # ---- PPL municipality-like rows ----
-    # PPL appears to use the field name "county" for locality names like Bethlehem.
-    for row in ppl_data.get("municipality_summary", []):
+    # ---- PPL municipality rows from items ----
+    for row in ppl_data.get("items", []):
         rows.append({
             "municipality": row.get("municipality") or row.get("county"),
             "county": None,
