@@ -255,20 +255,19 @@ body{
 
 .source-badges{
   display:flex;
-  gap:6px;
+  gap:10px;
   flex-wrap:wrap;
   margin-top:6px;
 }
 
 .source-badge{
-  display:inline-flex;
-  align-items:center;
-  border:1px solid var(--border);
-  border-radius:999px;
-  background:var(--badge);
-  padding:2px 8px;
+  display:inline;
+  padding:0;
+  border:none;
+  background:none;
   font-size:11px;
-  color:var(--text);
+  font-weight:700;
+  letter-spacing:.2px;
 }
 
 .overview-strip{
@@ -373,10 +372,11 @@ body{
   white-space:nowrap;
 }
 
-.sev-minor{ color:var(--yellow); }
-.sev-moderate{ color:var(--orange); }
-.sev-significant{ color:var(--red); }
-.sev-major{ color:#ff6b6b; }
+.sev-green{ color:var(--green); }
+.sev-yellow{ color:var(--yellow); }
+.sev-orange{ color:var(--orange); }
+.sev-red{ color:var(--red); }
+.sev-darkred{ color:var(--darkred); }
 
 .small-note{
   margin-top:10px;
@@ -386,7 +386,7 @@ body{
 
 .county-detail-grid{
   display:grid;
-  grid-template-columns:repeat(4, 1fr);
+  grid-template-columns:repeat(5, 1fr);
   gap:12px;
 }
 
@@ -437,7 +437,7 @@ body{
 }
 
 .modal-content{
-  width:min(1000px, 100%);
+  width:min(1120px, 100%);
   max-height:90vh;
   overflow:auto;
   background:var(--panel);
@@ -478,10 +478,15 @@ body{
   }
 }
 
+@media (max-width: 1000px){
+  .county-detail-grid{
+    grid-template-columns:repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 900px){
   .severity-wall,
-  .overview-strip,
-  .county-detail-grid{
+  .overview-strip{
     grid-template-columns:repeat(2, minmax(0, 1fr));
   }
 }
@@ -658,11 +663,20 @@ function titleCase(value) {
 
 function severityClass(percent) {
   const p = Number(percent);
-  if (Number.isNaN(p) || p < 1) return "sev-minor";
-  if (p >= 10) return "sev-major";
-  if (p >= 5) return "sev-significant";
-  if (p >= 3) return "sev-moderate";
-  return "sev-minor";
+  if (Number.isNaN(p) || p < 1) return "sev-green";
+  if (p >= 10) return "sev-darkred";
+  if (p >= 5) return "sev-red";
+  if (p >= 3) return "sev-orange";
+  return "sev-yellow";
+}
+
+function severityColor(percent) {
+  const p = Number(percent);
+  if (Number.isNaN(p) || p < 1) return "var(--green)";
+  if (p >= 10) return "var(--darkred)";
+  if (p >= 5) return "var(--red)";
+  if (p >= 3) return "var(--orange)";
+  return "var(--yellow)";
 }
 
 function tileClass(percent) {
@@ -712,12 +726,13 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function buildSourceBadges(sources) {
+function buildSourceBadges(sources, percentOut = null) {
   const list = Array.isArray(sources) ? sources : [];
   if (!list.length) return "";
+  const color = severityColor(percentOut);
   return `
     <div class="source-badges">
-      ${list.map(src => `<span class="source-badge">${src}</span>`).join("")}
+      ${list.map(src => `<span class="source-badge" style="color:${color};">${escapeHtml(src)}</span>`).join("")}
     </div>
   `;
 }
@@ -748,6 +763,7 @@ function renderCountyDetail(county, data) {
   const fe = county.firstenergy || null;
   const ppl = county.ppl || null;
   const duq = county.duquesne || null;
+  const peco = county.peco || null;
 
   title.textContent = titleCase(county.county);
 
@@ -760,7 +776,7 @@ function renderCountyDetail(county, data) {
           ${formatPercent(county.percent_out)} out
           ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : " • No Change"}
         </div>
-        ${buildSourceBadges(county.sources)}
+        ${buildSourceBadges(county.sources, county.percent_out)}
       </div>
 
       <div class="county-detail-card">
@@ -784,6 +800,14 @@ function renderCountyDetail(county, data) {
         <div class="county-detail-value">${duq ? formatNumber(duq.customers_out) : "—"}</div>
         <div class="county-detail-sub">
           ${duq ? `${formatPercent(duq.percent_out)} out • ${formatNumber(duq.customers_served)} served` : "No Duquesne contribution in merged data"}
+        </div>
+      </div>
+
+      <div class="county-detail-card">
+        <div class="county-detail-label">PECO</div>
+        <div class="county-detail-value">${peco ? formatNumber(peco.customers_out) : "—"}</div>
+        <div class="county-detail-sub">
+          ${peco ? `${formatPercent(peco.percent_out)} out • ${formatNumber(peco.customers_served)} served` : "No PECO contribution in merged data"}
         </div>
       </div>
     </div>
@@ -839,11 +863,11 @@ function buildSeverityWall(data) {
         <div class="county-tile county-clickable ${tileClass(county.percent_out)}" data-county-name="${escapeHtml(county.county)}">
           <div class="county-tile-top">
             <div class="county-name">${titleCase(county.county)}</div>
-            <div class="county-percent">${formatPercent(county.percent_out)}</div>
+            <div class="county-percent ${severityClass(county.percent_out)}">${formatPercent(county.percent_out)}</div>
           </div>
           <div class="county-out">${formatNumber(county.customers_out)}</div>
           ${deltaMarkup(county.change)}
-          ${buildSourceBadges(county.sources)}
+          ${buildSourceBadges(county.sources, county.percent_out)}
         </div>
       `).join("")}
     </div>
@@ -877,7 +901,7 @@ function buildTopImpacted(counties) {
           ${formatNumber(county.customers_out)} customers out
           ${Number(county.change || 0) !== 0 ? ` • Change ${county.change > 0 ? "+" : ""}${formatNumber(county.change)}` : " • No Change"}
         </div>
-        ${buildSourceBadges(county.sources)}
+        ${buildSourceBadges(county.sources, county.percent_out)}
       </div>
       <div class="rank-right ${severityClass(county.percent_out)}">${formatPercent(county.percent_out)}</div>
     </div>
@@ -895,17 +919,20 @@ function buildUtilityBreakdown(data) {
     let feOut = 0;
     let pplOut = 0;
     let duqOut = 0;
+    let pecoOut = 0;
 
     for (const county of counties) {
       if (county.firstenergy) feOut += Number(county.firstenergy.customers_out || 0);
       if (county.ppl) pplOut += Number(county.ppl.customers_out || 0);
       if (county.duquesne) duqOut += Number(county.duquesne.customers_out || 0);
+      if (county.peco) pecoOut += Number(county.peco.customers_out || 0);
     }
 
     utilities = [
       { utility: "FirstEnergy", customers_out: feOut },
       { utility: "PPL", customers_out: pplOut },
-      { utility: "Duquesne Light", customers_out: duqOut }
+      { utility: "Duquesne Light", customers_out: duqOut },
+      { utility: "PECO", customers_out: pecoOut }
     ].filter(u => Number(u.customers_out || 0) > 0);
   }
 
@@ -965,9 +992,7 @@ function buildTopMunicipalities(data) {
             ? `${formatNumber(row.customers_served)} served • ${formatPercent(row.percent_out)} out`
             : `Active municipality outage`}
         </div>
-        <div class="source-badges">
-          <span class="source-badge">Merged</span>
-        </div>
+        ${buildSourceBadges([row.source || "Merged"], row.percent_out)}
       </div>
       <div class="table-right">${formatNumber(row.customers_out)}</div>
     </div>
