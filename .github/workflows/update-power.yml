@@ -106,6 +106,12 @@ jobs:
           echo "PPL script failed"
           exit 1
 
+      - name: Fail workflow if Duquesne failed
+        if: steps.duq.outcome == 'failure'
+        run: |
+          echo "Duquesne script failed"
+          exit 1
+
       - name: Fail workflow if merge failed
         if: steps.merge.outcome == 'failure'
         run: |
