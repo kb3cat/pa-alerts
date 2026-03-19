@@ -4,378 +4,210 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import requests
 
-FE_FILE = Path("data/power_outages_pa.json")
-PPL_FILE = Path("data/power_outages_ppl.json")
-DUQ_FILE = Path("data/power_outages_duq.json")
-PECO_FILE = Path("data/power_outages_peco.json")
-OUTPUT_FILE = Path("data/power_outages_combined.json")
+TOTALS_URL = "https://kubra.io/data/e1548a52-76e1-405b-a27d-172feee110b9/public/summary-1/data.json"
+REPORT_URL = "https://kubra.io/data/ee4132a9-7316-453a-b383-9e048a28a709/public/reports/a36a6292-1c55-44de-a6a9-44fedf9482ee_report.json"
 
-PECO_LOW_TOTAL_THRESHOLD = 25
+OUTPUT_FILE = Path("data/power_outages_peco.json")
 
 
-def iso_utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+def iso_utc_now():
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
-def load_json(path: Path):
-    if not path.exists():
-        return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+def fetch_json(url):
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
+    return r.json()
 
 
-def to_int(value):
+def to_int(v):
     try:
-        if value is None:
-            return 0
-        return int(value)
+        if isinstance(v, dict):
+            return int(v.get("val", 0))
+        return int(v)
     except Exception:
         try:
-            return int(float(value))
+            return int(float(v))
         except Exception:
             return 0
 
 
-def normalize_county_name(name: str) -> str:
-    return str(name or "").strip()
+def has_mask(v):
+    return isinstance(v, dict) and "mask" in v
 
 
-def merge_counties(fe_data, ppl_data, duq_data, peco_data):
-    merged = {}
-
-    # ---- FirstEnergy ----
-    fe_counties = fe_data.get("county_summary", [])
-    for row in fe_counties:
-        county = normalize_county_name(row.get("county"))
-        if not county:
-            continue
-
-        merged[county] = {
-            "county": county,
-            "customers_out": to_int(row.get("customers_out")),
-            "customers_served": to_int(row.get("customers_served")),
-            "change": to_int(row.get("change")),
-            "sources": ["FirstEnergy"],
-            "firstenergy": {
-                "customers_out": to_int(row.get("customers_out")),
-                "customers_served": to_int(row.get("customers_served")),
-                "percent_out": row.get("percent_out"),
-                "change": to_int(row.get("change")),
-            },
-            "ppl": None,
-            "duquesne": None,
-            "peco": None,
-        }
-
-    # ---- PPL ----
-    ppl_counties = ppl_data.get("county_summary", [])
-    for row in ppl_counties:
-        county = normalize_county_name(row.get("county"))
-        if not county:
-            continue
-
-        ppl_out = to_int(row.get("customers_out"))
-        ppl_served = to_int(row.get("customers_served"))
-
-        if county not in merged:
-            merged[county] = {
-                "county": county,
-                "customers_out": 0,
-                "customers_served": 0,
-                "change": 0,
-                "sources": [],
-                "firstenergy": None,
-                "ppl": None,
-                "duquesne": None,
-                "peco": None,
-            }
-
-        merged[county]["customers_out"] += ppl_out
-        merged[county]["customers_served"] += ppl_served
-
-        if "PPL" not in merged[county]["sources"]:
-            merged[county]["sources"].append("PPL")
-
-        merged[county]["ppl"] = {
-            "customers_out": ppl_out,
-            "customers_served": ppl_served,
-            "percent_out": row.get("percent_out"),
-        }
-
-    # ---- Duquesne ----
-    duq_counties = duq_data.get("county_summary", [])
-    for row in duq_counties:
-        county = normalize_county_name(row.get("county"))
-        if not county:
-            continue
-
-        duq_out = to_int(row.get("customers_out"))
-        duq_served = to_int(row.get("customers_served"))
-
-        if county not in merged:
-            merged[county] = {
-                "county": county,
-                "customers_out": 0,
-                "customers_served": 0,
-                "change": 0,
-                "sources": [],
-                "firstenergy": None,
-                "ppl": None,
-                "duquesne": None,
-                "peco": None,
-            }
-
-        merged[county]["customers_out"] += duq_out
-        merged[county]["customers_served"] += duq_served
-
-        if "Duquesne Light" not in merged[county]["sources"]:
-            merged[county]["sources"].append("Duquesne Light")
-
-        merged[county]["duquesne"] = {
-            "customers_out": duq_out,
-            "customers_served": duq_served,
-            "percent_out": row.get("percent_out"),
-        }
-
-    # ---- PECO ----
-    peco_counties = peco_data.get("counties", [])
-    for row in peco_counties:
-        county = normalize_county_name(row.get("name") or row.get("county"))
-        if not county:
-            continue
-
-        peco_out = to_int(row.get("customers_affected") or row.get("customers_out"))
-        peco_served = to_int(row.get("customers_served"))
-        peco_percent = row.get("percent_affected")
-        peco_outages = to_int(row.get("outages"))
-
-        if county not in merged:
-            merged[county] = {
-                "county": county,
-                "customers_out": 0,
-                "customers_served": 0,
-                "change": 0,
-                "sources": [],
-                "firstenergy": None,
-                "ppl": None,
-                "duquesne": None,
-                "peco": None,
-            }
-
-        merged[county]["customers_out"] += peco_out
-        merged[county]["customers_served"] += peco_served
-
-        if "PECO" not in merged[county]["sources"]:
-            merged[county]["sources"].append("PECO")
-
-        merged[county]["peco"] = {
-            "customers_out": peco_out,
-            "customers_served": peco_served,
-            "percent_out": peco_percent,
-            "outages": peco_outages,
-            "etr": row.get("etr"),
-            "masked": row.get("masked"),
-            "suppressed": row.get("suppressed"),
-        }
-
-    county_rows = []
-    for county, row in merged.items():
-        served = to_int(row.get("customers_served"))
-        out = to_int(row.get("customers_out"))
-        percent = round((out / served) * 100, 2) if served > 0 else None
-
-        county_rows.append({
-            "county": county,
-            "customers_out": out,
-            "customers_served": served,
-            "percent_out": percent,
-            "change": to_int(row.get("change")),
-            "sources": row.get("sources", []),
-            "firstenergy": row.get("firstenergy"),
-            "ppl": row.get("ppl"),
-            "duquesne": row.get("duquesne"),
-            "peco": row.get("peco"),
-        })
-
-    county_rows.sort(
-        key=lambda x: (
-            -(x["customers_out"] or 0),
-            x["county"].lower()
-        )
-    )
-
-    return county_rows
+def calc_percent(out_count, served_count):
+    if served_count > 0:
+        return round((out_count / served_count) * 100, 2)
+    return 0.0
 
 
-def build_summary(fe_data, county_rows):
-    total_customers_out = sum(to_int(r.get("customers_out")) for r in county_rows)
-    total_customers_served = sum(to_int(r.get("customers_served")) for r in county_rows)
-    total_percent_out = round((total_customers_out / total_customers_served) * 100, 2) if total_customers_served else None
+def percent_display(percent_value, masked=False, suppressed=False):
+    if suppressed:
+        return "—"
+    if masked:
+        return "<5%"
+    return f"{percent_value:.2f}%"
 
-    counties_over_one = sum(
-        1 for r in county_rows
-        if r.get("percent_out") is not None and r.get("percent_out") > 1
-    )
 
-    fe_summary = fe_data.get("summary", {})
+def count_display(count_value, masked=False, suppressed=False):
+    if suppressed:
+        return "—"
+    if masked:
+        return "<5"
+    return str(int(count_value or 0))
+
+
+def is_philly_zip(name):
+    name = str(name or "")
+    return name.isdigit() and name.startswith("19") and len(name) == 5
+
+
+def build_county_row(county):
+    county_name = county.get("name", "").title()
+    county_masked = has_mask(county.get("cust_a")) or has_mask(county.get("percent_cust_a"))
+
+    county_out = 0 if county_masked else to_int(county.get("cust_a"))
+    county_served = to_int(county.get("cust_s"))
+    county_outages = to_int(county.get("n_out"))
+    county_percent = calc_percent(county_out, county_served)
 
     return {
-        "new": to_int(fe_summary.get("new")),
-        "increasing": to_int(fe_summary.get("increasing")),
-        "decreasing": to_int(fe_summary.get("decreasing")),
-        "unchanged": to_int(fe_summary.get("unchanged")),
-        "restored": to_int(fe_summary.get("restored")),
-        "counties_over_one_percent": counties_over_one,
-        "total_customers_served": total_customers_served,
-        "total_percent_out": total_percent_out,
-    }, total_customers_out
+        "name": county_name,
+        "customers_affected": county_out,
+        "customers_affected_display": count_display(county_out, county_masked, False),
+        "customers_served": county_served,
+        "percent_affected": county_percent,
+        "percent_affected_display": percent_display(county_percent, county_masked, False),
+        "outages": county_outages,
+        "etr": county.get("etr"),
+        "masked": county_masked,
+        "suppressed": False,
+    }
 
 
-def build_utility_summary(fe_data, ppl_data, duq_data, peco_data):
-    rows = []
+def build_muni_row(muni, county_name, county_masked=False):
+    name_raw = muni.get("name", "")
+    name = name_raw.title()
 
-    fe_total = to_int(fe_data.get("total_customers_out") or fe_data.get("total_outages"))
-    ppl_total = to_int(ppl_data.get("total_customers_out") or ppl_data.get("total_outages"))
-    duq_total = to_int(duq_data.get("total_outages"))
+    own_masked = has_mask(muni.get("cust_a")) or has_mask(muni.get("percent_cust_a"))
+    inherited_mask = county_masked
+    masked = own_masked or inherited_mask
 
-    peco_utility = peco_data.get("utility", {})
-    peco_total = to_int(peco_utility.get("customers_affected") or peco_utility.get("customers_out"))
-    peco_served = to_int(peco_utility.get("customers_served"))
-    peco_outages = to_int(peco_utility.get("outages"))
-    peco_percent = peco_utility.get("percent_affected")
+    cust = 0 if masked else to_int(muni.get("cust_a"))
+    served = to_int(muni.get("cust_s"))
+    outages = to_int(muni.get("n_out"))
+    percent = calc_percent(cust, served)
 
-    if fe_total > 0:
-        rows.append({
-            "utility": "FirstEnergy",
-            "customers_out": fe_total,
-        })
-
-    if ppl_total > 0:
-        rows.append({
-            "utility": "PPL",
-            "customers_out": ppl_total,
-        })
-
-    if duq_total > 0:
-        rows.append({
-            "utility": "Duquesne Light",
-            "customers_out": duq_total,
-        })
-
-    if peco_total > 0:
-        rows.append({
-            "utility": "PECO",
-            "customers_out": peco_total,
-            "customers_served": peco_served,
-            "percent_out": peco_percent,
-            "outages": peco_outages,
-        })
-
-    rows.sort(key=lambda x: (-to_int(x["customers_out"]), x["utility"]))
-    return rows
-
-
-def build_municipality_summary(duq_data, peco_data):
-    rows = []
-
-    for row in duq_data.get("municipality_summary", []):
-        item = dict(row)
-        item.setdefault("source", "Duquesne Light")
-        rows.append(item)
-
-    peco_utility = peco_data.get("utility", {})
-    peco_total = to_int(peco_utility.get("customers_affected") or peco_utility.get("customers_out"))
-
-    for row in peco_data.get("municipalities", []):
-        raw_out = to_int(row.get("customers_affected") or row.get("customers_out"))
-        outages = to_int(row.get("outages"))
-        masked = bool(row.get("masked"))
-        suppressed = bool(row.get("suppressed"))
-
-        # PECO safeguard:
-        # If the PECO system total is very low, or the muni count exceeds the PECO total,
-        # keep the row but do not trust its customer count for ranking.
-        unreliable_count = (
-            peco_total <= PECO_LOW_TOTAL_THRESHOLD
-            or raw_out > peco_total
-            or masked
-            or suppressed
-        )
-
-        rows.append({
-            "municipality": row.get("name"),
-            "county": row.get("county"),
-            "customers_out": 0 if unreliable_count else raw_out,
-            "customers_out_display": row.get("customers_affected_display") if unreliable_count else raw_out,
-            "customers_served": to_int(row.get("customers_served")),
-            "percent_out": row.get("percent_affected"),
-            "percent_out_display": row.get("percent_affected_display"),
-            "outages": outages,
-            "etr": row.get("etr"),
-            "masked": masked,
-            "suppressed": suppressed or unreliable_count,
-            "source": "PECO",
-            "ranking_mode": "outages" if unreliable_count else "customers",
-        })
-
-    rows = sorted(
-        rows,
-        key=lambda x: (
-            -to_int(x.get("customers_out")),
-            -to_int(x.get("outages")),
-            x.get("municipality", "").lower()
-        )
-    )
-    return rows
+    return {
+        "name": name,
+        "county": county_name,
+        "customers_affected": cust,
+        "customers_affected_display": count_display(cust, masked, False),
+        "customers_served": served,
+        "percent_affected": percent,
+        "percent_affected_display": percent_display(percent, masked, False),
+        "outages": outages,
+        "etr": muni.get("etr"),
+        "masked": masked,
+        "suppressed": False,
+        "_raw_name": name_raw,
+    }
 
 
 def main():
-    fe_data = load_json(FE_FILE)
-    ppl_data = load_json(PPL_FILE)
-    duq_data = load_json(DUQ_FILE)
-    peco_data = load_json(PECO_FILE)
+    totals = fetch_json(TOTALS_URL)
+    report = fetch_json(REPORT_URL)
 
-    county_rows = merge_counties(fe_data, ppl_data, duq_data, peco_data)
-    summary, total_customers_out = build_summary(fe_data, county_rows)
-    utility_summary = build_utility_summary(fe_data, ppl_data, duq_data, peco_data)
-    municipality_summary = build_municipality_summary(duq_data, peco_data)
+    totals_item = totals.get("summaryFileData", {}).get("totals", [{}])[0]
+    total_out = to_int(totals_item.get("total_cust_a"))
+    total_served = to_int(totals_item.get("total_cust_s"))
+    total_percent = calc_percent(total_out, total_served)
+    total_outages = to_int(totals_item.get("total_outages"))
+
+    file_data = report.get("file_data", {})
+
+    counties = []
+    municipalities = []
+
+    philly_total = 0
+    philly_served = 0
+    philly_outages = 0
+    philly_masked = False
+
+    for county in file_data.get("areas", []):
+        county_row = build_county_row(county)
+        county_name = county_row["name"]
+        county_masked = county_row["masked"]
+
+        counties.append(county_row)
+
+        for muni in county.get("areas", []):
+            muni_row = build_muni_row(muni, county_name, county_masked=county_masked)
+            name_raw = muni_row.pop("_raw_name", "")
+
+            if county_name == "Philadelphia" and is_philly_zip(name_raw):
+                philly_served += muni_row["customers_served"]
+                philly_outages += muni_row["outages"]
+
+                if muni_row["masked"]:
+                    philly_masked = True
+                else:
+                    philly_total += muni_row["customers_affected"]
+
+                continue
+
+            municipalities.append(muni_row)
+
+    if philly_served > 0 or philly_outages > 0 or philly_total > 0:
+        philly_percent = calc_percent(philly_total, philly_served)
+
+        municipalities.append(
+            {
+                "name": "Philadelphia",
+                "county": "Philadelphia",
+                "customers_affected": philly_total,
+                "customers_affected_display": count_display(philly_total, philly_masked, False),
+                "customers_served": philly_served,
+                "percent_affected": philly_percent,
+                "percent_affected_display": percent_display(philly_percent, philly_masked, False),
+                "outages": philly_outages,
+                "etr": None,
+                "masked": philly_masked,
+                "suppressed": False,
+            }
+        )
+
+    counties.sort(key=lambda x: (-x["customers_affected"], x["name"]))
+    municipalities.sort(key=lambda x: (-x["customers_affected"], -x["outages"], x["name"]))
 
     output = {
-        "name": "pa_power_outages_combined",
+        "name": "power_outages_peco",
         "fetched_at": iso_utc_now(),
-        "sources": {
-            "firstenergy_file": str(FE_FILE),
-            "ppl_file": str(PPL_FILE),
-            "duquesne_file": str(DUQ_FILE),
-            "peco_file": str(PECO_FILE),
-            "firstenergy_fetched_at": fe_data.get("fetched_at"),
-            "ppl_fetched_at": ppl_data.get("fetched_at"),
-            "duquesne_fetched_at": duq_data.get("fetched_at"),
-            "peco_fetched_at": peco_data.get("fetched_at"),
-            "ppl_source_last_updated": ppl_data.get("source_last_updated"),
-            "peco_source_date_generated": peco_data.get("utility", {}).get("date_generated"),
+        "utility": {
+            "name": "PECO",
+            "customers_affected": total_out,
+            "customers_affected_display": str(total_out),
+            "customers_served": total_served,
+            "outages": total_outages,
+            "percent_affected": total_percent,
+            "percent_affected_display": f"{total_percent:.2f}%",
         },
-        "total_customers_out": total_customers_out,
-        "summary": summary,
-        "utility_summary": utility_summary,
-        "county_summary": county_rows,
-        "municipality_summary": municipality_summary,
-        "items_firstenergy": fe_data.get("items", []),
-        "items_ppl": ppl_data.get("items", []),
-        "items_duquesne": duq_data.get("items", []),
-        "items_peco": peco_data.get("municipalities", []),
+        "counties": counties,
+        "municipalities": municipalities,
     }
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2)
+    OUTPUT_FILE.write_text(json.dumps(output, indent=2), encoding="utf-8")
 
     print(f"Wrote {OUTPUT_FILE}")
-    print(f"County rows: {len(county_rows)}")
-    print(f"Utility rows: {len(utility_summary)}")
-    print(f"Municipality rows: {len(municipality_summary)}")
-    print(f"Total customers out: {total_customers_out}")
 
 
 if __name__ == "__main__":
