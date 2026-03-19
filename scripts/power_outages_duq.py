@@ -171,7 +171,10 @@ def main():
         except Exception:
             pass
 
-        page.wait_for_timeout(5000)
+       page.wait_for_response(
+    lambda r: "count?types=ZIP,COUNTY,MUNICIPALITY" in r.url,
+    timeout=15000
+)
 
         if events_data is None:
             try:
