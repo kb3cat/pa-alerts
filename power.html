@@ -606,7 +606,7 @@ body{
         <div class="panel-header">
           <div>
             <h2 class="panel-title">Top Municipalities</h2>
-            <div class="panel-subtitle">Top 5 municipality outage totals across FirstEnergy and PPL</div>
+            <div class="panel-subtitle">Top 5 municipality outage totals across merged utility feeds</div>
           </div>
         </div>
         <div class="panel-body">
@@ -741,27 +741,18 @@ function renderCountyDetail(county, data) {
 
   const fe = county.firstenergy || null;
   const ppl = county.ppl || null;
-
-  const feItems = Array.isArray(data.items_firstenergy) ? data.items_firstenergy : [];
-  const pplItems = Array.isArray(data.items_ppl) ? data.items_ppl : [];
+  const duq = county.duquesne || null;
 
   const mergedMunicipalities = [
-    ...feItems.map(row => ({
-      municipality: row.municipality,
-      county: row.county,
-      customers_out: Number(row.customers_out || 0),
-      source: "FirstEnergy"
-    })),
-    ...pplItems.map(row => ({
-      municipality: row.municipality,
-      county: row.county,
-      customers_out: Number(row.customers_out || 0),
-      source: "PPL"
-    }))
-  ]
-    .filter(row => row.county === county.county && row.municipality && row.customers_out > 0)
-    .sort((a, b) => b.customers_out - a.customers_out)
-    .slice(0, 3);
+    ...(Array.isArray(data.municipality_summary) ? data.municipality_summary : [])
+      .filter(row => Number(row.customers_out || 0) > 0)
+      .map(row => ({
+        municipality: row.municipality,
+        customers_out: Number(row.customers_out || 0),
+        customers_served: Number(row.customers_served || 0),
+        source: "Merged"
+      }))
+  ];
 
   title.textContent = county.county;
 
@@ -794,17 +785,11 @@ function renderCountyDetail(county, data) {
       </div>
 
       <div class="county-detail-card">
-        <div class="county-detail-label">Top 3 Municipalities</div>
-        ${
-          mergedMunicipalities.length
-            ? mergedMunicipalities.map(row => `
-              <div style="margin-bottom:8px;">
-                <div style="font-weight:700;">${escapeHtml(row.municipality)}</div>
-                <div class="county-detail-sub">${formatNumber(row.customers_out)} out • ${escapeHtml(row.source)}</div>
-              </div>
-            `).join("")
-            : `<div class="county-detail-sub">No active municipality rows for this county.</div>`
-        }
+        <div class="county-detail-label">Duquesne</div>
+        <div class="county-detail-value">${duq ? formatNumber(duq.customers_out) : "—"}</div>
+        <div class="county-detail-sub">
+          ${duq ? `${formatPercent(duq.percent_out)} out • ${formatNumber(duq.customers_served)} served` : "No Duquesne contribution in merged data"}
+        </div>
       </div>
     </div>
   `;
@@ -906,100 +891,55 @@ function buildTopImpacted(counties) {
 
 function buildUtilityBreakdown(data) {
   const target = document.getElementById("utilityBreakdown");
-  const counties = Array.isArray(data.county_summary) ? data.county_summary : [];
+  const utilities = Array.isArray(data.utility_summary) ? data.utility_summary : [];
+  const statewideOut = Number(data.total_customers_out || 0);
 
-  let feOut = 0;
-  let feServed = 0;
-  let pplOut = 0;
-  let pplServed = 0;
-
-  for (const county of counties) {
-    if (county.firstenergy) {
-      feOut += Number(county.firstenergy.customers_out || 0);
-      feServed += Number(county.firstenergy.customers_served || 0);
-    }
-
-    if (county.ppl) {
-      pplOut += Number(county.ppl.customers_out || 0);
-      pplServed += Number(county.ppl.customers_served || 0);
-    }
+  if (!utilities.length) {
+    target.innerHTML = `<div class="empty">No utility totals in merged payload.</div>`;
+    return;
   }
 
-  const utilities = [
-    {
-      name: "FirstEnergy",
-      sub: "Met-Ed / Penelec source feed",
-      out: feOut,
-      served: feServed
-    },
-    {
-      name: "PPL",
-      sub: "PPL county / municipality table",
-      out: pplOut,
-      served: pplServed
-    }
-  ];
+  target.innerHTML = utilities.map(u => {
+    const out = Number(u.customers_out || 0);
+    const percent = statewideOut > 0 ? ((out / statewideOut) * 100) : null;
 
-  utilities.forEach(u => {
-    u.percent = u.served > 0 ? ((u.out / u.served) * 100) : null;
-  });
-
-  target.innerHTML = utilities.map(u => `
-    <div class="table-row">
-      <div class="table-left">
-        <div class="table-main">${u.name}</div>
-        <div class="table-sub">
-          ${u.sub}${u.percent !== null ? ` • ${u.percent.toFixed(2)}% of customers out` : ""}
+    return `
+      <div class="table-row">
+        <div class="table-left">
+          <div class="table-main">${escapeHtml(u.utility)}</div>
+          <div class="table-sub">
+            Current contribution to merged statewide total${percent !== null ? ` • ${percent.toFixed(1)}% of statewide outages` : ""}
+          </div>
         </div>
+        <div class="table-right">${formatNumber(out)}</div>
       </div>
-      <div class="table-right">${formatNumber(u.out || 0)}</div>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 function buildTopMunicipalities(data) {
   const target = document.getElementById("topMunicipalities");
+  const rows = Array.isArray(data.municipality_summary) ? data.municipality_summary : [];
 
-  const feItems = Array.isArray(data.items_firstenergy) ? data.items_firstenergy : [];
-  const pplItems = Array.isArray(data.items_ppl) ? data.items_ppl : [];
-
-  const normalizedFe = feItems.map(row => ({
-    municipality: row.municipality,
-    county: row.county,
-    customers_out: Number(row.customers_out || 0),
-    customers_served: Number(row.customers_served || 0),
-    status: row.status || null,
-    source: "FirstEnergy"
-  }));
-
-  const normalizedPpl = pplItems.map(row => ({
-    municipality: row.municipality,
-    county: row.county,
-    customers_out: Number(row.customers_out || 0),
-    customers_served: Number(row.customers_served || 0),
-    status: null,
-    source: "PPL"
-  }));
-
-  const rows = [...normalizedFe, ...normalizedPpl]
-    .filter(i => i.municipality && Number(i.customers_out || 0) > 0)
+  const top = [...rows]
+    .filter(row => Number(row.customers_out || 0) > 0)
     .sort((a, b) => Number(b.customers_out || 0) - Number(a.customers_out || 0))
     .slice(0, 5);
 
-  if (!rows.length) {
+  if (!top.length) {
     target.innerHTML = `<div class="empty">No active municipality outages in the current merged payload.</div>`;
     return;
   }
 
-  target.innerHTML = rows.map(row => `
+  target.innerHTML = top.map(row => `
     <div class="table-row">
       <div class="table-left">
-        <div class="table-main">${row.municipality}</div>
+        <div class="table-main">${escapeHtml(row.municipality)}</div>
         <div class="table-sub">
-          ${row.county} County${row.status ? ` • ${row.status}` : ""}
+          ${formatNumber(row.customers_served || 0)} served • ${formatPercent(row.percent_out)} out
         </div>
         <div class="source-badges">
-          <span class="source-badge">${row.source}</span>
+          <span class="source-badge">Merged</span>
         </div>
       </div>
       <div class="table-right">${formatNumber(row.customers_out)}</div>
