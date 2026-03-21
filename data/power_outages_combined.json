@@ -1,33 +1,37 @@
 {
   "name": "pa_power_outages_combined",
-  "fetched_at": "2026-03-21T10:49:25Z",
+  "fetched_at": "2026-03-21T11:13:01Z",
   "sources": {
     "firstenergy_file": "data/power_outages_pa.json",
     "ppl_file": "data/power_outages_ppl.json",
     "duquesne_file": "data/power_outages_duq.json",
     "peco_file": "data/power_outages_peco.json",
-    "firstenergy_fetched_at": "2026-03-21T10:48:49Z",
-    "ppl_fetched_at": "2026-03-21T10:49:13Z",
-    "duquesne_fetched_at": "2026-03-21T10:49:24.584Z",
-    "peco_fetched_at": "2026-03-21T10:49:25Z",
+    "firstenergy_fetched_at": "2026-03-21T11:12:25Z",
+    "ppl_fetched_at": "2026-03-21T11:12:48Z",
+    "duquesne_fetched_at": "2026-03-21T11:13:00.328Z",
+    "peco_fetched_at": "2026-03-21T11:13:01Z",
     "ppl_source_last_updated": null,
     "peco_source_date_generated": null
   },
-  "total_customers_out": 427,
+  "total_customers_out": 610,
   "summary": {
-    "new": 4,
+    "new": 2,
     "increasing": 0,
     "decreasing": 0,
-    "unchanged": 1521,
-    "restored": 2,
+    "unchanged": 1525,
+    "restored": 0,
     "counties_over_one_percent": 0,
-    "total_customers_served": 4562767,
+    "total_customers_served": 5665871,
     "total_percent_out": 0.01
   },
   "utility_summary": [
     {
+      "utility": "PPL",
+      "customers_out": 320
+    },
+    {
       "utility": "FirstEnergy",
-      "customers_out": 241
+      "customers_out": 289
     },
     {
       "utility": "PECO",
@@ -38,38 +42,48 @@
     },
     {
       "utility": "Duquesne Light",
-      "customers_out": 154
-    },
-    {
-      "utility": "PPL",
-      "customers_out": 32
+      "customers_out": 1
     }
   ],
   "county_summary": [
     {
-      "county": "ALLEGHENY",
-      "customers_out": 154,
-      "customers_served": 546631,
-      "percent_out": 0.03,
+      "county": "Bucks",
+      "customers_out": 276,
+      "customers_served": 305620,
+      "percent_out": 0.09,
       "change": 0,
       "sources": [
-        "Duquesne Light"
+        "FirstEnergy",
+        "PPL",
+        "PECO"
       ],
-      "firstenergy": null,
-      "ppl": null,
-      "duquesne": {
-        "customers_out": 154,
-        "customers_served": 546631,
-        "percent_out": 0.03
+      "firstenergy": {
+        "customers_out": 16,
+        "customers_served": 6095,
+        "percent_out": 0.26,
+        "change": 0
       },
-      "peco": null
+      "ppl": {
+        "customers_out": 130,
+        "customers_served": 34267,
+        "percent_out": 0.38
+      },
+      "duquesne": null,
+      "peco": {
+        "customers_out": 0,
+        "customers_served": 230991,
+        "percent_out": 0.0,
+        "outages": 1,
+        "etr": "2026-03-19T13:40:00Z",
+        "masked": true
+      }
     },
     {
       "county": "Berks",
       "customers_out": 122,
       "customers_served": 148818,
       "percent_out": 0.08,
-      "change": -2,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -77,7 +91,26 @@
         "customers_out": 122,
         "customers_served": 148818,
         "percent_out": 0.08,
-        "change": -2
+        "change": 0
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Washington",
+      "customers_out": 49,
+      "customers_served": 110420,
+      "percent_out": 0.04,
+      "change": 48,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 49,
+        "customers_served": 110420,
+        "percent_out": 0.04,
+        "change": 48
       },
       "ppl": null,
       "duquesne": null,
@@ -127,33 +160,6 @@
       "peco": null
     },
     {
-      "county": "Bucks",
-      "customers_out": 16,
-      "customers_served": 237086,
-      "percent_out": 0.01,
-      "change": 0,
-      "sources": [
-        "FirstEnergy",
-        "PECO"
-      ],
-      "firstenergy": {
-        "customers_out": 16,
-        "customers_served": 6095,
-        "percent_out": 0.26,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": {
-        "customers_out": 0,
-        "customers_served": 230991,
-        "percent_out": 0.0,
-        "outages": 1,
-        "etr": "2026-03-19T13:40:00Z",
-        "masked": true
-      }
-    },
-    {
       "county": "Butler",
       "customers_out": 14,
       "customers_served": 86836,
@@ -169,6 +175,24 @@
         "change": 0
       },
       "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Carbon",
+      "customers_out": 10,
+      "customers_served": 109708,
+      "percent_out": 0.01,
+      "change": 0,
+      "sources": [
+        "PPL"
+      ],
+      "firstenergy": null,
+      "ppl": {
+        "customers_out": 5,
+        "customers_served": 54854,
+        "percent_out": 0.01
+      },
       "duquesne": null,
       "peco": null
     },
@@ -192,21 +216,74 @@
       "peco": null
     },
     {
-      "county": "Northampton",
-      "customers_out": 7,
-      "customers_served": 68691,
-      "percent_out": 0.01,
-      "change": 7,
+      "county": "Lehigh",
+      "customers_out": 10,
+      "customers_served": 364786,
+      "percent_out": 0.0,
+      "change": 0,
       "sources": [
-        "FirstEnergy"
+        "FirstEnergy",
+        "PPL"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 4212,
+        "percent_out": 0.0,
+        "change": 0
+      },
+      "ppl": {
+        "customers_out": 5,
+        "customers_served": 180287,
+        "percent_out": 0.0
+      },
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Northampton",
+      "customers_out": 9,
+      "customers_served": 247543,
+      "percent_out": 0.0,
+      "change": 0,
+      "sources": [
+        "FirstEnergy",
+        "PPL"
       ],
       "firstenergy": {
         "customers_out": 7,
         "customers_served": 68691,
         "percent_out": 0.01,
-        "change": 7
+        "change": 0
       },
-      "ppl": null,
+      "ppl": {
+        "customers_out": 1,
+        "customers_served": 89426,
+        "percent_out": 0.0
+      },
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Cumberland",
+      "customers_out": 5,
+      "customers_served": 234414,
+      "percent_out": 0.0,
+      "change": 0,
+      "sources": [
+        "FirstEnergy",
+        "PPL"
+      ],
+      "firstenergy": {
+        "customers_out": 1,
+        "customers_served": 18088,
+        "percent_out": 0.01,
+        "change": 0
+      },
+      "ppl": {
+        "customers_out": 2,
+        "customers_served": 108163,
+        "percent_out": 0.0
+      },
       "duquesne": null,
       "peco": null
     },
@@ -309,7 +386,7 @@
       "customers_out": 2,
       "customers_served": 19232,
       "percent_out": 0.01,
-      "change": 2,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -317,9 +394,27 @@
         "customers_out": 2,
         "customers_served": 19232,
         "percent_out": 0.01,
-        "change": 2
+        "change": 0
       },
       "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Northumberland",
+      "customers_out": 2,
+      "customers_served": 169110,
+      "percent_out": 0.0,
+      "change": 0,
+      "sources": [
+        "PPL"
+      ],
+      "firstenergy": null,
+      "ppl": {
+        "customers_out": 1,
+        "customers_served": 84555,
+        "percent_out": 0.0
+      },
       "duquesne": null,
       "peco": null
     },
@@ -351,6 +446,24 @@
       }
     },
     {
+      "county": "ALLEGHENY",
+      "customers_out": 1,
+      "customers_served": 546631,
+      "percent_out": 0.0,
+      "change": 0,
+      "sources": [
+        "Duquesne Light"
+      ],
+      "firstenergy": null,
+      "ppl": null,
+      "duquesne": {
+        "customers_out": 1,
+        "customers_served": 546631,
+        "percent_out": 0.0
+      },
+      "peco": null
+    },
+    {
       "county": "Chester",
       "customers_out": 1,
       "customers_served": 223225,
@@ -378,25 +491,6 @@
       }
     },
     {
-      "county": "Cumberland",
-      "customers_out": 1,
-      "customers_served": 18088,
-      "percent_out": 0.01,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 1,
-        "customers_served": 18088,
-        "percent_out": 0.01,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
       "county": "Mercer",
       "customers_out": 1,
       "customers_served": 51825,
@@ -420,32 +514,13 @@
       "customers_out": 1,
       "customers_served": 30980,
       "percent_out": 0.0,
-      "change": 1,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 1,
-        "customers_served": 30980,
-        "percent_out": 0.0,
-        "change": 1
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Washington",
-      "customers_out": 1,
-      "customers_served": 110420,
-      "percent_out": 0.0,
       "change": 0,
       "sources": [
         "FirstEnergy"
       ],
       "firstenergy": {
         "customers_out": 1,
-        "customers_served": 110420,
+        "customers_served": 30980,
         "percent_out": 0.0,
         "change": 0
       },
@@ -458,7 +533,7 @@
       "customers_out": 1,
       "customers_served": 8604,
       "percent_out": 0.01,
-      "change": 1,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -466,7 +541,7 @@
         "customers_out": 1,
         "customers_served": 8604,
         "percent_out": 0.01,
-        "change": 1
+        "change": 0
       },
       "ppl": null,
       "duquesne": null,
@@ -629,7 +704,7 @@
       "customers_out": 0,
       "customers_served": 69364,
       "percent_out": 0.0,
-      "change": -5,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -637,7 +712,7 @@
         "customers_out": 0,
         "customers_served": 69364,
         "percent_out": 0.0,
-        "change": -5
+        "change": 0
       },
       "ppl": null,
       "duquesne": null,
@@ -969,25 +1044,6 @@
       "peco": null
     },
     {
-      "county": "Lehigh",
-      "customers_out": 0,
-      "customers_served": 4212,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 4212,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
       "county": "Lycoming",
       "customers_out": 0,
       "customers_served": 1407,
@@ -1220,15 +1276,15 @@
   ],
   "municipality_summary": [
     {
-      "municipality": "PITTSBURGH",
+      "municipality": "Milford Twp",
       "county": null,
-      "customers_out": 154,
-      "customers_served": 353422,
-      "percent_out": 0.04,
+      "customers_out": 130,
+      "customers_served": 3197,
+      "percent_out": 4.07,
       "outages": null,
       "etr": null,
       "masked": false,
-      "source": "Duquesne Light"
+      "source": "PPL"
     },
     {
       "municipality": "Amity Township",
@@ -1264,6 +1320,17 @@
       "source": "FirstEnergy"
     },
     {
+      "municipality": "North Strabane Township",
+      "county": "Washington",
+      "customers_out": 35,
+      "customers_served": 7157,
+      "percent_out": null,
+      "outages": null,
+      "etr": "03/21/2026 11:00 AM",
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
       "municipality": "Bridgeton Township",
       "county": "Bucks",
       "customers_out": 14,
@@ -1293,6 +1360,17 @@
       "percent_out": null,
       "outages": null,
       "etr": "03/21/2026 08:00 AM",
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Canonsburg Borough",
+      "county": "Washington",
+      "customers_out": 13,
+      "customers_served": 5425,
+      "percent_out": null,
+      "outages": null,
+      "etr": "03/21/2026 11:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -1336,9 +1414,31 @@
       "customers_served": 5174,
       "percent_out": null,
       "outages": null,
-      "etr": "03/21/2026 07:30 AM",
+      "etr": "03/21/2026 09:30 AM",
       "masked": false,
       "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Packer Twp",
+      "county": null,
+      "customers_out": 5,
+      "customers_served": 370,
+      "percent_out": 1.35,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Upper Macungie Twp",
+      "county": null,
+      "customers_out": 5,
+      "customers_served": 9364,
+      "percent_out": 0.05,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
     },
     {
       "municipality": "Exeter Township",
@@ -1394,6 +1494,17 @@
       "etr": "03/21/2026 08:00 AM",
       "masked": false,
       "source": "FirstEnergy"
+    },
+    {
+      "municipality": "South Middleton Twp",
+      "county": null,
+      "customers_out": 2,
+      "customers_served": 1935,
+      "percent_out": 0.1,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
     },
     {
       "municipality": "Canton Township",
@@ -1495,6 +1606,17 @@
       "source": "FirstEnergy"
     },
     {
+      "municipality": "PITTSBURGH",
+      "county": null,
+      "customers_out": 1,
+      "customers_served": 353422,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "Duquesne Light"
+    },
+    {
       "municipality": "Quemahoning Township",
       "county": "Somerset",
       "customers_out": 1,
@@ -1537,6 +1659,28 @@
       "etr": "03/21/2026 01:00 PM",
       "masked": false,
       "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Upper Augusta Twp",
+      "county": null,
+      "customers_out": 1,
+      "customers_served": 7202,
+      "percent_out": 0.01,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Walnutport Boro",
+      "county": null,
+      "customers_out": 1,
+      "customers_served": 1342,
+      "percent_out": 0.07,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
     },
     {
       "municipality": "Warwick Township",
@@ -3380,17 +3524,6 @@
       "county": "Indiana",
       "customers_out": 0,
       "customers_served": 433,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
-      "municipality": "Canonsburg Borough",
-      "county": "Washington",
-      "customers_out": 0,
-      "customers_served": 5425,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -11252,17 +11385,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "North Strabane Township",
-      "county": "Washington",
-      "customers_out": 0,
-      "customers_served": 7157,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "North Towanda Township",
       "county": "Bradford",
       "customers_out": 0,
@@ -14168,7 +14290,7 @@
     },
     {
       "municipality": "Spring Township",
-      "county": "Centre",
+      "county": "Berks",
       "customers_out": 0,
       "customers_served": 4350,
       "percent_out": 0.0,
@@ -17227,100 +17349,36 @@
   ],
   "items_firstenergy": [
     {
-      "municipality": "Palmer Township",
-      "county": "Northampton",
+      "municipality": "North Strabane Township",
+      "county": "Washington",
       "state": "PA",
       "company": null,
-      "customers_out": 7,
-      "customers_served": 10081,
+      "customers_out": 35,
+      "customers_served": 7157,
       "percent_out": null,
-      "etr": "03/21/2026 10:00 AM",
+      "etr": "03/21/2026 11:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 0,
-      "change": 7,
+      "change": 35,
       "status": "new"
     },
     {
-      "municipality": "Richhill Township",
-      "county": "Greene",
+      "municipality": "Canonsburg Borough",
+      "county": "Washington",
       "state": "PA",
       "company": null,
-      "customers_out": 2,
-      "customers_served": 461,
+      "customers_out": 13,
+      "customers_served": 5425,
       "percent_out": null,
-      "etr": "03/21/2026 08:00 AM",
+      "etr": "03/21/2026 11:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 0,
-      "change": 2,
+      "change": 13,
       "status": "new"
-    },
-    {
-      "municipality": "Quemahoning Township",
-      "county": "Somerset",
-      "state": "PA",
-      "company": null,
-      "customers_out": 1,
-      "customers_served": 947,
-      "percent_out": null,
-      "etr": "03/21/2026 10:30 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 1,
-      "status": "new"
-    },
-    {
-      "municipality": "Tunkhannock Township",
-      "county": "Wyoming",
-      "state": "PA",
-      "company": null,
-      "customers_out": 1,
-      "customers_served": 1817,
-      "percent_out": null,
-      "etr": "03/21/2026 11:30 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 1,
-      "status": "new"
-    },
-    {
-      "municipality": "Colebrookdale Township",
-      "county": "Berks",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 2291,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 2,
-      "change": -2,
-      "status": "restored"
-    },
-    {
-      "municipality": "Spring Township",
-      "county": "Centre",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 4350,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 5,
-      "change": -5,
-      "status": "restored"
     },
     {
       "municipality": "Amity Township",
@@ -17419,6 +17477,22 @@
       "status": "unchanged"
     },
     {
+      "municipality": "Palmer Township",
+      "county": "Northampton",
+      "state": "PA",
+      "company": null,
+      "customers_out": 7,
+      "customers_served": 10081,
+      "percent_out": null,
+      "etr": "03/21/2026 10:00 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 7,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
       "municipality": "Lehman Township",
       "county": "Pike",
       "state": "PA",
@@ -17442,7 +17516,7 @@
       "customers_out": 5,
       "customers_served": 5174,
       "percent_out": null,
-      "etr": "03/21/2026 07:30 AM",
+      "etr": "03/21/2026 09:30 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -17491,6 +17565,22 @@
       "customers_served": 1492,
       "percent_out": null,
       "etr": "03/21/2026 08:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 2,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Richhill Township",
+      "county": "Greene",
+      "state": "PA",
+      "company": null,
+      "customers_out": 2,
+      "customers_served": 461,
+      "percent_out": null,
+      "etr": "03/21/2026 08:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -17659,6 +17749,22 @@
       "status": "unchanged"
     },
     {
+      "municipality": "Quemahoning Township",
+      "county": "Somerset",
+      "state": "PA",
+      "company": null,
+      "customers_out": 1,
+      "customers_served": 947,
+      "percent_out": null,
+      "etr": "03/21/2026 10:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 1,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
       "municipality": "Canton Township",
       "county": "Washington",
       "state": "PA",
@@ -17667,6 +17773,22 @@
       "customers_served": 3948,
       "percent_out": null,
       "etr": "03/21/2026 08:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 1,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Tunkhannock Township",
+      "county": "Wyoming",
+      "state": "PA",
+      "company": null,
+      "customers_out": 1,
+      "customers_served": 1817,
+      "percent_out": null,
+      "etr": "03/21/2026 11:30 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -20593,6 +20715,22 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 1829,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Colebrookdale Township",
+      "county": "Berks",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 2291,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -24993,6 +25131,22 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 952,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Spring Township",
+      "county": "Centre",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 4350,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -38315,22 +38469,6 @@
       "status": "unchanged"
     },
     {
-      "municipality": "Canonsburg Borough",
-      "county": "Washington",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 5425,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
       "municipality": "Carroll Township",
       "county": "Washington",
       "state": "PA",
@@ -38913,22 +39051,6 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 2976,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "North Strabane Township",
-      "county": "Washington",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 7157,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -41661,6 +41783,22 @@
   ],
   "items_ppl": [
     {
+      "municipality": "Milford Twp",
+      "county": "Bucks",
+      "customers_out": 130,
+      "customers_served": 3197,
+      "percent_out": 4.07,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Milford Twp",
+      "county": "Bucks",
+      "customers_out": 130,
+      "customers_served": 3197,
+      "percent_out": 4.07,
+      "source": "PPL"
+    },
+    {
       "municipality": "Greene Twp",
       "county": "Pike",
       "customers_out": 14,
@@ -41674,6 +41812,54 @@
       "customers_out": 14,
       "customers_served": 3541,
       "percent_out": 0.4,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Packer Twp",
+      "county": "Carbon",
+      "customers_out": 5,
+      "customers_served": 370,
+      "percent_out": 1.35,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Upper Macungie Twp",
+      "county": "Lehigh",
+      "customers_out": 5,
+      "customers_served": 9364,
+      "percent_out": 0.05,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Packer Twp",
+      "county": "Carbon",
+      "customers_out": 5,
+      "customers_served": 370,
+      "percent_out": 1.35,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Upper Macungie Twp",
+      "county": "Lehigh",
+      "customers_out": 5,
+      "customers_served": 9364,
+      "percent_out": 0.05,
+      "source": "PPL"
+    },
+    {
+      "municipality": "South Middleton Twp",
+      "county": "Cumberland",
+      "customers_out": 2,
+      "customers_served": 1935,
+      "percent_out": 0.1,
+      "source": "PPL"
+    },
+    {
+      "municipality": "South Middleton Twp",
+      "county": "Cumberland",
+      "customers_out": 2,
+      "customers_served": 1935,
+      "percent_out": 0.1,
       "source": "PPL"
     },
     {
@@ -41693,6 +41879,22 @@
       "source": "PPL"
     },
     {
+      "municipality": "Walnutport Boro",
+      "county": "Northampton",
+      "customers_out": 1,
+      "customers_served": 1342,
+      "percent_out": 0.07,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Upper Augusta Twp",
+      "county": "Northumberland",
+      "customers_out": 1,
+      "customers_served": 7202,
+      "percent_out": 0.01,
+      "source": "PPL"
+    },
+    {
       "municipality": "Coolbaugh Twp",
       "county": "Monroe",
       "customers_out": 1,
@@ -41705,21 +41907,27 @@
       "county": "Montgomery",
       "customers_out": 1,
       "customers_served": 7905,
+      "percent_out": 0.01,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Walnutport Boro",
+      "county": "Northampton",
+      "customers_out": 1,
+      "customers_served": 1342,
+      "percent_out": 0.07,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Upper Augusta Twp",
+      "county": "Northumberland",
+      "customers_out": 1,
+      "customers_served": 7202,
       "percent_out": 0.01,
       "source": "PPL"
     }
   ],
   "items_duquesne": [
-    {
-      "utility": "Duquesne Light",
-      "outages": 153,
-      "status": "Awaiting Dispatch",
-      "county": "ALLEGHENY",
-      "municipality": "PITTSBURGH",
-      "zip": "15207",
-      "lat": 40.40591,
-      "lon": -79.94607
-    },
     {
       "utility": "Duquesne Light",
       "outages": 1,
