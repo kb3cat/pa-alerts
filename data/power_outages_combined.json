@@ -1,33 +1,33 @@
 {
   "name": "pa_power_outages_combined",
-  "fetched_at": "2026-03-22T09:59:48Z",
+  "fetched_at": "2026-03-22T10:39:27Z",
   "sources": {
     "firstenergy_file": "data/power_outages_pa.json",
     "ppl_file": "data/power_outages_ppl.json",
     "duquesne_file": "data/power_outages_duq.json",
     "peco_file": "data/power_outages_peco.json",
-    "firstenergy_fetched_at": "2026-03-22T09:59:13Z",
-    "ppl_fetched_at": "2026-03-22T09:59:36Z",
+    "firstenergy_fetched_at": "2026-03-22T10:38:51Z",
+    "ppl_fetched_at": "2026-03-22T10:39:15Z",
     "duquesne_fetched_at": "2026-03-22T08:55:43.263Z",
-    "peco_fetched_at": "2026-03-22T09:59:48Z",
+    "peco_fetched_at": "2026-03-22T10:39:27Z",
     "ppl_source_last_updated": null,
     "peco_source_date_generated": null
   },
   "total_customers_out": 1452,
   "summary": {
-    "new": 0,
+    "new": 1,
     "increasing": 0,
     "decreasing": 0,
-    "unchanged": 1527,
-    "restored": 0,
+    "unchanged": 1525,
+    "restored": 1,
     "counties_over_one_percent": 0,
-    "total_customers_served": 4508309,
+    "total_customers_served": 4576843,
     "total_percent_out": 0.03
   },
   "utility_summary": [
     {
       "utility": "PPL",
-      "customers_out": 804
+      "customers_out": 806
     },
     {
       "utility": "Duquesne Light",
@@ -42,7 +42,7 @@
     },
     {
       "utility": "FirstEnergy",
-      "customers_out": 87
+      "customers_out": 85
     }
   ],
   "county_summary": [
@@ -189,23 +189,36 @@
       "peco": null
     },
     {
-      "county": "Lawrence",
-      "customers_out": 3,
-      "customers_served": 37635,
-      "percent_out": 0.01,
+      "county": "Bucks",
+      "customers_out": 2,
+      "customers_served": 305620,
+      "percent_out": 0.0,
       "change": 0,
       "sources": [
-        "FirstEnergy"
+        "FirstEnergy",
+        "PPL",
+        "PECO"
       ],
       "firstenergy": {
-        "customers_out": 3,
-        "customers_served": 37635,
-        "percent_out": 0.01,
+        "customers_out": 0,
+        "customers_served": 6095,
+        "percent_out": 0.0,
         "change": 0
       },
-      "ppl": null,
+      "ppl": {
+        "customers_out": 1,
+        "customers_served": 34267,
+        "percent_out": 0.0
+      },
       "duquesne": null,
-      "peco": null
+      "peco": {
+        "customers_out": 0,
+        "customers_served": 230991,
+        "percent_out": 0.0,
+        "outages": 1,
+        "etr": "2026-03-19T13:40:00Z",
+        "masked": true
+      }
     },
     {
       "county": "Chester",
@@ -248,6 +261,25 @@
         "customers_served": 69434,
         "percent_out": 0.0,
         "change": 0
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Indiana",
+      "customers_out": 1,
+      "customers_served": 27992,
+      "percent_out": 0.0,
+      "change": 1,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 1,
+        "customers_served": 27992,
+        "percent_out": 0.0,
+        "change": 1
       },
       "ppl": null,
       "duquesne": null,
@@ -412,33 +444,6 @@
       "ppl": null,
       "duquesne": null,
       "peco": null
-    },
-    {
-      "county": "Bucks",
-      "customers_out": 0,
-      "customers_served": 237086,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy",
-        "PECO"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 6095,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": {
-        "customers_out": 0,
-        "customers_served": 230991,
-        "percent_out": 0.0,
-        "outages": 1,
-        "etr": "2026-03-19T13:40:00Z",
-        "masked": true
-      }
     },
     {
       "county": "Cambria",
@@ -747,25 +752,6 @@
       "peco": null
     },
     {
-      "county": "Indiana",
-      "customers_out": 0,
-      "customers_served": 27992,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 27992,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
       "county": "Jefferson",
       "customers_out": 0,
       "customers_served": 16747,
@@ -798,6 +784,25 @@
         "customers_served": 2204,
         "percent_out": 0.0,
         "change": 0
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Lawrence",
+      "customers_out": 0,
+      "customers_served": 37635,
+      "percent_out": 0.0,
+      "change": -3,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 37635,
+        "percent_out": 0.0,
+        "change": -3
       },
       "ppl": null,
       "duquesne": null,
@@ -1292,17 +1297,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "Slippery Rock Township",
-      "county": "Lawrence",
-      "customers_out": 3,
-      "customers_served": 2274,
-      "percent_out": null,
-      "outages": null,
-      "etr": "03/22/2026 09:00 AM",
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "Richhill Township",
       "county": "Greene",
       "customers_out": 2,
@@ -1319,6 +1313,17 @@
       "customers_out": 2,
       "customers_served": 5936,
       "percent_out": 0.03,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
+    },
+    {
+      "municipality": "East Rockhill Twp",
+      "county": null,
+      "customers_out": 1,
+      "customers_served": 2574,
+      "percent_out": 0.04,
       "outages": null,
       "etr": null,
       "masked": false,
@@ -1365,6 +1370,17 @@
       "percent_out": null,
       "outages": null,
       "etr": "03/22/2026 07:00 AM",
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "White Township",
+      "county": "Indiana",
+      "customers_out": 1,
+      "customers_served": 5179,
+      "percent_out": null,
+      "outages": null,
+      "etr": "03/22/2026 10:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -13568,6 +13584,17 @@
       "source": "FirstEnergy"
     },
     {
+      "municipality": "Slippery Rock Township",
+      "county": "Lawrence",
+      "customers_out": 0,
+      "customers_served": 2274,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
       "municipality": "Smethport Borough",
       "county": "Mckean",
       "customers_out": 0,
@@ -16670,17 +16697,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "White Township",
-      "county": "Cambria",
-      "customers_out": 0,
-      "customers_served": 5179,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "Whitely Township",
       "county": "Greene",
       "customers_out": 0,
@@ -17222,6 +17238,38 @@
   ],
   "items_firstenergy": [
     {
+      "municipality": "White Township",
+      "county": "Indiana",
+      "state": "PA",
+      "company": null,
+      "customers_out": 1,
+      "customers_served": 5179,
+      "percent_out": null,
+      "etr": "03/22/2026 10:00 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 1,
+      "status": "new"
+    },
+    {
+      "municipality": "Slippery Rock Township",
+      "county": "Lawrence",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 1437,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 3,
+      "change": -3,
+      "status": "restored"
+    },
+    {
       "municipality": "Ruscombmanor Township",
       "county": "Berks",
       "state": "PA",
@@ -17282,22 +17330,6 @@
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 5,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Slippery Rock Township",
-      "county": "Lawrence",
-      "state": "PA",
-      "company": null,
-      "customers_out": 3,
-      "customers_served": 1437,
-      "percent_out": null,
-      "etr": "03/22/2026 09:00 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 3,
       "change": 0,
       "status": "unchanged"
     },
@@ -31270,22 +31302,6 @@
       "status": "unchanged"
     },
     {
-      "municipality": "White Township",
-      "county": "Indiana",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 5179,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
       "municipality": "Young Township",
       "county": "Indiana",
       "state": "PA",
@@ -41685,6 +41701,22 @@
       "customers_out": 2,
       "customers_served": 5936,
       "percent_out": 0.03,
+      "source": "PPL"
+    },
+    {
+      "municipality": "East Rockhill Twp",
+      "county": "Bucks",
+      "customers_out": 1,
+      "customers_served": 2574,
+      "percent_out": 0.04,
+      "source": "PPL"
+    },
+    {
+      "municipality": "East Rockhill Twp",
+      "county": "Bucks",
+      "customers_out": 1,
+      "customers_served": 2574,
+      "percent_out": 0.04,
       "source": "PPL"
     }
   ],
