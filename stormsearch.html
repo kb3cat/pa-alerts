@@ -554,6 +554,7 @@ tbody tr:hover{
               <option value="municipality_asc">Municipality (A-Z)</option>
               <option value="event_type_asc">Event Type (A-Z)</option>
               <option value="source_asc">Source (A-Z)</option>
+              <option value="status_asc">Status (A-Z)</option>
             </select>
           </div>
 
@@ -836,6 +837,57 @@ function compareValues(a, b){
   const av = safeString(a).toLowerCase();
   const bv = safeString(b).toLowerCase();
   return av.localeCompare(bv);
+}
+
+function normalizedDedupeKey(r){
+  const eventTs = toTimestamp(r.event_time);
+  const roundedTime = eventTs == null ? "" : Math.floor(eventTs / (60 * 60 * 1000));
+
+  const description = safeString(r.description)
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+
+  return [
+    safeString(r.county).toLowerCase(),
+    safeString(r.municipality).toLowerCase(),
+    safeString(r.event_type).toLowerCase(),
+    roundedTime,
+    description
+  ].join("|");
+}
+
+function dedupeMergedReports(items){
+  const bestByKey = new Map();
+
+  for (const item of items){
+    const key = normalizedDedupeKey(item);
+    const existing = bestByKey.get(key);
+
+    if (!existing){
+      bestByKey.set(key, item);
+      continue;
+    }
+
+    const existingOfficial = safeString(existing.status).toLowerCase() === "official";
+    const itemOfficial = safeString(item.status).toLowerCase() === "official";
+
+    if (!existingOfficial && itemOfficial){
+      bestByKey.set(key, item);
+      continue;
+    }
+
+    if (
+      existingOfficial === itemOfficial &&
+      safeString(item.description).length > safeString(existing.description).length
+    ){
+      bestByKey.set(key, item);
+    }
+  }
+
+  return Array.from(bestByKey.values());
 }
 
 function applySort(){
@@ -1135,9 +1187,9 @@ async function loadData(){
     const merged = [
       ...recentItems,
       ...histItems
-    ];
+    ].map(normalizeItem);
 
-    allReports = merged.map(normalizeItem);
+    allReports = dedupeMergedReports(merged);
 
     populateFilters();
     loadFiltersFromQuery();
