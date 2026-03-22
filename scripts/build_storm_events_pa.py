@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
-
 import csv
 import gzip
 import json
@@ -16,7 +14,7 @@ OUTPUT_PATH = Path("data/storm_events_pa.json")
 
 
 @dataclass
-class StormEventPA:
+class StormEvent:
     id: str
     source: str
     status: str
@@ -59,13 +57,23 @@ class StormEventPA:
     keywords: list[str]
 
 
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def iso_z(dt: datetime | None) -> str | None:
+    if dt is None:
+        return None
+    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def norm(value: object) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
 def clean_dash(value: object) -> str | None:
     s = norm(value)
-    if not s or s in {"--", "—"}:
+    if not s or s in {"--", "—", "N/A", "n/a", "NULL", "null", "None"}:
         return None
     return s
 
@@ -97,54 +105,46 @@ def parse_int(value: object) -> int | None:
         return None
 
 
-def zero_pad_time(value: object) -> str | None:
-    s = re.sub(r"[^\d]", "", norm(value))
+def parse_datetime(value: object) -> datetime | None:
+    s = clean_dash(value)
     if not s:
         return None
-    return s.zfill(4)
 
-
-def build_dt(yearmonth: object, day: object, hhmm: object) -> datetime | None:
-    ym = norm(yearmonth)
-    dd = norm(day)
-    tm = zero_pad_time(hhmm)
-
-    if not ym or not dd or not tm or len(ym) != 6:
-        return None
-
-    try:
-        year = int(ym[:4])
-        month = int(ym[4:6])
-        day_num = int(dd)
-        hour = int(tm[:2])
-        minute = int(tm[2:4])
-        return datetime(year, month, day_num, hour, minute, tzinfo=timezone.utc)
-    except Exception:
-        return None
-
-
-def iso_z(dt: datetime | None) -> str | None:
-    if dt is None:
-        return None
-    return dt.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def format_magnitude(mag: object, mag_type: object) -> str | None:
-    m = clean_dash(mag)
-    mt = clean_dash(mag_type)
-    if m and mt:
-        return f"{m} {mt}"
-    if m:
-        return m
+    fmts = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+        "%Y%m%d%H%M",
+    ]
+    for fmt in fmts:
+        try:
+            dt = datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
+            return dt
+        except Exception:
+            continue
     return None
 
 
-def choose_description(event_narrative: str | None, episode_narrative: str | None, fallback: str | None) -> str | None:
-    if clean_dash(event_narrative):
-        return norm(event_narrative)
-    if clean_dash(episode_narrative):
-        return norm(episode_narrative)
-    return clean_dash(fallback)
+def make_event_dt(row: dict[str, str], prefix: str) -> datetime | None:
+    y = clean_dash(row.get(f"BEGIN_YEARMONTH")) if prefix == "BEGIN" else clean_dash(row.get("END_YEARMONTH"))
+    day = clean_dash(row.get(f"{prefix}_DAY"))
+    tm = clean_dash(row.get(f"{prefix}_TIME"))
+
+    if not y or not day or not tm:
+        return None
+
+    try:
+        y = str(y)
+        day_num = int(day)
+        tm_num = int(tm)
+        year = int(y[:4])
+        month = int(y[4:6])
+        hour = tm_num // 100
+        minute = tm_num % 100
+        return datetime(year, month, day_num, hour, minute, tzinfo=timezone.utc)
+    except Exception:
+        return None
 
 
 def looks_like_zone_name(value: str | None) -> bool:
@@ -154,7 +154,7 @@ def looks_like_zone_name(value: str | None) -> bool:
     zone_words = [
         "ridges", "mountains", "highlands", "lowlands",
         "valley", "valleys", "uplands",
-        "county", "counties", "zone", "zones"
+        "county", "counties", "zone", "zones",
     ]
     return any(word in v for word in zone_words)
 
@@ -163,29 +163,45 @@ def clean_county(value: object) -> str | None:
     s = clean_dash(value)
     if not s:
         return None
+
     s = title_case(s)
     if not s:
         return None
+
+    s = re.sub(
+        r"^(North|South|East|West|Northern|Southern|Eastern|Western|Central)\s+",
+        "",
+        s,
+        flags=re.IGNORECASE,
+    )
+
     s = re.sub(r"\s+County$", "", s, flags=re.IGNORECASE)
+
+    return s.strip()
+
+
+def clean_municipality(value: object, county: str | None) -> str | None:
+    s = clean_dash(value)
+    if not s:
+        return None
+
+    s = title_case(s)
+    if not s:
+        return None
+
+    if county and s.lower() == county.lower():
+        return None
+
+    if looks_like_zone_name(s):
+        return None
+
     return s
 
 
-def clean_municipality(begin_location: object, county: str | None) -> str | None:
-    loc = clean_dash(begin_location)
-    if not loc:
-        return None
-
-    loc = title_case(loc)
-    if not loc:
-        return None
-
-    if county and loc.lower() == county.lower():
-        return None
-
-    if looks_like_zone_name(loc):
-        return None
-
-    return loc
+def format_magnitude(raw: str | None, units: str | None) -> str | None:
+    if raw and units:
+        return f"{raw} {units}"
+    return raw
 
 
 def make_keywords(*parts: object) -> list[str]:
@@ -209,38 +225,35 @@ def make_keywords(*parts: object) -> list[str]:
     return out[:20]
 
 
-def normalize_row(row: dict[str, str]) -> StormEventPA | None:
-    state = norm(row.get("STATE")).upper()
-    if state != "PENNSYLVANIA":
+def normalize_row(row: dict[str, str]) -> StormEvent | None:
+    state = clean_dash(row.get("STATE"))
+    if norm(state).upper() not in {"PA", "PENNSYLVANIA"}:
         return None
 
-    begin_dt = build_dt(row.get("BEGIN_YEARMONTH"), row.get("BEGIN_DAY"), row.get("BEGIN_TIME"))
-    end_dt = build_dt(row.get("END_YEARMONTH"), row.get("END_DAY"), row.get("END_TIME"))
-
-    county = clean_county(row.get("COUNTY"))
-    cz_name = title_case(row.get("CZ_NAME"))
-    begin_location = title_case(row.get("BEGIN_LOCATION"))
-    end_location = title_case(row.get("END_LOCATION"))
-
-    if not county and cz_name and not looks_like_zone_name(cz_name):
-        county = re.sub(r"\s+County$", "", cz_name, flags=re.IGNORECASE)
-
-    municipality = clean_municipality(row.get("BEGIN_LOCATION"), county)
-
-    event_type = title_case(row.get("EVENT_TYPE"))
-    event_narrative = clean_dash(row.get("EVENT_NARRATIVE"))
-    episode_narrative = clean_dash(row.get("EPISODE_NARRATIVE"))
-    description = choose_description(event_narrative, episode_narrative, event_type)
+    begin_dt = make_event_dt(row, "BEGIN")
+    end_dt = make_event_dt(row, "END")
 
     event_id = clean_dash(row.get("EVENT_ID"))
     episode_id = clean_dash(row.get("EPISODE_ID"))
-    year = clean_dash(row.get("YEAR"))
 
-    record_id = f"{year or '0000'}-{event_id or episode_id or 'unknown'}"
+    county = clean_county(row.get("CZ_NAME") or row.get("COUNTY") or row.get("COUNTY_NAME"))
+    municipality = clean_municipality(row.get("BEGIN_LOCATION"), county)
 
-    return StormEventPA(
-        id=record_id,
-        source="NCEI",
+    event_type = title_case(row.get("EVENT_TYPE"))
+    magnitude_raw = clean_dash(row.get("MAGNITUDE"))
+    magnitude_type = clean_dash(row.get("MAGNITUDE_TYPE"))
+    magnitude = format_magnitude(magnitude_raw, magnitude_type)
+
+    episode_narrative = clean_dash(row.get("EPISODE_NARRATIVE"))
+    event_narrative = clean_dash(row.get("EVENT_NARRATIVE"))
+    description = event_narrative or episode_narrative or event_type
+
+    lat = parse_float(row.get("BEGIN_LAT"))
+    lon = parse_float(row.get("BEGIN_LON"))
+
+    return StormEvent(
+        id=event_id or f"ncei-{episode_id or 'unknown'}-{row.get('BEGIN_YEARMONTH', '')}-{row.get('BEGIN_DAY', '')}",
+        source="NCEI_STORM_EVENTS",
         status="official",
         office=clean_dash(row.get("WFO")),
         event_time=iso_z(begin_dt),
@@ -249,12 +262,12 @@ def normalize_row(row: dict[str, str]) -> StormEventPA | None:
         municipality=municipality,
         state="PA",
         event_type=event_type,
-        magnitude=format_magnitude(row.get("MAGNITUDE"), row.get("MAGNITUDE_TYPE")),
+        magnitude=magnitude,
         description=description,
         episode_narrative=episode_narrative,
         event_narrative=event_narrative,
-        lat=parse_float(row.get("BEGIN_LAT")),
-        lon=parse_float(row.get("BEGIN_LON")),
+        lat=lat,
+        lon=lon,
         damage_property=clean_dash(row.get("DAMAGE_PROPERTY")),
         damage_crops=clean_dash(row.get("DAMAGE_CROPS")),
         injuries_direct=parse_int(row.get("INJURIES_DIRECT")),
@@ -265,43 +278,42 @@ def normalize_row(row: dict[str, str]) -> StormEventPA | None:
         episode_id=episode_id,
         event_id=event_id,
         cz_type=clean_dash(row.get("CZ_TYPE")),
-        cz_name=cz_name,
-        magnitude_raw=clean_dash(row.get("MAGNITUDE")),
-        magnitude_type=clean_dash(row.get("MAGNITUDE_TYPE")),
+        cz_name=clean_dash(row.get("CZ_NAME")),
+        magnitude_raw=magnitude_raw,
+        magnitude_type=magnitude_type,
         flood_cause=clean_dash(row.get("FLOOD_CAUSE")),
         tor_f_scale=clean_dash(row.get("TOR_F_SCALE")),
         tor_length=clean_dash(row.get("TOR_LENGTH")),
         tor_width=clean_dash(row.get("TOR_WIDTH")),
         tor_other_wfo=clean_dash(row.get("TOR_OTHER_WFO")),
-        begin_location=begin_location,
-        end_location=end_location,
+        begin_location=title_case(row.get("BEGIN_LOCATION")),
+        end_location=title_case(row.get("END_LOCATION")),
         begin_yomon=clean_dash(row.get("BEGIN_YEARMONTH")),
-        year=year,
-        month_name=clean_dash(row.get("MONTH_NAME")),
+        year=clean_dash(str(begin_dt.year)) if begin_dt else None,
+        month_name=begin_dt.strftime("%B") if begin_dt else None,
         keywords=make_keywords(
-            row.get("EVENT_TYPE"),
+            event_type,
             county,
-            begin_location,
-            row.get("SOURCE"),
-            row.get("EVENT_NARRATIVE"),
-            row.get("EPISODE_NARRATIVE"),
+            municipality,
+            description,
+            row.get("WFO"),
         ),
     )
 
 
-def dedupe(items: list[StormEventPA]) -> list[StormEventPA]:
-    out: list[StormEventPA] = []
+def dedupe_items(items: list[StormEvent]) -> list[StormEvent]:
+    out: list[StormEvent] = []
     seen: set[str] = set()
 
     for item in items:
         key = "|".join([
-            norm(item.event_id),
-            norm(item.episode_id),
+            norm(item.source),
             norm(item.event_time),
             norm(item.county),
             norm(item.municipality),
             norm(item.event_type),
             norm(item.description),
+            norm(item.event_id),
         ]).lower()
 
         if key in seen:
@@ -314,39 +326,31 @@ def dedupe(items: list[StormEventPA]) -> list[StormEventPA]:
 
 def main() -> int:
     if not INPUT_PATH.exists():
-        raise FileNotFoundError(f"Input file not found: {INPUT_PATH}")
+        raise FileNotFoundError(f"Missing input file: {INPUT_PATH}")
 
-    events: list[StormEventPA] = []
+    items: list[StormEvent] = []
 
-    with gzip.open(INPUT_PATH, mode="rt", encoding="utf-8", errors="replace", newline="") as f:
+    with gzip.open(INPUT_PATH, "rt", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
-        total_rows = 0
-        kept_rows = 0
-
         for row in reader:
-            total_rows += 1
             item = normalize_row(row)
-            if item is None:
-                continue
-            kept_rows += 1
-            events.append(item)
+            if item is not None:
+                items.append(item)
 
-    events = dedupe(events)
-    events.sort(key=lambda x: (x.event_time or "", x.event_id or ""), reverse=True)
+    items = dedupe_items(items)
+    items.sort(key=lambda x: (x.event_time or "", x.id), reverse=True)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "name": "storm_events_pa",
-        "fetched_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "count": len(events),
-        "items": [asdict(x) for x in events],
+        "fetched_at": iso_z(now_utc()),
+        "count": len(items),
+        "items": [asdict(x) for x in items],
     }
 
     OUTPUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    print(f"Read rows: {total_rows}")
-    print(f"PA rows kept: {kept_rows}")
-    print(f"Final deduped rows: {len(events)}")
+    print(f"Final historical rows: {len(items)}")
     print(f"Wrote: {OUTPUT_PATH}")
     return 0
 
