@@ -205,6 +205,15 @@ def fetch_csv_text(start_dt: datetime, end_dt: datetime) -> str:
         timeout=120,
     )
     response.raise_for_status()
+
+    debug_dir = Path("data/debug")
+    debug_dir.mkdir(parents=True, exist_ok=True)
+
+    stamp = start_dt.strftime("%Y%m%dT%H%MZ") + "_" + end_dt.strftime("%Y%m%dT%H%MZ")
+    raw_path = debug_dir / f"lsr_raw_{stamp}.txt"
+    raw_path.write_text(response.text, encoding="utf-8")
+
+    print(f"Saved raw response: {raw_path}")
     return response.text
 
 
