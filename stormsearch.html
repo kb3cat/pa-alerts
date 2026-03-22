@@ -111,14 +111,14 @@ body{
 
 .grid{
   display:grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns:320px 1fr;
   gap:16px;
   align-items:start;
 }
 
 @media (max-width: 1100px){
   .grid{
-    grid-template-columns: 1fr;
+    grid-template-columns:1fr;
   }
 }
 
@@ -182,20 +182,20 @@ body{
 /* STATS */
 .stats{
   display:grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
+  grid-template-columns:repeat(4, minmax(0,1fr));
   gap:12px;
   margin-bottom:16px;
 }
 
 @media (max-width: 900px){
   .stats{
-    grid-template-columns: repeat(2, minmax(0,1fr));
+    grid-template-columns:repeat(2, minmax(0,1fr));
   }
 }
 
 @media (max-width: 560px){
   .stats{
-    grid-template-columns: 1fr;
+    grid-template-columns:1fr;
   }
 }
 
@@ -305,6 +305,12 @@ tbody tr:hover{
   background:#1f3440;
   color:#bfe9ff;
   border:1px solid #2e5567;
+}
+
+.badge-prelim{
+  background:#3d3216;
+  color:#ffe08a;
+  border:1px solid #6a5720;
 }
 
 .badge-official{
@@ -452,7 +458,7 @@ tbody tr:hover{
   <div class="title-wrap">
     <div class="title">PennAlerts Storm History Search</div>
     <div class="subtitle">
-      Official NOAA/NCEI storm events for Pennsylvania (historical data may lag recent storms)
+      Official NOAA/NCEI storm events plus recent preliminary Pennsylvania reports
     </div>
   </div>
 
@@ -467,7 +473,7 @@ tbody tr:hover{
     <div class="stat">
       <div class="stat-label">Loaded Events</div>
       <div class="stat-value" id="statLoaded">0</div>
-      <div class="stat-sub">From NCEI JSON dataset</div>
+      <div class="stat-sub">Historical + recent datasets</div>
     </div>
 
     <div class="stat">
@@ -485,7 +491,7 @@ tbody tr:hover{
     <div class="stat">
       <div class="stat-label">Last Updated</div>
       <div class="stat-value" id="statUpdated">—</div>
-      <div class="stat-sub" id="statUpdatedSub">Waiting for dataset</div>
+      <div class="stat-sub" id="statUpdatedSub">Waiting for datasets</div>
     </div>
   </section>
 
@@ -517,6 +523,15 @@ tbody tr:hover{
             <label for="typeSelect">Event Type</label>
             <select id="typeSelect">
               <option value="">All Event Types</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="statusSelect">Status</label>
+            <select id="statusSelect">
+              <option value="">All Statuses</option>
+              <option value="official">Official</option>
+              <option value="preliminary">Preliminary</option>
             </select>
           </div>
 
@@ -561,7 +576,7 @@ tbody tr:hover{
               <th data-sort="municipality">Municipality</th>
               <th data-sort="event_type">Type</th>
               <th data-sort="source">Source</th>
-              <th>Status</th>
+              <th data-sort="status">Status</th>
               <th>Description</th>
             </tr>
           </thead>
@@ -587,7 +602,8 @@ tbody tr:hover{
 </div>
 
 <script>
-const DATA_URL = "data/storm_events_pa.json";
+const DATA_URL_HIST = "data/storm_events_pa.json";
+const DATA_URL_RECENT = "data/storm_events_recent_pa.json";
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 let allReports = [];
@@ -601,6 +617,7 @@ const els = {
   countySelect: document.getElementById("countySelect"),
   municipalitySelect: document.getElementById("municipalitySelect"),
   typeSelect: document.getElementById("typeSelect"),
+  statusSelect: document.getElementById("statusSelect"),
   startDate: document.getElementById("startDate"),
   endDate: document.getElementById("endDate"),
   sortSelect: document.getElementById("sortSelect"),
@@ -705,6 +722,7 @@ function eventBadge(type){
 
 function statusBadge(status){
   const s = safeString(status).toLowerCase();
+  if (s === "preliminary") return '<span class="badge badge-prelim">Preliminary</span>';
   if (s === "official") return '<span class="badge badge-official">Official</span>';
   return `<span class="badge badge-unknown">${escapeHtml(status || "Unknown")}</span>`;
 }
@@ -773,6 +791,7 @@ function getActiveFilters(){
     county: els.countySelect.value,
     municipality: els.municipalitySelect.value,
     type: els.typeSelect.value,
+    status: els.statusSelect.value,
     startDate: els.startDate.value,
     endDate: els.endDate.value
   };
@@ -793,6 +812,7 @@ function applyFilters(){
     if (f.county && safeString(r.county) !== f.county) return false;
     if (f.municipality && safeString(r.municipality) !== f.municipality) return false;
     if (f.type && safeString(r.event_type) !== f.type) return false;
+    if (f.status && safeString(r.status) !== f.status) return false;
 
     if (f.keyword){
       const hay = buildSearchText(r);
@@ -845,7 +865,6 @@ function applySort(){
 
 function renderTable(){
   els.resultsBody.innerHTML = "";
-
   els.resultsHead.textContent = `Search Results (${filteredReports.length.toLocaleString()})`;
 
   if (!filteredReports.length){
@@ -887,7 +906,7 @@ function updateStats(meta = {}){
   if (mostRecent){
     els.statRecent.textContent = formatLocalShort(mostRecent.event_time);
     els.statRecentSub.textContent =
-      [mostRecent.county, mostRecent.municipality, mostRecent.event_type].filter(Boolean).join(" • ");
+      [mostRecent.county, mostRecent.municipality || mostRecent.status, mostRecent.event_type].filter(Boolean).join(" • ");
   } else {
     els.statRecent.textContent = "—";
     els.statRecentSub.textContent = "No events loaded";
@@ -895,7 +914,7 @@ function updateStats(meta = {}){
 
   if (meta.fetched_at){
     els.statUpdated.textContent = formatLocalShort(meta.fetched_at);
-    els.statUpdatedSub.textContent = "Dataset refresh time";
+    els.statUpdatedSub.textContent = "Most recent dataset refresh time";
   } else {
     els.statUpdated.textContent = "—";
     els.statUpdatedSub.textContent = "Unknown";
@@ -1008,7 +1027,7 @@ function openModal(r){
     </div>
 
     <div class="footer-note">
-      This record is displayed from your local NCEI Pennsylvania storm events dataset.
+      This record is displayed from your merged Pennsylvania historical and recent storm datasets.
     </div>
   `;
 
@@ -1023,6 +1042,7 @@ function clearFilters(){
   els.keywordInput.value = "";
   els.countySelect.value = "";
   els.typeSelect.value = "";
+  els.statusSelect.value = "";
   els.startDate.value = "";
   els.endDate.value = "";
   els.sortSelect.value = "event_time_desc";
@@ -1038,6 +1058,7 @@ function updateQueryString(){
   if (f.county) params.set("county", f.county);
   if (f.municipality) params.set("municipality", f.municipality);
   if (f.type) params.set("type", f.type);
+  if (f.status) params.set("status", f.status);
   if (f.startDate) params.set("start", f.startDate);
   if (f.endDate) params.set("end", f.endDate);
   if (els.sortSelect.value) params.set("sort", els.sortSelect.value);
@@ -1052,6 +1073,7 @@ function loadFiltersFromQuery(){
   if (p.has("q")) els.keywordInput.value = p.get("q");
   if (p.has("county")) els.countySelect.value = p.get("county");
   if (p.has("type")) els.typeSelect.value = p.get("type");
+  if (p.has("status")) els.statusSelect.value = p.get("status");
   if (p.has("start")) els.startDate.value = p.get("start");
   if (p.has("end")) els.endDate.value = p.get("end");
   if (p.has("sort")) els.sortSelect.value = p.get("sort");
@@ -1066,44 +1088,68 @@ function loadFiltersFromQuery(){
   }
 }
 
+function normalizeItem(item){
+  return {
+    id: item.id ?? "",
+    source: item.source ?? "",
+    status: item.status ?? "",
+    office: item.office ?? "",
+    event_time: item.event_time ?? "",
+    end_time: item.end_time ?? "",
+    county: item.county ?? "",
+    municipality: item.municipality ?? "",
+    state: item.state ?? "PA",
+    event_type: item.event_type ?? "",
+    magnitude: item.magnitude ?? null,
+    description: item.description ?? "",
+    event_narrative: item.event_narrative ?? "",
+    episode_narrative: item.episode_narrative ?? "",
+    lat: item.lat ?? null,
+    lon: item.lon ?? null,
+    damage_property: item.damage_property ?? "",
+    damage_crops: item.damage_crops ?? "",
+    injuries_direct: item.injuries_direct ?? 0,
+    injuries_indirect: item.injuries_indirect ?? 0,
+    deaths_direct: item.deaths_direct ?? 0,
+    deaths_indirect: item.deaths_indirect ?? 0,
+    keywords: item.keywords ?? []
+  };
+}
+
 async function loadData(){
   try{
-    const res = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache:"no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const [histRes, recentRes] = await Promise.all([
+      fetch(`${DATA_URL_HIST}?t=${Date.now()}`, { cache:"no-store" }),
+      fetch(`${DATA_URL_RECENT}?t=${Date.now()}`, { cache:"no-store" })
+    ]);
 
-    const data = await res.json();
-    const items = Array.isArray(data.items) ? data.items : [];
+    if (!histRes.ok) throw new Error(`Historical HTTP ${histRes.status}`);
+    if (!recentRes.ok) throw new Error(`Recent HTTP ${recentRes.status}`);
 
-    allReports = items.map(item => ({
-      id: item.id ?? "",
-      source: item.source ?? "NCEI",
-      status: item.status ?? "official",
-      office: item.office ?? "",
-      event_time: item.event_time ?? "",
-      end_time: item.end_time ?? "",
-      county: item.county ?? "",
-      municipality: item.municipality ?? "",
-      state: item.state ?? "PA",
-      event_type: item.event_type ?? "",
-      magnitude: item.magnitude ?? null,
-      description: item.description ?? "",
-      event_narrative: item.event_narrative ?? "",
-      episode_narrative: item.episode_narrative ?? "",
-      lat: item.lat ?? null,
-      lon: item.lon ?? null,
-      damage_property: item.damage_property ?? "",
-      damage_crops: item.damage_crops ?? "",
-      injuries_direct: item.injuries_direct ?? 0,
-      injuries_indirect: item.injuries_indirect ?? 0,
-      deaths_direct: item.deaths_direct ?? 0,
-      deaths_indirect: item.deaths_indirect ?? 0,
-      keywords: item.keywords ?? []
-    }));
+    const histData = await histRes.json();
+    const recentData = await recentRes.json();
+
+    const histItems = Array.isArray(histData.items) ? histData.items : [];
+    const recentItems = Array.isArray(recentData.items) ? recentData.items : [];
+
+    const merged = [
+      ...recentItems,
+      ...histItems
+    ];
+
+    allReports = merged.map(normalizeItem);
 
     populateFilters();
     loadFiltersFromQuery();
     applyFilters();
-    updateStats(data);
+
+    const latestFetched = [histData.fetched_at, recentData.fetched_at]
+      .filter(Boolean)
+      .sort()
+      .reverse()[0];
+
+    updateStats({ fetched_at: latestFetched });
+
   }catch(err){
     console.error("Failed to load storm events:", err);
     allReports = [];
@@ -1112,7 +1158,7 @@ async function loadData(){
     updateStats({});
     els.resultsHead.textContent = "Search Results";
     els.emptyState.style.display = "";
-    els.emptyState.textContent = "Unable to load data/storm_events_pa.json";
+    els.emptyState.textContent = "Unable to load storm datasets";
   }
 }
 
@@ -1120,6 +1166,7 @@ function setupEvents(){
   [
     els.keywordInput,
     els.typeSelect,
+    els.statusSelect,
     els.startDate,
     els.endDate,
     els.sortSelect,
@@ -1155,7 +1202,7 @@ function setupEvents(){
         sortDir = sortDir === "asc" ? "desc" : "asc";
       } else {
         sortField = field;
-        sortDir = (field === "county" || field === "municipality" || field === "event_type" || field === "source") ? "asc" : "desc";
+        sortDir = (field === "county" || field === "municipality" || field === "event_type" || field === "source" || field === "status") ? "asc" : "desc";
       }
 
       els.sortSelect.value = `${sortField}_${sortDir}`;
