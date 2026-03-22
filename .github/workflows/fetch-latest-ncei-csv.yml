@@ -30,6 +30,10 @@ jobs:
         run: |
           python scripts/fetch_latest_ncei_csv.py
 
+      - name: Build PA storm events JSON
+        run: |
+          python scripts/build_storm_events_pa.py
+
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"
@@ -37,11 +41,12 @@ jobs:
 
           git add data/raw/StormEvents_details_latest.csv.gz
           git add data/raw/StormEvents_details_latest.meta.json
+          git add data/storm_events_pa.json
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
 
-          git commit -m "Update latest NCEI StormEvents CSV"
+          git commit -m "Update NCEI data and PA JSON"
           git push
