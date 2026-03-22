@@ -63,15 +63,22 @@ def norm(value: object) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
-def title_case(value: object) -> str | None:
+def clean_dash(value: object) -> str | None:
     s = norm(value)
+    if not s or s in {"--", "—"}:
+        return None
+    return s
+
+
+def title_case(value: object) -> str | None:
+    s = clean_dash(value)
     if not s:
         return None
     return " ".join(word.capitalize() if word.isupper() else word for word in s.split())
 
 
 def parse_float(value: object) -> float | None:
-    s = norm(value)
+    s = clean_dash(value)
     if not s:
         return None
     try:
@@ -81,7 +88,7 @@ def parse_float(value: object) -> float | None:
 
 
 def parse_int(value: object) -> int | None:
-    s = norm(value)
+    s = clean_dash(value)
     if not s:
         return None
     try:
@@ -123,8 +130,8 @@ def iso_z(dt: datetime | None) -> str | None:
 
 
 def format_magnitude(mag: object, mag_type: object) -> str | None:
-    m = norm(mag)
-    mt = norm(mag_type)
+    m = clean_dash(mag)
+    mt = clean_dash(mag_type)
     if m and mt:
         return f"{m} {mt}"
     if m:
@@ -133,15 +140,56 @@ def format_magnitude(mag: object, mag_type: object) -> str | None:
 
 
 def choose_description(event_narrative: str | None, episode_narrative: str | None, fallback: str | None) -> str | None:
-    if norm(event_narrative):
+    if clean_dash(event_narrative):
         return norm(event_narrative)
-    if norm(episode_narrative):
+    if clean_dash(episode_narrative):
         return norm(episode_narrative)
-    return norm(fallback) or None
+    return clean_dash(fallback)
+
+
+def looks_like_zone_name(value: str | None) -> bool:
+    if not value:
+        return False
+    v = value.lower()
+    zone_words = [
+        "ridges", "mountains", "highlands", "lowlands",
+        "valley", "valleys", "uplands",
+        "county", "counties", "zone", "zones"
+    ]
+    return any(word in v for word in zone_words)
+
+
+def clean_county(value: object) -> str | None:
+    s = clean_dash(value)
+    if not s:
+        return None
+    s = title_case(s)
+    if not s:
+        return None
+    s = re.sub(r"\s+County$", "", s, flags=re.IGNORECASE)
+    return s
+
+
+def clean_municipality(begin_location: object, county: str | None) -> str | None:
+    loc = clean_dash(begin_location)
+    if not loc:
+        return None
+
+    loc = title_case(loc)
+    if not loc:
+        return None
+
+    if county and loc.lower() == county.lower():
+        return None
+
+    if looks_like_zone_name(loc):
+        return None
+
+    return loc
 
 
 def make_keywords(*parts: object) -> list[str]:
-    text = " ".join(norm(p) for p in parts if norm(p))
+    text = " ".join(norm(p) for p in parts if clean_dash(p))
     if not text:
         return []
 
@@ -169,20 +217,24 @@ def normalize_row(row: dict[str, str]) -> StormEventPA | None:
     begin_dt = build_dt(row.get("BEGIN_YEARMONTH"), row.get("BEGIN_DAY"), row.get("BEGIN_TIME"))
     end_dt = build_dt(row.get("END_YEARMONTH"), row.get("END_DAY"), row.get("END_TIME"))
 
-    county = title_case(row.get("COUNTY"))
+    county = clean_county(row.get("COUNTY"))
     cz_name = title_case(row.get("CZ_NAME"))
     begin_location = title_case(row.get("BEGIN_LOCATION"))
     end_location = title_case(row.get("END_LOCATION"))
-    municipality = begin_location or cz_name
+
+    if not county and cz_name and not looks_like_zone_name(cz_name):
+        county = re.sub(r"\s+County$", "", cz_name, flags=re.IGNORECASE)
+
+    municipality = clean_municipality(row.get("BEGIN_LOCATION"), county)
 
     event_type = title_case(row.get("EVENT_TYPE"))
-    event_narrative = norm(row.get("EVENT_NARRATIVE")) or None
-    episode_narrative = norm(row.get("EPISODE_NARRATIVE")) or None
+    event_narrative = clean_dash(row.get("EVENT_NARRATIVE"))
+    episode_narrative = clean_dash(row.get("EPISODE_NARRATIVE"))
     description = choose_description(event_narrative, episode_narrative, event_type)
 
-    event_id = norm(row.get("EVENT_ID")) or None
-    episode_id = norm(row.get("EPISODE_ID")) or None
-    year = norm(row.get("YEAR")) or None
+    event_id = clean_dash(row.get("EVENT_ID"))
+    episode_id = clean_dash(row.get("EPISODE_ID"))
+    year = clean_dash(row.get("YEAR"))
 
     record_id = f"{year or '0000'}-{event_id or episode_id or 'unknown'}"
 
@@ -190,7 +242,7 @@ def normalize_row(row: dict[str, str]) -> StormEventPA | None:
         id=record_id,
         source="NCEI",
         status="official",
-        office=norm(row.get("WFO")) or None,
+        office=clean_dash(row.get("WFO")),
         event_time=iso_z(begin_dt),
         end_time=iso_z(end_dt),
         county=county,
@@ -203,34 +255,33 @@ def normalize_row(row: dict[str, str]) -> StormEventPA | None:
         event_narrative=event_narrative,
         lat=parse_float(row.get("BEGIN_LAT")),
         lon=parse_float(row.get("BEGIN_LON")),
-        damage_property=norm(row.get("DAMAGE_PROPERTY")) or None,
-        damage_crops=norm(row.get("DAMAGE_CROPS")) or None,
+        damage_property=clean_dash(row.get("DAMAGE_PROPERTY")),
+        damage_crops=clean_dash(row.get("DAMAGE_CROPS")),
         injuries_direct=parse_int(row.get("INJURIES_DIRECT")),
         injuries_indirect=parse_int(row.get("INJURIES_INDIRECT")),
         deaths_direct=parse_int(row.get("DEATHS_DIRECT")),
         deaths_indirect=parse_int(row.get("DEATHS_INDIRECT")),
-        source_detail=norm(row.get("SOURCE")) or None,
+        source_detail=clean_dash(row.get("SOURCE")),
         episode_id=episode_id,
         event_id=event_id,
-        cz_type=norm(row.get("CZ_TYPE")) or None,
+        cz_type=clean_dash(row.get("CZ_TYPE")),
         cz_name=cz_name,
-        magnitude_raw=norm(row.get("MAGNITUDE")) or None,
-        magnitude_type=norm(row.get("MAGNITUDE_TYPE")) or None,
-        flood_cause=norm(row.get("FLOOD_CAUSE")) or None,
-        tor_f_scale=norm(row.get("TOR_F_SCALE")) or None,
-        tor_length=norm(row.get("TOR_LENGTH")) or None,
-        tor_width=norm(row.get("TOR_WIDTH")) or None,
-        tor_other_wfo=norm(row.get("TOR_OTHER_WFO")) or None,
+        magnitude_raw=clean_dash(row.get("MAGNITUDE")),
+        magnitude_type=clean_dash(row.get("MAGNITUDE_TYPE")),
+        flood_cause=clean_dash(row.get("FLOOD_CAUSE")),
+        tor_f_scale=clean_dash(row.get("TOR_F_SCALE")),
+        tor_length=clean_dash(row.get("TOR_LENGTH")),
+        tor_width=clean_dash(row.get("TOR_WIDTH")),
+        tor_other_wfo=clean_dash(row.get("TOR_OTHER_WFO")),
         begin_location=begin_location,
         end_location=end_location,
-        begin_yomon=norm(row.get("BEGIN_YEARMONTH")) or None,
+        begin_yomon=clean_dash(row.get("BEGIN_YEARMONTH")),
         year=year,
-        month_name=norm(row.get("MONTH_NAME")) or None,
+        month_name=clean_dash(row.get("MONTH_NAME")),
         keywords=make_keywords(
             row.get("EVENT_TYPE"),
-            row.get("COUNTY"),
-            row.get("CZ_NAME"),
-            row.get("BEGIN_LOCATION"),
+            county,
+            begin_location,
             row.get("SOURCE"),
             row.get("EVENT_NARRATIVE"),
             row.get("EPISODE_NARRATIVE"),
@@ -248,6 +299,7 @@ def dedupe(items: list[StormEventPA]) -> list[StormEventPA]:
             norm(item.episode_id),
             norm(item.event_time),
             norm(item.county),
+            norm(item.municipality),
             norm(item.event_type),
             norm(item.description),
         ]).lower()
