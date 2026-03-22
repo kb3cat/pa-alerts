@@ -15,11 +15,11 @@ import requests
 
 
 OUTPUT_PATH = Path("data/storm_events_recent_pa.json")
-USER_AGENT = "PennAlertsRecentStorms/1.1 (your-email@example.com)"
+USER_AGENT = "PennAlertsRecentStorms/1.2 (your-email@example.com)"
 IEM_LSR_URL = "https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py"
 
 ROLLING_DAYS = 120
-CHUNK_DAYS = 14
+CHUNK_DAYS = 7
 DEBUG = True
 
 
@@ -177,6 +177,17 @@ def make_keywords(*parts: object) -> list[str]:
     return out[:20]
 
 
+def is_in_pa(lat: float | None, lon: float | None) -> bool:
+    if lat is None or lon is None:
+        return False
+
+    # Pennsylvania bounding box
+    return (
+        39.5 <= lat <= 42.5 and
+        -80.6 <= lon <= -74.5
+    )
+
+
 def build_request_url(start_dt: datetime, end_dt: datetime) -> str:
     params = {
         "state": "PA",
@@ -253,11 +264,11 @@ def row_get(row: dict[str, str], *names: str) -> str | None:
 
 
 def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
-    # Do NOT hard-reject rows on state field alone.
-    # We already requested state=PA upstream, and some rows may have blank or odd state values.
-    state_raw = norm(row_get(row, "state", "st")).upper()
-    if state_raw and state_raw not in {"PA", "PENNSYLVANIA"}:
-        # Only reject if the field is present AND explicitly not PA.
+    lat = parse_float(row_get(row, "lat", "latitude"))
+    lon = parse_float(row_get(row, "lon", "longitude"))
+
+    # Hard geographic filter instead of relying on inconsistent state fields
+    if not is_in_pa(lat, lon):
         return None
 
     event_dt = parse_event_time(
@@ -285,8 +296,6 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
 
     description = clean_dash(row_get(row, "remark", "comments", "comment", "text")) or event_type
     office = clean_dash(row_get(row, "wfo", "office"))
-    lat = parse_float(row_get(row, "lat", "latitude"))
-    lon = parse_float(row_get(row, "lon", "longitude"))
 
     year = str(event_dt.year)
     month_name = event_dt.strftime("%B")
