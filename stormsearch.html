@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>PennAlerts Storm Report Search</title>
+<title>Pennsylvania Storm History Search</title>
 
 <style>
 :root{
@@ -113,6 +113,7 @@ body{
   display:grid;
   grid-template-columns: 320px 1fr;
   gap:16px;
+  align-items:start;
 }
 
 @media (max-width: 1100px){
@@ -169,12 +170,6 @@ body{
   background:var(--panel2);
   color:var(--text);
   font-size:14px;
-}
-
-.inline-2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
 }
 
 .filter-actions{
@@ -240,7 +235,7 @@ body{
 table{
   width:100%;
   border-collapse:collapse;
-  min-width:1100px;
+  min-width:1000px;
 }
 
 thead th{
@@ -310,12 +305,6 @@ tbody tr:hover{
   background:#1f3440;
   color:#bfe9ff;
   border:1px solid #2e5567;
-}
-
-.badge-prelim{
-  background:#3d3216;
-  color:#ffe08a;
-  border:1px solid #6a5720;
 }
 
 .badge-official{
@@ -447,6 +436,7 @@ tbody tr:hover{
   border:1px solid var(--border);
   border-radius:12px;
   padding:14px;
+  margin-bottom:12px;
 }
 
 .footer-note{
@@ -460,14 +450,14 @@ tbody tr:hover{
 
 <header class="topbar">
   <div class="title-wrap">
-    <div class="title">PennAlerts Storm Report Search</div>
+    <div class="title">Pennslvania Storm History Search</div>
     <div class="subtitle">
-      Search preliminary and historical storm reports across Pennsylvania
+      Official NOAA/NCEI storm events for Pennsylvania (historical data may lag recent storms)
     </div>
   </div>
 
   <div class="header-actions">
-    <a class="btn btn-primary btn-blue" href="index.html">← Back to 24-Hour Board</a>
+    <a class="btn btn-primary btn-blue" href="/stormreports.html">← Back to 24-Hour Board</a>
     <button class="btn" id="refreshBtn">Refresh</button>
   </div>
 </header>
@@ -475,9 +465,9 @@ tbody tr:hover{
 <main class="wrap">
   <section class="stats" id="stats">
     <div class="stat">
-      <div class="stat-label">Loaded Reports</div>
+      <div class="stat-label">Loaded Events</div>
       <div class="stat-value" id="statLoaded">0</div>
-      <div class="stat-sub">From JSON dataset</div>
+      <div class="stat-sub">From NCEI JSON dataset</div>
     </div>
 
     <div class="stat">
@@ -531,28 +521,13 @@ tbody tr:hover{
           </div>
 
           <div class="field">
-            <label for="sourceSelect">Source</label>
-            <select id="sourceSelect">
-              <option value="">All Sources</option>
-            </select>
+            <label for="startDate">Start Date/Time</label>
+            <input id="startDate" type="datetime-local" />
           </div>
 
           <div class="field">
-            <label for="statusSelect">Status</label>
-            <select id="statusSelect">
-              <option value="">All Statuses</option>
-            </select>
-          </div>
-
-          <div class="inline-2">
-            <div class="field">
-              <label for="startDate">Start Date/Time</label>
-              <input id="startDate" type="datetime-local" />
-            </div>
-            <div class="field">
-              <label for="endDate">End Date/Time</label>
-              <input id="endDate" type="datetime-local" />
-            </div>
+            <label for="endDate">End Date/Time</label>
+            <input id="endDate" type="datetime-local" />
           </div>
 
           <div class="field">
@@ -560,8 +535,6 @@ tbody tr:hover{
             <select id="sortSelect">
               <option value="event_time_desc">Event Time (Newest First)</option>
               <option value="event_time_asc">Event Time (Oldest First)</option>
-              <option value="issued_at_desc">Issued Time (Newest First)</option>
-              <option value="issued_at_asc">Issued Time (Oldest First)</option>
               <option value="county_asc">County (A-Z)</option>
               <option value="municipality_asc">Municipality (A-Z)</option>
               <option value="event_type_asc">Event Type (A-Z)</option>
@@ -584,7 +557,6 @@ tbody tr:hover{
           <thead>
             <tr>
               <th data-sort="event_time">Event Time</th>
-              <th data-sort="issued_at">Issued</th>
               <th data-sort="county">County</th>
               <th data-sort="municipality">Municipality</th>
               <th data-sort="event_type">Type</th>
@@ -595,7 +567,7 @@ tbody tr:hover{
           </thead>
           <tbody id="resultsBody"></tbody>
         </table>
-        <div class="empty" id="emptyState" style="display:none;">No storm reports match the current filters.</div>
+        <div class="empty" id="emptyState" style="display:none;">No storm events match the current filters.</div>
       </div>
     </section>
   </section>
@@ -605,7 +577,7 @@ tbody tr:hover{
   <div class="modal">
     <div class="modal-head">
       <div>
-        <div class="modal-title" id="modalTitle">Storm Report Detail</div>
+        <div class="modal-title" id="modalTitle">Storm Event Detail</div>
         <div class="modal-sub" id="modalSub">Details</div>
       </div>
       <button class="modal-close" id="modalClose">Close</button>
@@ -615,7 +587,7 @@ tbody tr:hover{
 </div>
 
 <script>
-const DATA_URL = "data/storm_reports.json";
+const DATA_URL = "data/storm_events_pa.json";
 const AUTO_REFRESH_MS = 5 * 60 * 1000;
 
 let allReports = [];
@@ -629,8 +601,6 @@ const els = {
   countySelect: document.getElementById("countySelect"),
   municipalitySelect: document.getElementById("municipalitySelect"),
   typeSelect: document.getElementById("typeSelect"),
-  sourceSelect: document.getElementById("sourceSelect"),
-  statusSelect: document.getElementById("statusSelect"),
   startDate: document.getElementById("startDate"),
   endDate: document.getElementById("endDate"),
   sortSelect: document.getElementById("sortSelect"),
@@ -667,13 +637,6 @@ function escapeHtml(str){
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function titleCaseWords(str){
-  if(!str) return "";
-  return String(str)
-    .toLowerCase()
-    .replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function formatLocalDateTime(value){
@@ -726,6 +689,8 @@ function buildSearchText(r){
     r.event_type,
     r.magnitude,
     r.description,
+    r.event_narrative,
+    r.episode_narrative,
     keywords
   ].map(v => safeString(v).toLowerCase()).join(" ");
 }
@@ -740,7 +705,6 @@ function eventBadge(type){
 
 function statusBadge(status){
   const s = safeString(status).toLowerCase();
-  if (s === "preliminary") return '<span class="badge badge-prelim">Preliminary</span>';
   if (s === "official") return '<span class="badge badge-official">Official</span>';
   return `<span class="badge badge-unknown">${escapeHtml(status || "Unknown")}</span>`;
 }
@@ -767,8 +731,6 @@ function populateFilters(){
   fillSelect(els.countySelect, uniqueSorted(allReports.map(r => r.county)), "All Counties");
   fillSelect(els.municipalitySelect, uniqueSorted(allReports.map(r => r.municipality)), "All Municipalities");
   fillSelect(els.typeSelect, uniqueSorted(allReports.map(r => r.event_type)), "All Event Types");
-  fillSelect(els.sourceSelect, uniqueSorted(allReports.map(r => r.source)), "All Sources");
-  fillSelect(els.statusSelect, uniqueSorted(allReports.map(r => r.status)), "All Statuses");
 }
 
 function getActiveFilters(){
@@ -777,8 +739,6 @@ function getActiveFilters(){
     county: els.countySelect.value,
     municipality: els.municipalitySelect.value,
     type: els.typeSelect.value,
-    source: els.sourceSelect.value,
-    status: els.statusSelect.value,
     startDate: els.startDate.value,
     endDate: els.endDate.value
   };
@@ -799,15 +759,13 @@ function applyFilters(){
     if (f.county && safeString(r.county) !== f.county) return false;
     if (f.municipality && safeString(r.municipality) !== f.municipality) return false;
     if (f.type && safeString(r.event_type) !== f.type) return false;
-    if (f.source && safeString(r.source) !== f.source) return false;
-    if (f.status && safeString(r.status) !== f.status) return false;
 
     if (f.keyword){
       const hay = buildSearchText(r);
       if (!hay.includes(f.keyword)) return false;
     }
 
-    const reportTs = toTimestamp(r.event_time) ?? toTimestamp(r.issued_at);
+    const reportTs = toTimestamp(r.event_time);
     if (startTs != null && (reportTs == null || reportTs < startTs)) return false;
     if (endTs != null && (reportTs == null || reportTs > endTs)) return false;
 
@@ -839,7 +797,7 @@ function applySort(){
   filteredReports.sort((a, b) => {
     let cmp = 0;
 
-    if (sortField === "event_time" || sortField === "issued_at") {
+    if (sortField === "event_time") {
       const at = toTimestamp(a[sortField]) ?? 0;
       const bt = toTimestamp(b[sortField]) ?? 0;
       cmp = at - bt;
@@ -866,7 +824,6 @@ function renderTable(){
   const rowsHtml = filteredReports.map((r, idx) => `
     <tr data-index="${idx}">
       <td class="nowrap">${escapeHtml(formatLocalDateTime(r.event_time))}</td>
-      <td class="nowrap">${escapeHtml(formatLocalDateTime(r.issued_at))}</td>
       <td>${escapeHtml(r.county || "—")}</td>
       <td>${escapeHtml(r.municipality || "—")}</td>
       <td>${eventBadge(r.event_type)}</td>
@@ -899,7 +856,7 @@ function updateStats(meta = {}){
       [mostRecent.county, mostRecent.municipality, mostRecent.event_type].filter(Boolean).join(" • ");
   } else {
     els.statRecent.textContent = "—";
-    els.statRecentSub.textContent = "No reports loaded";
+    els.statRecentSub.textContent = "No events loaded";
   }
 
   if (meta.fetched_at){
@@ -914,7 +871,7 @@ function updateStats(meta = {}){
 function openModal(r){
   if(!r) return;
 
-  els.modalTitle.textContent = r.event_type || "Storm Report";
+  els.modalTitle.textContent = r.event_type || "Storm Event";
   els.modalSub.textContent = [
     r.county || "Unknown County",
     r.municipality || "Unknown Municipality",
@@ -931,8 +888,8 @@ function openModal(r){
         <div class="detail-value">${escapeHtml(formatLocalDateTime(r.event_time))}</div>
       </div>
       <div class="detail-box">
-        <div class="detail-label">Issued Time</div>
-        <div class="detail-value">${escapeHtml(formatLocalDateTime(r.issued_at))}</div>
+        <div class="detail-label">End Time</div>
+        <div class="detail-value">${escapeHtml(formatLocalDateTime(r.end_time))}</div>
       </div>
 
       <div class="detail-box">
@@ -971,6 +928,30 @@ function openModal(r){
         <div class="detail-value mono">${escapeHtml(r.id || "—")}</div>
       </div>
 
+      <div class="detail-box">
+        <div class="detail-label">Damage Property</div>
+        <div class="detail-value">${escapeHtml(r.damage_property || "—")}</div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Damage Crops</div>
+        <div class="detail-value">${escapeHtml(r.damage_crops || "—")}</div>
+      </div>
+
+      <div class="detail-box">
+        <div class="detail-label">Injuries</div>
+        <div class="detail-value">
+          Direct: ${escapeHtml(r.injuries_direct ?? "0")}<br>
+          Indirect: ${escapeHtml(r.injuries_indirect ?? "0")}
+        </div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Deaths</div>
+        <div class="detail-value">
+          Direct: ${escapeHtml(r.deaths_direct ?? "0")}<br>
+          Indirect: ${escapeHtml(r.deaths_indirect ?? "0")}
+        </div>
+      </div>
+
       <div class="detail-box" style="grid-column:1 / -1;">
         <div class="detail-label">Keywords</div>
         <div class="detail-value">${escapeHtml(keywords || "—")}</div>
@@ -978,12 +959,22 @@ function openModal(r){
     </div>
 
     <div class="narrative">
-      <div class="detail-label">Description / Narrative</div>
+      <div class="detail-label">Description</div>
       <div class="detail-value">${escapeHtml(r.description || "—")}</div>
     </div>
 
+    <div class="narrative">
+      <div class="detail-label">Event Narrative</div>
+      <div class="detail-value">${escapeHtml(r.event_narrative || "—")}</div>
+    </div>
+
+    <div class="narrative">
+      <div class="detail-label">Episode Narrative</div>
+      <div class="detail-value">${escapeHtml(r.episode_narrative || "—")}</div>
+    </div>
+
     <div class="footer-note">
-      This record is displayed from your local storm report dataset and may be preliminary depending on source/status.
+      This record is displayed from your local NCEI Pennsylvania storm events dataset.
     </div>
   `;
 
@@ -999,8 +990,6 @@ function clearFilters(){
   els.countySelect.value = "";
   els.municipalitySelect.value = "";
   els.typeSelect.value = "";
-  els.sourceSelect.value = "";
-  els.statusSelect.value = "";
   els.startDate.value = "";
   els.endDate.value = "";
   els.sortSelect.value = "event_time_desc";
@@ -1015,8 +1004,6 @@ function updateQueryString(){
   if (f.county) params.set("county", f.county);
   if (f.municipality) params.set("municipality", f.municipality);
   if (f.type) params.set("type", f.type);
-  if (f.source) params.set("source", f.source);
-  if (f.status) params.set("status", f.status);
   if (f.startDate) params.set("start", f.startDate);
   if (f.endDate) params.set("end", f.endDate);
   if (els.sortSelect.value) params.set("sort", els.sortSelect.value);
@@ -1032,8 +1019,6 @@ function loadFiltersFromQuery(){
   if (p.has("county")) els.countySelect.value = p.get("county");
   if (p.has("municipality")) els.municipalitySelect.value = p.get("municipality");
   if (p.has("type")) els.typeSelect.value = p.get("type");
-  if (p.has("source")) els.sourceSelect.value = p.get("source");
-  if (p.has("status")) els.statusSelect.value = p.get("status");
   if (p.has("start")) els.startDate.value = p.get("start");
   if (p.has("end")) els.endDate.value = p.get("end");
   if (p.has("sort")) els.sortSelect.value = p.get("sort");
@@ -1049,19 +1034,27 @@ async function loadData(){
 
     allReports = items.map(item => ({
       id: item.id ?? "",
-      source: item.source ?? "",
-      status: item.status ?? "",
+      source: item.source ?? "NCEI",
+      status: item.status ?? "official",
       office: item.office ?? "",
-      issued_at: item.issued_at ?? "",
       event_time: item.event_time ?? "",
+      end_time: item.end_time ?? "",
       county: item.county ?? "",
       municipality: item.municipality ?? "",
       state: item.state ?? "PA",
       event_type: item.event_type ?? "",
       magnitude: item.magnitude ?? null,
       description: item.description ?? "",
+      event_narrative: item.event_narrative ?? "",
+      episode_narrative: item.episode_narrative ?? "",
       lat: item.lat ?? null,
       lon: item.lon ?? null,
+      damage_property: item.damage_property ?? "",
+      damage_crops: item.damage_crops ?? "",
+      injuries_direct: item.injuries_direct ?? 0,
+      injuries_indirect: item.injuries_indirect ?? 0,
+      deaths_direct: item.deaths_direct ?? 0,
+      deaths_indirect: item.deaths_indirect ?? 0,
       keywords: item.keywords ?? []
     }));
 
@@ -1070,14 +1063,14 @@ async function loadData(){
     applyFilters();
     updateStats(data);
   }catch(err){
-    console.error("Failed to load storm reports:", err);
+    console.error("Failed to load storm events:", err);
     allReports = [];
     filteredReports = [];
     renderTable();
     updateStats({});
     els.resultsHead.textContent = "Search Results";
     els.emptyState.style.display = "";
-    els.emptyState.textContent = "Unable to load data/storm_reports.json";
+    els.emptyState.textContent = "Unable to load data/storm_events_pa.json";
   }
 }
 
@@ -1087,8 +1080,6 @@ function setupEvents(){
     els.countySelect,
     els.municipalitySelect,
     els.typeSelect,
-    els.sourceSelect,
-    els.statusSelect,
     els.startDate,
     els.endDate,
     els.sortSelect
