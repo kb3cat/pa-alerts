@@ -16,10 +16,11 @@ import requests
 OUTPUT_PATH = Path("data/storm_events_recent_pa.json")
 USER_AGENT = "PennAlertsRecentStorms/1.0 (your-email@example.com)"
 
-# IEM real-time LSR CSV, regenerated every 5 minutes
-REALTIME_CSV_URL = "https://mesonet.agron.iastate.edu/data/lsrs.csv"
+# Correct IEM real-time/past-24-hours LSR CSV
+REALTIME_CSV_URL = "https://mesonet.agron.iastate.edu/data/gis/shape/4326/us/lsr_24hour.csv"
 
 # Keep only this many days of reports in the recent layer
+# With the 24-hour feed, this is effectively 1 day, but we keep the filter logic.
 RECENT_DAYS = 120
 
 
@@ -192,7 +193,6 @@ def parse_event_time(value: str | None) -> datetime | None:
     if not s:
         return None
 
-    # Try common ISO-like timestamps first
     for candidate in (
         s.replace("Z", "+00:00"),
         s,
@@ -205,7 +205,6 @@ def parse_event_time(value: str | None) -> datetime | None:
         except Exception:
             pass
 
-    # Fallback common formats
     formats = [
         "%Y-%m-%d %H:%M:%S%z",
         "%Y-%m-%d %H:%M:%S",
@@ -234,7 +233,6 @@ def row_get(row: dict[str, str], *names: str) -> str | None:
 
 
 def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
-    # IEM CSV column names can vary a bit; support common aliases.
     state_raw = row_get(row, "state", "st")
     if norm(state_raw).upper() not in {"PA", "PENNSYLVANIA"}:
         return None
@@ -271,7 +269,6 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
     month_name = event_dt.strftime("%B")
     begin_yomon = event_dt.strftime("%Y%m")
 
-    # Prefer a stable provided id if available
     provided_id = clean_dash(row_get(row, "id", "lsr_id", "report_id"))
     rid = provided_id or f"recent-{event_dt.strftime('%Y%m%d%H%M')}-{seq:06d}"
 
