@@ -15,10 +15,12 @@ import requests
 
 
 OUTPUT_PATH = Path("data/storm_events_recent_pa.json")
-USER_AGENT = "PennAlertsRecentStorms/1.0 (your-email@example.com)"
+USER_AGENT = "PennAlertsRecentStorms/1.1 (your-email@example.com)"
 IEM_LSR_URL = "https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py"
 
 ROLLING_DAYS = 120
+CHUNK_DAYS = 14
+DEBUG = True
 
 
 @dataclass
@@ -81,7 +83,7 @@ def norm(value: object) -> str:
 
 def clean_dash(value: object) -> str | None:
     s = norm(value)
-    if not s or s in {"--", "—"}:
+    if not s or s in {"--", "—", "N/A", "n/a", "NULL", "null"}:
         return None
     return s
 
@@ -175,10 +177,7 @@ def make_keywords(*parts: object) -> list[str]:
     return out[:20]
 
 
-def build_request_url() -> str:
-    end_dt = now_utc()
-    start_dt = end_dt - timedelta(days=ROLLING_DAYS)
-
+def build_request_url(start_dt: datetime, end_dt: datetime) -> str:
     params = {
         "state": "PA",
         "sts": start_dt.strftime("%Y-%m-%dT%H:%MZ"),
@@ -188,8 +187,10 @@ def build_request_url() -> str:
     return f"{IEM_LSR_URL}?{urlencode(params)}"
 
 
-def fetch_csv_text() -> str:
-    url = build_request_url()
+def fetch_csv_text(start_dt: datetime, end_dt: datetime) -> str:
+    url = build_request_url(start_dt, end_dt)
+    print(f"Fetching: {url}")
+
     r = requests.get(
         url,
         headers={"User-Agent": USER_AGENT, "Accept": "text/csv,*/*"},
@@ -204,7 +205,12 @@ def parse_event_time(value: str | None) -> datetime | None:
     if not s:
         return None
 
-    for candidate in (s.replace("Z", "+00:00"), s):
+    candidates = [
+        s.replace("Z", "+00:00"),
+        s,
+    ]
+
+    for candidate in candidates:
         try:
             dt = datetime.fromisoformat(candidate)
             if dt.tzinfo is None:
@@ -216,9 +222,15 @@ def parse_event_time(value: str | None) -> datetime | None:
     formats = [
         "%Y-%m-%d %H:%M:%S%z",
         "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M%z",
+        "%Y-%m-%d %H:%M",
         "%Y/%m/%d %H:%M",
         "%m/%d/%Y %H:%M",
         "%m/%d/%Y %I:%M %p",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M%z",
+        "%Y-%m-%dT%H:%M",
     ]
     for fmt in formats:
         try:
@@ -241,21 +253,27 @@ def row_get(row: dict[str, str], *names: str) -> str | None:
 
 
 def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
-    state_raw = row_get(row, "state", "st")
-    if norm(state_raw).upper() not in {"PA", "PENNSYLVANIA"}:
+    # Do NOT hard-reject rows on state field alone.
+    # We already requested state=PA upstream, and some rows may have blank or odd state values.
+    state_raw = norm(row_get(row, "state", "st")).upper()
+    if state_raw and state_raw not in {"PA", "PENNSYLVANIA"}:
+        # Only reject if the field is present AND explicitly not PA.
         return None
 
     event_dt = parse_event_time(
-        row_get(row, "valid", "utcvalid", "issue", "time", "datetime")
+        row_get(row, "valid", "valid_utc", "utcvalid", "issue", "time", "datetime")
     )
     if event_dt is None:
         return None
 
-    county = clean_county(row_get(row, "county", "county_name"))
-    location = row_get(row, "city", "location", "town", "remark_location")
+    county = clean_county(row_get(row, "county", "county_name", "countyname"))
+    location = row_get(row, "city", "location", "town", "remark_location", "source_city")
     municipality = clean_municipality(location, county)
 
-    event_type = title_case(row_get(row, "type", "typetext", "eventtype", "phenomena"))
+    event_type = title_case(
+        row_get(row, "type", "typetext", "eventtype", "phenomena", "phenom", "event")
+    )
+
     magnitude_raw = clean_dash(row_get(row, "magnitude", "mag"))
     magnitude_type = clean_dash(row_get(row, "magnitude_units", "mag_units", "unit"))
 
@@ -266,7 +284,7 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
         magnitude = magnitude_raw
 
     description = clean_dash(row_get(row, "remark", "comments", "comment", "text")) or event_type
-    office = clean_dash(row_get(row, "wfo"))
+    office = clean_dash(row_get(row, "wfo", "office"))
     lat = parse_float(row_get(row, "lat", "latitude"))
     lon = parse_float(row_get(row, "lon", "longitude"))
 
@@ -350,18 +368,75 @@ def dedupe_recent(items: list[StormEventRecent]) -> list[StormEventRecent]:
     return out
 
 
-def main() -> int:
-    csv_text = fetch_csv_text()
+def chunk_ranges(end_dt: datetime, total_days: int, chunk_days: int) -> list[tuple[datetime, datetime]]:
+    start_dt = end_dt - timedelta(days=total_days)
+    ranges: list[tuple[datetime, datetime]] = []
 
+    cursor = start_dt
+    while cursor < end_dt:
+        chunk_end = min(cursor + timedelta(days=chunk_days), end_dt)
+        ranges.append((cursor, chunk_end))
+        cursor = chunk_end
+
+    return ranges
+
+
+def parse_csv_chunk(csv_text: str, seq_start: int) -> tuple[list[StormEventRecent], int]:
     reader = csv.DictReader(StringIO(csv_text))
-    events: list[StormEventRecent] = []
 
-    for i, row in enumerate(reader, start=1):
-        item = normalize_row(row, i)
+    if DEBUG:
+        print("CSV headers:", reader.fieldnames)
+
+    rows = list(reader)
+
+    if DEBUG:
+        for sample in rows[:3]:
+            print("Sample row:", sample)
+
+    events: list[StormEventRecent] = []
+    seq = seq_start
+
+    for row in rows:
+        seq += 1
+        item = normalize_row(row, seq)
         if item is not None:
             events.append(item)
 
-    events = dedupe_recent(events)
+    return events, seq
+
+
+def main() -> int:
+    end_dt = now_utc()
+    ranges = chunk_ranges(end_dt=end_dt, total_days=ROLLING_DAYS, chunk_days=CHUNK_DAYS)
+
+    print(f"Rolling days: {ROLLING_DAYS}")
+    print(f"Chunk days: {CHUNK_DAYS}")
+    print(f"Number of chunks: {len(ranges)}")
+
+    all_events: list[StormEventRecent] = []
+    seq = 0
+
+    for idx, (start_dt, stop_dt) in enumerate(ranges, start=1):
+        print(
+            f"Chunk {idx}/{len(ranges)}: "
+            f"{start_dt.strftime('%Y-%m-%dT%H:%MZ')} -> {stop_dt.strftime('%Y-%m-%dT%H:%MZ')}"
+        )
+
+        try:
+            csv_text = fetch_csv_text(start_dt, stop_dt)
+
+            if DEBUG:
+                preview = csv_text[:500].replace("\n", "\\n")
+                print(f"CSV preview: {preview}")
+
+            chunk_events, seq = parse_csv_chunk(csv_text, seq_start=seq)
+            print(f"Chunk normalized rows: {len(chunk_events)}")
+            all_events.extend(chunk_events)
+
+        except Exception as exc:
+            print(f"Chunk failed: {exc}")
+
+    events = dedupe_recent(all_events)
     events.sort(key=lambda x: (x.event_time or "", x.id), reverse=True)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -374,6 +449,7 @@ def main() -> int:
 
     OUTPUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
+    print(f"Raw normalized rows before dedupe: {len(all_events)}")
     print(f"Final recent rows: {len(events)}")
     print(f"Wrote: {OUTPUT_PATH}")
     return 0
