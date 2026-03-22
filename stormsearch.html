@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PennAlerts Storm Report Search</title>
+
+<style>
+:root{
+  --bg:#0f0f10;
+  --panel:#1d1d1f;
+  --panel2:#232326;
+  --border:#2a2a2d;
+  --text:#e9e9ea;
+  --muted:#a7a7aa;
+
+  --green:#29d36a;
+  --yellow:#ffe066;
+  --orange:#ffb000;
+  --red:#ff4d4f;
+  --blue:#00bfff;
+  --purple:#c084fc;
+
+  --shadow:0 10px 30px rgba(0,0,0,.28);
+}
+
+*{ box-sizing:border-box; }
+
+html,body{
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+  min-height:100vh;
+}
+
+/* HEADER */
+.topbar{
+  background:#222;
+  border-bottom:2px solid var(--border);
+  padding:14px 18px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+
+.title-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+
+.title{
+  font-size:26px;
+  font-weight:700;
+  line-height:1.1;
+}
+
+.subtitle{
+  color:var(--muted);
+  font-size:13px;
+}
+
+.header-actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+
+.btn{
+  appearance:none;
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--text);
+  padding:10px 14px;
+  border-radius:10px;
+  font-size:14px;
+  cursor:pointer;
+  text-decoration:none;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+
+.btn:hover{
+  filter:brightness(1.08);
+}
+
+.btn-primary{
+  border-color:#185f83;
+  background:#113448;
+}
+
+.btn-blue{
+  color:#dff5ff;
+}
+
+/* LAYOUT */
+.wrap{
+  padding:16px;
+  max-width:1600px;
+  margin:0 auto;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns: 320px 1fr;
+  gap:16px;
+}
+
+@media (max-width: 1100px){
+  .grid{
+    grid-template-columns: 1fr;
+  }
+}
+
+/* CARDS */
+.card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+}
+
+.card-head{
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  font-size:16px;
+  font-weight:700;
+}
+
+.card-body{
+  padding:16px;
+}
+
+/* FILTERS */
+.filters{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.field label{
+  font-size:12px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+
+.field input,
+.field select{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--text);
+  font-size:14px;
+}
+
+.inline-2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.filter-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:4px;
+}
+
+/* STATS */
+.stats{
+  display:grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+
+@media (max-width: 900px){
+  .stats{
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (max-width: 560px){
+  .stats{
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:14px 16px;
+  box-shadow:var(--shadow);
+}
+
+.stat-label{
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  margin-bottom:8px;
+}
+
+.stat-value{
+  font-size:28px;
+  font-weight:700;
+}
+
+.stat-sub{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+/* TABLE */
+.table-wrap{
+  overflow:auto;
+  border-radius:0 0 16px 16px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:1100px;
+}
+
+thead th{
+  background:#202023;
+  color:#dfe4ea;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  padding:12px 10px;
+  border-bottom:1px solid var(--border);
+  text-align:left;
+  position:sticky;
+  top:0;
+  z-index:1;
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+}
+
+tbody td{
+  padding:12px 10px;
+  border-bottom:1px solid #2a2a2d;
+  font-size:14px;
+  vertical-align:top;
+}
+
+tbody tr{
+  cursor:pointer;
+}
+
+tbody tr:hover{
+  background:#232327;
+}
+
+.empty{
+  padding:22px 16px;
+  color:var(--muted);
+  font-size:14px;
+}
+
+.mono{
+  font-family:Consolas, Menlo, Monaco, monospace;
+  font-size:12px;
+}
+
+.nowrap{
+  white-space:nowrap;
+}
+
+.desc-cell{
+  max-width:420px;
+  line-height:1.35;
+}
+
+/* BADGES */
+.badge{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+  white-space:nowrap;
+}
+
+.badge-source{
+  background:#1f3440;
+  color:#bfe9ff;
+  border:1px solid #2e5567;
+}
+
+.badge-prelim{
+  background:#3d3216;
+  color:#ffe08a;
+  border:1px solid #6a5720;
+}
+
+.badge-official{
+  background:#16311f;
+  color:#9ff0ba;
+  border:1px solid #28553a;
+}
+
+.badge-unknown{
+  background:#2c2c30;
+  color:#d7d7db;
+  border:1px solid #4a4a50;
+}
+
+.badge-red{
+  background:#3a181a;
+  color:#ffb3b8;
+  border:1px solid #6a2b31;
+}
+
+.badge-orange{
+  background:#3f2810;
+  color:#ffd0a3;
+  border:1px solid #73471e;
+}
+
+.badge-blue{
+  background:#132d3d;
+  color:#b6e7ff;
+  border:1px solid #25556d;
+}
+
+/* MODAL */
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:1000;
+}
+
+.modal-backdrop.show{
+  display:flex;
+}
+
+.modal{
+  width:min(860px, 100%);
+  max-height:85vh;
+  overflow:auto;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  box-shadow:var(--shadow);
+}
+
+.modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  padding:16px 18px;
+  border-bottom:1px solid var(--border);
+}
+
+.modal-title{
+  font-size:20px;
+  font-weight:700;
+  line-height:1.2;
+}
+
+.modal-sub{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.modal-close{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 12px;
+  cursor:pointer;
+}
+
+.modal-body{
+  padding:18px;
+}
+
+.detail-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0,1fr));
+  gap:12px;
+  margin-bottom:16px;
+}
+
+@media (max-width: 720px){
+  .detail-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+.detail-box{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:12px;
+}
+
+.detail-label{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+
+.detail-value{
+  font-size:14px;
+  line-height:1.4;
+  word-break:break-word;
+}
+
+.narrative{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+}
+
+.footer-note{
+  margin-top:12px;
+  font-size:12px;
+  color:var(--muted);
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="title-wrap">
+    <div class="title">PennAlerts Storm Report Search</div>
+    <div class="subtitle">
+      Search preliminary and historical storm reports across Pennsylvania
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <a class="btn btn-primary btn-blue" href="index.html">← Back to 24-Hour Board</a>
+    <button class="btn" id="refreshBtn">Refresh</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="stats" id="stats">
+    <div class="stat">
+      <div class="stat-label">Loaded Reports</div>
+      <div class="stat-value" id="statLoaded">0</div>
+      <div class="stat-sub">From JSON dataset</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Matching Results</div>
+      <div class="stat-value" id="statMatching">0</div>
+      <div class="stat-sub">Current filters applied</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Most Recent Event</div>
+      <div class="stat-value" id="statRecent">—</div>
+      <div class="stat-sub" id="statRecentSub">No data yet</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-label">Last Updated</div>
+      <div class="stat-value" id="statUpdated">—</div>
+      <div class="stat-sub" id="statUpdatedSub">Waiting for dataset</div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <aside class="card">
+      <div class="card-head">Search & Filters</div>
+      <div class="card-body">
+        <div class="filters">
+          <div class="field">
+            <label for="keywordInput">Keyword Search</label>
+            <input id="keywordInput" type="text" placeholder="trees down, roof damage, Hershey, Route 322..." />
+          </div>
+
+          <div class="field">
+            <label for="countySelect">County</label>
+            <select id="countySelect">
+              <option value="">All Counties</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="municipalitySelect">Municipality</label>
+            <select id="municipalitySelect">
+              <option value="">All Municipalities</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="typeSelect">Event Type</label>
+            <select id="typeSelect">
+              <option value="">All Event Types</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="sourceSelect">Source</label>
+            <select id="sourceSelect">
+              <option value="">All Sources</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="statusSelect">Status</label>
+            <select id="statusSelect">
+              <option value="">All Statuses</option>
+            </select>
+          </div>
+
+          <div class="inline-2">
+            <div class="field">
+              <label for="startDate">Start Date/Time</label>
+              <input id="startDate" type="datetime-local" />
+            </div>
+            <div class="field">
+              <label for="endDate">End Date/Time</label>
+              <input id="endDate" type="datetime-local" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="sortSelect">Sort</label>
+            <select id="sortSelect">
+              <option value="event_time_desc">Event Time (Newest First)</option>
+              <option value="event_time_asc">Event Time (Oldest First)</option>
+              <option value="issued_at_desc">Issued Time (Newest First)</option>
+              <option value="issued_at_asc">Issued Time (Oldest First)</option>
+              <option value="county_asc">County (A-Z)</option>
+              <option value="municipality_asc">Municipality (A-Z)</option>
+              <option value="event_type_asc">Event Type (A-Z)</option>
+              <option value="source_asc">Source (A-Z)</option>
+            </select>
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn-primary" id="clearBtn">Clear Filters</button>
+            <button class="btn" id="copyLinkBtn">Copy Filter Link</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="card">
+      <div class="card-head" id="resultsHead">Search Results</div>
+      <div class="table-wrap">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th data-sort="event_time">Event Time</th>
+              <th data-sort="issued_at">Issued</th>
+              <th data-sort="county">County</th>
+              <th data-sort="municipality">Municipality</th>
+              <th data-sort="event_type">Type</th>
+              <th data-sort="source">Source</th>
+              <th>Status</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+        <div class="empty" id="emptyState" style="display:none;">No storm reports match the current filters.</div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle">Storm Report Detail</div>
+        <div class="modal-sub" id="modalSub">Details</div>
+      </div>
+      <button class="modal-close" id="modalClose">Close</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const DATA_URL = "data/storm_reports.json";
+const AUTO_REFRESH_MS = 5 * 60 * 1000;
+
+let allReports = [];
+let filteredReports = [];
+
+let sortField = "event_time";
+let sortDir = "desc";
+
+const els = {
+  keywordInput: document.getElementById("keywordInput"),
+  countySelect: document.getElementById("countySelect"),
+  municipalitySelect: document.getElementById("municipalitySelect"),
+  typeSelect: document.getElementById("typeSelect"),
+  sourceSelect: document.getElementById("sourceSelect"),
+  statusSelect: document.getElementById("statusSelect"),
+  startDate: document.getElementById("startDate"),
+  endDate: document.getElementById("endDate"),
+  sortSelect: document.getElementById("sortSelect"),
+  clearBtn: document.getElementById("clearBtn"),
+  copyLinkBtn: document.getElementById("copyLinkBtn"),
+  refreshBtn: document.getElementById("refreshBtn"),
+
+  statLoaded: document.getElementById("statLoaded"),
+  statMatching: document.getElementById("statMatching"),
+  statRecent: document.getElementById("statRecent"),
+  statRecentSub: document.getElementById("statRecentSub"),
+  statUpdated: document.getElementById("statUpdated"),
+  statUpdatedSub: document.getElementById("statUpdatedSub"),
+
+  resultsHead: document.getElementById("resultsHead"),
+  resultsBody: document.getElementById("resultsBody"),
+  emptyState: document.getElementById("emptyState"),
+
+  modalBackdrop: document.getElementById("modalBackdrop"),
+  modalTitle: document.getElementById("modalTitle"),
+  modalSub: document.getElementById("modalSub"),
+  modalBody: document.getElementById("modalBody"),
+  modalClose: document.getElementById("modalClose")
+};
+
+function safeString(v){
+  return v == null ? "" : String(v);
+}
+
+function escapeHtml(str){
+  return safeString(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function titleCaseWords(str){
+  if(!str) return "";
+  return String(str)
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatLocalDateTime(value){
+  if(!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d)) return safeString(value);
+  return d.toLocaleString([], {
+    year:"numeric",
+    month:"numeric",
+    day:"numeric",
+    hour:"numeric",
+    minute:"2-digit"
+  });
+}
+
+function formatLocalShort(value){
+  if(!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d)) return safeString(value);
+  return d.toLocaleString([], {
+    month:"numeric",
+    day:"numeric",
+    hour:"numeric",
+    minute:"2-digit"
+  });
+}
+
+function toTimestamp(value){
+  if(!value) return null;
+  const d = new Date(value);
+  return isNaN(d) ? null : d.getTime();
+}
+
+function uniqueSorted(values){
+  return [...new Set(values.filter(Boolean))].sort((a,b)=>
+    String(a).localeCompare(String(b))
+  );
+}
+
+function buildSearchText(r){
+  const keywords = Array.isArray(r.keywords) ? r.keywords.join(" ") : safeString(r.keywords);
+  return [
+    r.id,
+    r.source,
+    r.status,
+    r.office,
+    r.county,
+    r.municipality,
+    r.state,
+    r.event_type,
+    r.magnitude,
+    r.description,
+    keywords
+  ].map(v => safeString(v).toLowerCase()).join(" ");
+}
+
+function eventBadge(type){
+  const t = safeString(type).toLowerCase();
+  if (t.includes("tornado")) return '<span class="badge badge-red">Tornado</span>';
+  if (t.includes("hail")) return '<span class="badge badge-blue">Hail</span>';
+  if (t.includes("wind")) return '<span class="badge badge-orange">Wind</span>';
+  return `<span class="badge badge-unknown">${escapeHtml(type || "Unknown")}</span>`;
+}
+
+function statusBadge(status){
+  const s = safeString(status).toLowerCase();
+  if (s === "preliminary") return '<span class="badge badge-prelim">Preliminary</span>';
+  if (s === "official") return '<span class="badge badge-official">Official</span>';
+  return `<span class="badge badge-unknown">${escapeHtml(status || "Unknown")}</span>`;
+}
+
+function sourceBadge(source){
+  return `<span class="badge badge-source">${escapeHtml(source || "Unknown")}</span>`;
+}
+
+function fillSelect(selectEl, values, placeholder){
+  const current = selectEl.value;
+  selectEl.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>`;
+  values.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    selectEl.appendChild(opt);
+  });
+  if ([...selectEl.options].some(opt => opt.value === current)) {
+    selectEl.value = current;
+  }
+}
+
+function populateFilters(){
+  fillSelect(els.countySelect, uniqueSorted(allReports.map(r => r.county)), "All Counties");
+  fillSelect(els.municipalitySelect, uniqueSorted(allReports.map(r => r.municipality)), "All Municipalities");
+  fillSelect(els.typeSelect, uniqueSorted(allReports.map(r => r.event_type)), "All Event Types");
+  fillSelect(els.sourceSelect, uniqueSorted(allReports.map(r => r.source)), "All Sources");
+  fillSelect(els.statusSelect, uniqueSorted(allReports.map(r => r.status)), "All Statuses");
+}
+
+function getActiveFilters(){
+  return {
+    keyword: els.keywordInput.value.trim().toLowerCase(),
+    county: els.countySelect.value,
+    municipality: els.municipalitySelect.value,
+    type: els.typeSelect.value,
+    source: els.sourceSelect.value,
+    status: els.statusSelect.value,
+    startDate: els.startDate.value,
+    endDate: els.endDate.value
+  };
+}
+
+function parseLocalInputDate(value){
+  if(!value) return null;
+  const d = new Date(value);
+  return isNaN(d) ? null : d.getTime();
+}
+
+function applyFilters(){
+  const f = getActiveFilters();
+  const startTs = parseLocalInputDate(f.startDate);
+  const endTs = parseLocalInputDate(f.endDate);
+
+  filteredReports = allReports.filter(r => {
+    if (f.county && safeString(r.county) !== f.county) return false;
+    if (f.municipality && safeString(r.municipality) !== f.municipality) return false;
+    if (f.type && safeString(r.event_type) !== f.type) return false;
+    if (f.source && safeString(r.source) !== f.source) return false;
+    if (f.status && safeString(r.status) !== f.status) return false;
+
+    if (f.keyword){
+      const hay = buildSearchText(r);
+      if (!hay.includes(f.keyword)) return false;
+    }
+
+    const reportTs = toTimestamp(r.event_time) ?? toTimestamp(r.issued_at);
+    if (startTs != null && (reportTs == null || reportTs < startTs)) return false;
+    if (endTs != null && (reportTs == null || reportTs > endTs)) return false;
+
+    return true;
+  });
+
+  applySort();
+  updateStats();
+  renderTable();
+  updateQueryString();
+}
+
+function compareValues(a, b){
+  const av = safeString(a).toLowerCase();
+  const bv = safeString(b).toLowerCase();
+  return av.localeCompare(bv);
+}
+
+function applySort(){
+  const value = els.sortSelect.value;
+
+  if (value.includes("_desc")) sortDir = "desc";
+  else sortDir = "asc";
+
+  sortField = value
+    .replace(/_desc$/, "")
+    .replace(/_asc$/, "");
+
+  filteredReports.sort((a, b) => {
+    let cmp = 0;
+
+    if (sortField === "event_time" || sortField === "issued_at") {
+      const at = toTimestamp(a[sortField]) ?? 0;
+      const bt = toTimestamp(b[sortField]) ?? 0;
+      cmp = at - bt;
+    } else {
+      cmp = compareValues(a[sortField], b[sortField]);
+    }
+
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+}
+
+function renderTable(){
+  els.resultsBody.innerHTML = "";
+
+  els.resultsHead.textContent = `Search Results (${filteredReports.length.toLocaleString()})`;
+
+  if (!filteredReports.length){
+    els.emptyState.style.display = "";
+    return;
+  }
+
+  els.emptyState.style.display = "none";
+
+  const rowsHtml = filteredReports.map((r, idx) => `
+    <tr data-index="${idx}">
+      <td class="nowrap">${escapeHtml(formatLocalDateTime(r.event_time))}</td>
+      <td class="nowrap">${escapeHtml(formatLocalDateTime(r.issued_at))}</td>
+      <td>${escapeHtml(r.county || "—")}</td>
+      <td>${escapeHtml(r.municipality || "—")}</td>
+      <td>${eventBadge(r.event_type)}</td>
+      <td>${sourceBadge(r.source)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td class="desc-cell">${escapeHtml(r.description || "—")}</td>
+    </tr>
+  `).join("");
+
+  els.resultsBody.innerHTML = rowsHtml;
+
+  [...els.resultsBody.querySelectorAll("tr")].forEach(tr => {
+    tr.addEventListener("click", () => {
+      const idx = Number(tr.dataset.index);
+      openModal(filteredReports[idx]);
+    });
+  });
+}
+
+function updateStats(meta = {}){
+  els.statLoaded.textContent = allReports.length.toLocaleString();
+  els.statMatching.textContent = filteredReports.length.toLocaleString();
+
+  const mostRecent = [...allReports]
+    .sort((a,b) => (toTimestamp(b.event_time) ?? 0) - (toTimestamp(a.event_time) ?? 0))[0];
+
+  if (mostRecent){
+    els.statRecent.textContent = formatLocalShort(mostRecent.event_time);
+    els.statRecentSub.textContent =
+      [mostRecent.county, mostRecent.municipality, mostRecent.event_type].filter(Boolean).join(" • ");
+  } else {
+    els.statRecent.textContent = "—";
+    els.statRecentSub.textContent = "No reports loaded";
+  }
+
+  if (meta.fetched_at){
+    els.statUpdated.textContent = formatLocalShort(meta.fetched_at);
+    els.statUpdatedSub.textContent = "Dataset refresh time";
+  } else {
+    els.statUpdated.textContent = "—";
+    els.statUpdatedSub.textContent = "Unknown";
+  }
+}
+
+function openModal(r){
+  if(!r) return;
+
+  els.modalTitle.textContent = r.event_type || "Storm Report";
+  els.modalSub.textContent = [
+    r.county || "Unknown County",
+    r.municipality || "Unknown Municipality",
+    r.state || "PA"
+  ].filter(Boolean).join(" • ");
+
+  const keywords = Array.isArray(r.keywords) ? r.keywords.join(", ") : (r.keywords || "—");
+  const latlon = (r.lat != null && r.lon != null) ? `${r.lat}, ${r.lon}` : "—";
+
+  els.modalBody.innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-box">
+        <div class="detail-label">Event Time</div>
+        <div class="detail-value">${escapeHtml(formatLocalDateTime(r.event_time))}</div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Issued Time</div>
+        <div class="detail-value">${escapeHtml(formatLocalDateTime(r.issued_at))}</div>
+      </div>
+
+      <div class="detail-box">
+        <div class="detail-label">County</div>
+        <div class="detail-value">${escapeHtml(r.county || "—")}</div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Municipality</div>
+        <div class="detail-value">${escapeHtml(r.municipality || "—")}</div>
+      </div>
+
+      <div class="detail-box">
+        <div class="detail-label">Source</div>
+        <div class="detail-value">${escapeHtml(r.source || "—")}</div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">${escapeHtml(r.status || "—")}</div>
+      </div>
+
+      <div class="detail-box">
+        <div class="detail-label">Office</div>
+        <div class="detail-value">${escapeHtml(r.office || "—")}</div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Magnitude</div>
+        <div class="detail-value">${escapeHtml(r.magnitude ?? "—")}</div>
+      </div>
+
+      <div class="detail-box">
+        <div class="detail-label">Coordinates</div>
+        <div class="detail-value">${escapeHtml(latlon)}</div>
+      </div>
+      <div class="detail-box">
+        <div class="detail-label">Report ID</div>
+        <div class="detail-value mono">${escapeHtml(r.id || "—")}</div>
+      </div>
+
+      <div class="detail-box" style="grid-column:1 / -1;">
+        <div class="detail-label">Keywords</div>
+        <div class="detail-value">${escapeHtml(keywords || "—")}</div>
+      </div>
+    </div>
+
+    <div class="narrative">
+      <div class="detail-label">Description / Narrative</div>
+      <div class="detail-value">${escapeHtml(r.description || "—")}</div>
+    </div>
+
+    <div class="footer-note">
+      This record is displayed from your local storm report dataset and may be preliminary depending on source/status.
+    </div>
+  `;
+
+  els.modalBackdrop.classList.add("show");
+}
+
+function closeModal(){
+  els.modalBackdrop.classList.remove("show");
+}
+
+function clearFilters(){
+  els.keywordInput.value = "";
+  els.countySelect.value = "";
+  els.municipalitySelect.value = "";
+  els.typeSelect.value = "";
+  els.sourceSelect.value = "";
+  els.statusSelect.value = "";
+  els.startDate.value = "";
+  els.endDate.value = "";
+  els.sortSelect.value = "event_time_desc";
+  applyFilters();
+}
+
+function updateQueryString(){
+  const f = getActiveFilters();
+  const params = new URLSearchParams();
+
+  if (f.keyword) params.set("q", f.keyword);
+  if (f.county) params.set("county", f.county);
+  if (f.municipality) params.set("municipality", f.municipality);
+  if (f.type) params.set("type", f.type);
+  if (f.source) params.set("source", f.source);
+  if (f.status) params.set("status", f.status);
+  if (f.startDate) params.set("start", f.startDate);
+  if (f.endDate) params.set("end", f.endDate);
+  if (els.sortSelect.value) params.set("sort", els.sortSelect.value);
+
+  const newUrl = `${location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
+  history.replaceState(null, "", newUrl);
+}
+
+function loadFiltersFromQuery(){
+  const p = new URLSearchParams(location.search);
+
+  if (p.has("q")) els.keywordInput.value = p.get("q");
+  if (p.has("county")) els.countySelect.value = p.get("county");
+  if (p.has("municipality")) els.municipalitySelect.value = p.get("municipality");
+  if (p.has("type")) els.typeSelect.value = p.get("type");
+  if (p.has("source")) els.sourceSelect.value = p.get("source");
+  if (p.has("status")) els.statusSelect.value = p.get("status");
+  if (p.has("start")) els.startDate.value = p.get("start");
+  if (p.has("end")) els.endDate.value = p.get("end");
+  if (p.has("sort")) els.sortSelect.value = p.get("sort");
+}
+
+async function loadData(){
+  try{
+    const res = await fetch(`${DATA_URL}?t=${Date.now()}`, { cache:"no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    const items = Array.isArray(data.items) ? data.items : [];
+
+    allReports = items.map(item => ({
+      id: item.id ?? "",
+      source: item.source ?? "",
+      status: item.status ?? "",
+      office: item.office ?? "",
+      issued_at: item.issued_at ?? "",
+      event_time: item.event_time ?? "",
+      county: item.county ?? "",
+      municipality: item.municipality ?? "",
+      state: item.state ?? "PA",
+      event_type: item.event_type ?? "",
+      magnitude: item.magnitude ?? null,
+      description: item.description ?? "",
+      lat: item.lat ?? null,
+      lon: item.lon ?? null,
+      keywords: item.keywords ?? []
+    }));
+
+    populateFilters();
+    loadFiltersFromQuery();
+    applyFilters();
+    updateStats(data);
+  }catch(err){
+    console.error("Failed to load storm reports:", err);
+    allReports = [];
+    filteredReports = [];
+    renderTable();
+    updateStats({});
+    els.resultsHead.textContent = "Search Results";
+    els.emptyState.style.display = "";
+    els.emptyState.textContent = "Unable to load data/storm_reports.json";
+  }
+}
+
+function setupEvents(){
+  [
+    els.keywordInput,
+    els.countySelect,
+    els.municipalitySelect,
+    els.typeSelect,
+    els.sourceSelect,
+    els.statusSelect,
+    els.startDate,
+    els.endDate,
+    els.sortSelect
+  ].forEach(el => {
+    el.addEventListener("input", applyFilters);
+    el.addEventListener("change", applyFilters);
+  });
+
+  els.clearBtn.addEventListener("click", clearFilters);
+  els.refreshBtn.addEventListener("click", loadData);
+
+  els.copyLinkBtn.addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(location.href);
+      const old = els.copyLinkBtn.textContent;
+      els.copyLinkBtn.textContent = "Link Copied";
+      setTimeout(() => els.copyLinkBtn.textContent = old, 1500);
+    }catch{
+      alert("Could not copy link.");
+    }
+  });
+
+  document.querySelectorAll("th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const field = th.dataset.sort;
+      if (sortField === field){
+        sortDir = sortDir === "asc" ? "desc" : "asc";
+      } else {
+        sortField = field;
+        sortDir = (field === "county" || field === "municipality" || field === "event_type" || field === "source") ? "asc" : "desc";
+      }
+
+      els.sortSelect.value = `${sortField}_${sortDir}`;
+      applySort();
+      renderTable();
+      updateQueryString();
+    });
+  });
+
+  els.modalClose.addEventListener("click", closeModal);
+  els.modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === els.modalBackdrop) closeModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+}
+
+setupEvents();
+loadData();
+setInterval(loadData, AUTO_REFRESH_MS);
+</script>
+
+</body>
+</html>
