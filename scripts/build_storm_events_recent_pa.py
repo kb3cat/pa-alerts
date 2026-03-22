@@ -2,27 +2,24 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+from io import StringIO
 from pathlib import Path
 
 import requests
 
 
 OUTPUT_PATH = Path("data/storm_events_recent_pa.json")
-
-# PA-serving / bordering WFOs that commonly issue PA-related LSRs
-OFFICES = ["CTP", "PBZ", "PHI", "BGM", "BUF", "CLE"]
-
-NWS_API_BASE = "https://api.weather.gov"
 USER_AGENT = "PennAlertsRecentStorms/1.0 (your-email@example.com)"
 
-# How many recent LSR products per office to inspect
-MAX_PRODUCTS_PER_OFFICE = 8
+# IEM real-time LSR CSV, regenerated every 5 minutes
+REALTIME_CSV_URL = "https://mesonet.agron.iastate.edu/data/lsrs.csv"
 
-# Only keep recent events newer than this many days
+# Keep only this many days of reports in the recent layer
 RECENT_DAYS = 120
 
 
@@ -141,8 +138,8 @@ def clean_county(value: object) -> str | None:
     return s
 
 
-def clean_municipality(begin_location: object, county: str | None) -> str | None:
-    loc = clean_dash(begin_location)
+def clean_municipality(location: object, county: str | None) -> str | None:
+    loc = clean_dash(location)
     if not loc:
         return None
 
@@ -180,213 +177,103 @@ def make_keywords(*parts: object) -> list[str]:
     return out[:20]
 
 
-def build_session() -> requests.Session:
-    s = requests.Session()
-    s.headers.update({
-        "User-Agent": USER_AGENT,
-        "Accept": "application/ld+json, application/json, text/plain;q=0.9, */*;q=0.8",
-    })
-    return s
-
-
-def get_json(session: requests.Session, url: str) -> dict:
-    r = session.get(url, timeout=60)
-    r.raise_for_status()
-    return r.json()
-
-
-def fetch_lsr_index(session: requests.Session, office: str) -> list[dict]:
-    url = f"{NWS_API_BASE}/products/types/LSR/locations/{office}"
-    data = get_json(session, url)
-
-    if "@graph" in data and isinstance(data["@graph"], list):
-        return data["@graph"]
-
-    if "products" in data and isinstance(data["products"], list):
-        return data["products"]
-
-    return []
-
-
-def extract_product_id(item: dict) -> str | None:
-    for key in ("id", "@id"):
-        val = item.get(key)
-        if isinstance(val, str):
-            m = re.search(r"/products/([A-Za-z0-9\-]+)$", val)
-            if m:
-                return m.group(1)
-            if re.fullmatch(r"[A-Za-z0-9\-]+", val):
-                return val
-    return None
-
-
-def fetch_product_text(session: requests.Session, product_id: str) -> tuple[str, str | None]:
-    url = f"{NWS_API_BASE}/products/{product_id}"
-    data = get_json(session, url)
-    text = (
-        data.get("productText")
-        or data.get("text")
-        or data.get("productTextFormatted")
-        or ""
+def fetch_csv_text() -> str:
+    r = requests.get(
+        REALTIME_CSV_URL,
+        headers={"User-Agent": USER_AGENT, "Accept": "text/csv,*/*"},
+        timeout=60,
     )
-    issued = data.get("issuanceTime") or data.get("issued")
-    return str(text), issued
+    r.raise_for_status()
+    return r.text
 
 
-TIME_LINE_RE = re.compile(
-    r"^\s*(\d{3,4}\s[AP]M)\s+(.+?)\s{2,}(.+?)\s+(\d{4,5})\s+(\d{4,5})\s*$"
-)
-
-DATE_LINE_RE = re.compile(
-    r"^\s*(\d{2}/\d{2}/\d{4})\s+(.+?)\s{2,}(.+?)\s+([A-Z]{2})\s+(.+?)\s*$"
-)
-
-
-def parse_lsr_blocks(product_text: str) -> list[list[str]]:
-    lines = [ln.rstrip() for ln in product_text.splitlines()]
-
-    blocks: list[list[str]] = []
-    current: list[str] = []
-
-    in_body = False
-    for ln in lines:
-        stripped = ln.strip()
-
-        if stripped.startswith("..TIME...") or stripped.startswith("TIME..."):
-            in_body = True
-            if current:
-                current = []
-            continue
-
-        if not in_body:
-            continue
-
-        if TIME_LINE_RE.match(ln):
-            if current:
-                blocks.append(current)
-            current = [ln]
-            continue
-
-        if current and stripped:
-            current.append(ln)
-
-    if current:
-        blocks.append(current)
-
-    return blocks
-
-
-def parse_lsr_datetime(local_time_text: str, date_text: str, issued_at: str | None) -> datetime | None:
-    """
-    LSR event times are office-local wall times.
-    To avoid wrong date ordering around midnight, use the issued_at date as a reference,
-    but still store as UTC-tagged naive conversion for consistency with the rest of the board.
-    """
-    try:
-        base = datetime.strptime(f"{date_text} {local_time_text}", "%m/%d/%Y %I%M %p")
-    except Exception:
+def parse_event_time(value: str | None) -> datetime | None:
+    s = clean_dash(value)
+    if not s:
         return None
 
-    if issued_at:
+    # Try common ISO-like timestamps first
+    for candidate in (
+        s.replace("Z", "+00:00"),
+        s,
+    ):
         try:
-            issued_dt = datetime.fromisoformat(issued_at.replace("Z", "+00:00"))
-            # Keep date from parsed line; no timezone mapping per office here.
-            return base.replace(tzinfo=timezone.utc)
+            dt = datetime.fromisoformat(candidate)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
         except Exception:
             pass
 
-    return base.replace(tzinfo=timezone.utc)
+    # Fallback common formats
+    formats = [
+        "%Y-%m-%d %H:%M:%S%z",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y/%m/%d %H:%M",
+        "%m/%d/%Y %H:%M",
+        "%m/%d/%Y %I:%M %p",
+    ]
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(s, fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception:
+            continue
+
+    return None
 
 
-def parse_latlon_pair(lat_str: str | None, lon_str: str | None) -> tuple[float | None, float | None]:
-    if not lat_str or not lon_str:
-        return None, None
-
-    lat_digits = re.sub(r"[^\d]", "", lat_str)
-    lon_digits = re.sub(r"[^\d]", "", lon_str)
-
-    if len(lat_digits) < 4 or len(lon_digits) < 4:
-        return None, None
-
-    try:
-        lat = float(f"{lat_digits[:-2]}.{lat_digits[-2:]}")
-        lon = -float(f"{lon_digits[:-2]}.{lon_digits[-2:]}")
-        return lat, lon
-    except Exception:
-        return None, None
+def row_get(row: dict[str, str], *names: str) -> str | None:
+    lower_map = {k.lower(): v for k, v in row.items()}
+    for name in names:
+        if name.lower() in lower_map:
+            return lower_map[name.lower()]
+    return None
 
 
-def parse_magnitude_and_source(raw_magnitude: str | None, source_line: str | None) -> tuple[str | None, str | None, str | None]:
-    magnitude_raw = clean_dash(raw_magnitude)
-    source_detail = clean_dash(source_line)
-
-    magnitude = magnitude_raw
-    magnitude_type = None
-
-    if magnitude_raw:
-        # Light attempt to split "60 MPH" or "1.00 INCH"
-        m = re.match(r"^(.*?)(?:\s+([A-Z%/]+))?$", magnitude_raw.strip())
-        if m:
-            mag_val = clean_dash(m.group(1))
-            mag_type = clean_dash(m.group(2))
-            if mag_val and mag_type:
-                magnitude = f"{mag_val} {mag_type}"
-                magnitude_raw = mag_val
-                magnitude_type = mag_type
-
-    return magnitude, magnitude_raw, magnitude_type
-
-
-def parse_lsr_report_block(block: list[str], office: str, issued_at: str | None, seq: int) -> StormEventRecent | None:
-    if len(block) < 2:
+def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
+    # IEM CSV column names can vary a bit; support common aliases.
+    state_raw = row_get(row, "state", "st")
+    if norm(state_raw).upper() not in {"PA", "PENNSYLVANIA"}:
         return None
 
-    line1 = block[0]
-    line2 = block[1]
-
-    m1 = TIME_LINE_RE.match(line1)
-    m2 = DATE_LINE_RE.match(line2)
-
-    if not m1 or not m2:
+    event_dt = parse_event_time(
+        row_get(row, "valid", "utcvalid", "issue", "time", "datetime")
+    )
+    if event_dt is None:
         return None
 
-    local_time_text = norm(m1.group(1))
-    event_type = title_case(m1.group(2))
-    location_text = title_case(m1.group(3))
-    lat_raw = m1.group(4)
-    lon_raw = m1.group(5)
-
-    date_text = norm(m2.group(1))
-    raw_magnitude = norm(m2.group(2))
-    county_raw = norm(m2.group(3))
-    state = norm(m2.group(4)).upper()
-    source_line = norm(m2.group(5))
-
-    if state != "PA":
+    cutoff = now_utc() - timedelta(days=RECENT_DAYS)
+    if event_dt < cutoff:
         return None
 
-    county = clean_county(county_raw)
-    municipality = clean_municipality(location_text, county)
+    county = clean_county(row_get(row, "county", "county_name"))
+    location = row_get(row, "city", "location", "town", "remark_location")
+    municipality = clean_municipality(location, county)
 
-    remarks = " ".join(norm(x) for x in block[2:]).strip()
-    description = clean_dash(remarks) or clean_dash(source_line) or event_type
+    event_type = title_case(row_get(row, "type", "typetext", "eventtype", "phenomena"))
+    magnitude_raw = clean_dash(row_get(row, "magnitude", "mag"))
+    magnitude_type = clean_dash(row_get(row, "magnitude_units", "mag_units", "unit"))
+    magnitude = None
+    if magnitude_raw and magnitude_type:
+        magnitude = f"{magnitude_raw} {magnitude_type}"
+    elif magnitude_raw:
+        magnitude = magnitude_raw
 
-    lat, lon = parse_latlon_pair(lat_raw, lon_raw)
-    event_dt = parse_lsr_datetime(local_time_text, date_text, issued_at)
+    description = clean_dash(row_get(row, "remark", "comments", "comment", "text")) or event_type
+    office = clean_dash(row_get(row, "wfo"))
+    lat = parse_float(row_get(row, "lat", "latitude"))
+    lon = parse_float(row_get(row, "lon", "longitude"))
 
-    magnitude, magnitude_raw, magnitude_type = parse_magnitude_and_source(raw_magnitude, source_line)
+    year = str(event_dt.year)
+    month_name = event_dt.strftime("%B")
+    begin_yomon = event_dt.strftime("%Y%m")
 
-    year = date_text[:4] if len(date_text) >= 10 else None
-    month_name = None
-    try:
-        dt_tmp = datetime.strptime(date_text, "%m/%d/%Y")
-        year = str(dt_tmp.year)
-        month_name = dt_tmp.strftime("%B")
-        begin_yomon = dt_tmp.strftime("%Y%m")
-    except Exception:
-        begin_yomon = None
-
-    rid = f"recent-{date_text.replace('/', '')}-{office.lower()}-{seq:04d}"
+    # Prefer a stable provided id if available
+    provided_id = clean_dash(row_get(row, "id", "lsr_id", "report_id"))
+    rid = provided_id or f"recent-{event_dt.strftime('%Y%m%d%H%M')}-{seq:06d}"
 
     return StormEventRecent(
         id=rid,
@@ -411,7 +298,7 @@ def parse_lsr_report_block(block: list[str], office: str, issued_at: str | None,
         injuries_indirect=None,
         deaths_direct=None,
         deaths_indirect=None,
-        source_detail=clean_dash(source_line),
+        source_detail=clean_dash(row_get(row, "source")),
         episode_id=None,
         event_id=None,
         cz_type=None,
@@ -419,11 +306,11 @@ def parse_lsr_report_block(block: list[str], office: str, issued_at: str | None,
         magnitude_raw=magnitude_raw,
         magnitude_type=magnitude_type,
         flood_cause=None,
-        tor_f_scale=None,
+        tor_f_scale=clean_dash(row_get(row, "f_scale", "tor_f_scale")),
         tor_length=None,
         tor_width=None,
         tor_other_wfo=None,
-        begin_location=location_text,
+        begin_location=title_case(location),
         end_location=None,
         begin_yomon=begin_yomon,
         year=year,
@@ -432,45 +319,10 @@ def parse_lsr_report_block(block: list[str], office: str, issued_at: str | None,
             event_type,
             county,
             municipality,
-            source_line,
-            remarks,
+            description,
+            office,
         ),
     )
-
-
-def fetch_recent_reports() -> list[StormEventRecent]:
-    session = build_session()
-    reports: list[StormEventRecent] = []
-
-    for office in OFFICES:
-        try:
-            idx = fetch_lsr_index(session, office)
-        except Exception as e:
-            print(f"[WARN] Failed LSR index for {office}: {e}")
-            continue
-
-        product_ids: list[str] = []
-        for item in idx[:MAX_PRODUCTS_PER_OFFICE]:
-            pid = extract_product_id(item)
-            if pid:
-                product_ids.append(pid)
-
-        seq = 0
-        for pid in product_ids:
-            try:
-                text, issued_at = fetch_product_text(session, pid)
-            except Exception as e:
-                print(f"[WARN] Failed LSR product {pid} ({office}): {e}")
-                continue
-
-            blocks = parse_lsr_blocks(text)
-            for block in blocks:
-                seq += 1
-                report = parse_lsr_report_block(block, office, issued_at, seq)
-                if report:
-                    reports.append(report)
-
-    return reports
 
 
 def dedupe(items: list[StormEventRecent]) -> list[StormEventRecent]:
@@ -496,28 +348,18 @@ def dedupe(items: list[StormEventRecent]) -> list[StormEventRecent]:
     return out
 
 
-def keep_only_recent(items: list[StormEventRecent], days: int) -> list[StormEventRecent]:
-    cutoff = now_utc() - timedelta(days=days)
-    out: list[StormEventRecent] = []
-
-    for item in items:
-        if not item.event_time:
-            continue
-        try:
-            dt = datetime.fromisoformat(item.event_time.replace("Z", "+00:00"))
-        except Exception:
-            continue
-
-        if dt >= cutoff:
-            out.append(item)
-
-    return out
-
-
 def main() -> int:
-    events = fetch_recent_reports()
+    csv_text = fetch_csv_text()
+
+    reader = csv.DictReader(StringIO(csv_text))
+    events: list[StormEventRecent] = []
+
+    for i, row in enumerate(reader, start=1):
+        item = normalize_row(row, i)
+        if item is not None:
+            events.append(item)
+
     events = dedupe(events)
-    events = keep_only_recent(events, RECENT_DAYS)
     events.sort(key=lambda x: (x.event_time or "", x.id), reverse=True)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
