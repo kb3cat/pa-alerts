@@ -1,4 +1,4 @@
-name: Fetch Latest NCEI CSV
+name: Update Storm Data (NCEI + Recent LSR)
 
 on:
   workflow_dispatch:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  fetch-latest:
+  build-data:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,19 +21,35 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install requests
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install requests
 
+      # ----------------------------------------
+      # STEP 1: Fetch latest NCEI CSV
+      # ----------------------------------------
       - name: Fetch latest NCEI details CSV
         run: |
           python scripts/fetch_latest_ncei_csv.py
 
-      - name: Build PA storm events JSON
+      # ----------------------------------------
+      # STEP 2: Build historical PA dataset
+      # ----------------------------------------
+      - name: Build PA storm events JSON (historical)
         run: |
           python scripts/build_storm_events_pa.py
 
+      # ----------------------------------------
+      # STEP 3: Build recent LSR dataset
+      # ----------------------------------------
+      - name: Build recent PA storm events JSON (LSR)
+        run: |
+          python scripts/build_storm_events_recent_pa.py
+
+      # ----------------------------------------
+      # STEP 4: Commit results
+      # ----------------------------------------
       - name: Commit if changed
         run: |
           git config user.name "github-actions[bot]"
@@ -42,11 +58,12 @@ jobs:
           git add data/raw/StormEvents_details_latest.csv.gz
           git add data/raw/StormEvents_details_latest.meta.json
           git add data/storm_events_pa.json
+          git add data/storm_events_recent_pa.json
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
             exit 0
           fi
 
-          git commit -m "Update NCEI data and PA JSON"
+          git commit -m "Update storm datasets (NCEI + recent LSR)"
           git push
