@@ -81,7 +81,7 @@ def norm(value: object) -> str:
 
 def clean_dash(value: object) -> str | None:
     s = norm(value)
-    if not s or s in {"--", "—", "N/A", "n/a", "NULL", "null"}:
+    if not s or s in {"--", "—", "N/A", "n/a", "NULL", "null", "None"}:
         return None
     return s
 
@@ -248,6 +248,7 @@ def parse_event_time(value: str | None) -> datetime | None:
         "%Y-%m-%dT%H:%M:%S",
         "%Y-%m-%dT%H:%M%z",
         "%Y-%m-%dT%H:%M",
+        "%Y%m%d%H%M",
     ]
     for fmt in formats:
         try:
@@ -277,7 +278,7 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
         return None
 
     event_dt = parse_event_time(
-        row_get(row, "valid", "valid_utc", "utcvalid", "issue", "time", "datetime")
+        row_get(row, "valid2", "valid", "valid_utc", "utcvalid", "issue", "time", "datetime")
     )
     if event_dt is None:
         return None
