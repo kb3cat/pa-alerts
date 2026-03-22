@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Pennsylvania Storm History Search</title>
+<title>PennAlerts Storm History Search</title>
 
 <style>
 :root{
@@ -450,7 +450,7 @@ tbody tr:hover{
 
 <header class="topbar">
   <div class="title-wrap">
-    <div class="title">Pennslvania Storm History Search</div>
+    <div class="title">PennAlerts Storm History Search</div>
     <div class="subtitle">
       Official NOAA/NCEI storm events for Pennsylvania (historical data may lag recent storms)
     </div>
@@ -508,8 +508,8 @@ tbody tr:hover{
 
           <div class="field">
             <label for="municipalitySelect">Municipality</label>
-            <select id="municipalitySelect">
-              <option value="">All Municipalities</option>
+            <select id="municipalitySelect" disabled>
+              <option value="">Select County First</option>
             </select>
           </div>
 
@@ -727,9 +727,43 @@ function fillSelect(selectEl, values, placeholder){
   }
 }
 
+function fillMunicipalitySelect(){
+  const selectedCounty = els.countySelect.value;
+  const currentMunicipality = els.municipalitySelect.value;
+
+  if (!selectedCounty){
+    els.municipalitySelect.innerHTML = `<option value="">Select County First</option>`;
+    els.municipalitySelect.value = "";
+    els.municipalitySelect.disabled = true;
+    return;
+  }
+
+  const municipalities = uniqueSorted(
+    allReports
+      .filter(r => safeString(r.county) === selectedCounty)
+      .map(r => r.municipality)
+  );
+
+  els.municipalitySelect.innerHTML = `<option value="">All Municipalities</option>`;
+  municipalities.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    els.municipalitySelect.appendChild(opt);
+  });
+
+  els.municipalitySelect.disabled = false;
+
+  if ([...els.municipalitySelect.options].some(opt => opt.value === currentMunicipality)) {
+    els.municipalitySelect.value = currentMunicipality;
+  } else {
+    els.municipalitySelect.value = "";
+  }
+}
+
 function populateFilters(){
   fillSelect(els.countySelect, uniqueSorted(allReports.map(r => r.county)), "All Counties");
-  fillSelect(els.municipalitySelect, uniqueSorted(allReports.map(r => r.municipality)), "All Municipalities");
+  fillMunicipalitySelect();
   fillSelect(els.typeSelect, uniqueSorted(allReports.map(r => r.event_type)), "All Event Types");
 }
 
@@ -874,7 +908,7 @@ function openModal(r){
   els.modalTitle.textContent = r.event_type || "Storm Event";
   els.modalSub.textContent = [
     r.county || "Unknown County",
-    r.municipality || "Unknown Municipality",
+    r.municipality || "Countywide / Not Specified",
     r.state || "PA"
   ].filter(Boolean).join(" • ");
 
@@ -988,11 +1022,11 @@ function closeModal(){
 function clearFilters(){
   els.keywordInput.value = "";
   els.countySelect.value = "";
-  els.municipalitySelect.value = "";
   els.typeSelect.value = "";
   els.startDate.value = "";
   els.endDate.value = "";
   els.sortSelect.value = "event_time_desc";
+  fillMunicipalitySelect();
   applyFilters();
 }
 
@@ -1017,11 +1051,19 @@ function loadFiltersFromQuery(){
 
   if (p.has("q")) els.keywordInput.value = p.get("q");
   if (p.has("county")) els.countySelect.value = p.get("county");
-  if (p.has("municipality")) els.municipalitySelect.value = p.get("municipality");
   if (p.has("type")) els.typeSelect.value = p.get("type");
   if (p.has("start")) els.startDate.value = p.get("start");
   if (p.has("end")) els.endDate.value = p.get("end");
   if (p.has("sort")) els.sortSelect.value = p.get("sort");
+
+  fillMunicipalitySelect();
+
+  if (p.has("municipality")) {
+    const muni = p.get("municipality");
+    if ([...els.municipalitySelect.options].some(opt => opt.value === muni)) {
+      els.municipalitySelect.value = muni;
+    }
+  }
 }
 
 async function loadData(){
@@ -1077,15 +1119,19 @@ async function loadData(){
 function setupEvents(){
   [
     els.keywordInput,
-    els.countySelect,
-    els.municipalitySelect,
     els.typeSelect,
     els.startDate,
     els.endDate,
-    els.sortSelect
+    els.sortSelect,
+    els.municipalitySelect
   ].forEach(el => {
     el.addEventListener("input", applyFilters);
     el.addEventListener("change", applyFilters);
+  });
+
+  els.countySelect.addEventListener("change", () => {
+    fillMunicipalitySelect();
+    applyFilters();
   });
 
   els.clearBtn.addEventListener("click", clearFilters);
