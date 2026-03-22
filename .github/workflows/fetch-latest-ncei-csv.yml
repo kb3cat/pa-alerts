@@ -1,20 +1,26 @@
-name: Update Storm Data (NCEI + Recent LSR)
+name: Update storm datasets (NCEI + recent LSR)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 6 */14 * *"
+    - cron: "17 */6 * * *"
 
 permissions:
   contents: write
 
+concurrency:
+  group: update-storm-datasets
+  cancel-in-progress: false
+
 jobs:
-  build-data:
+  update-storm-datasets:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repo
+      - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,39 +32,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      # ----------------------------------------
-      # STEP 1: Fetch latest NCEI CSV
-      # ----------------------------------------
-      - name: Fetch latest NCEI details CSV
-        run: |
-          python scripts/fetch_latest_ncei_csv.py
-
-      # ----------------------------------------
-      # STEP 2: Build historical PA dataset
-      # ----------------------------------------
       - name: Build PA storm events JSON (historical)
         run: |
           python scripts/build_storm_events_pa.py
 
-      # ----------------------------------------
-      # STEP 3: Build recent LSR dataset
-      # ----------------------------------------
       - name: Build recent PA storm events JSON (LSR)
         run: |
           python scripts/build_storm_events_recent_pa.py
 
-      # ----------------------------------------
-      # STEP 4: Commit results
-      # ----------------------------------------
       - name: Commit if changed
+        shell: bash
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add data/raw/StormEvents_details_latest.csv.gz
-          git add data/raw/StormEvents_details_latest.meta.json
-          git add data/storm_events_pa.json
-          git add data/storm_events_recent_pa.json
+          git add data/storm_events_pa.json data/storm_events_recent_pa.json
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
@@ -66,4 +56,13 @@ jobs:
           fi
 
           git commit -m "Update storm datasets (NCEI + recent LSR)"
-          git push
+
+          for i in 1 2 3 4 5; do
+            echo "Push attempt $i..."
+            git pull --rebase origin main && git push origin main && exit 0
+            echo "Push attempt $i failed; retrying in 5 seconds..."
+            sleep 5
+          done
+
+          echo "Push failed after multiple attempts."
+          exit 1
