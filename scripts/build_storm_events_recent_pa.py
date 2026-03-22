@@ -9,19 +9,16 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from io import StringIO
 from pathlib import Path
+from urllib.parse import urlencode
 
 import requests
 
 
 OUTPUT_PATH = Path("data/storm_events_recent_pa.json")
 USER_AGENT = "PennAlertsRecentStorms/1.0 (your-email@example.com)"
+IEM_LSR_URL = "https://mesonet.agron.iastate.edu/cgi-bin/request/gis/lsr.py"
 
-# Correct IEM real-time/past-24-hours LSR CSV
-REALTIME_CSV_URL = "https://mesonet.agron.iastate.edu/data/gis/shape/4326/us/lsr_24hour.csv"
-
-# Keep only this many days of reports in the recent layer
-# With the 24-hour feed, this is effectively 1 day, but we keep the filter logic.
-RECENT_DAYS = 120
+ROLLING_DAYS = 120
 
 
 @dataclass
@@ -178,11 +175,25 @@ def make_keywords(*parts: object) -> list[str]:
     return out[:20]
 
 
+def build_request_url() -> str:
+    end_dt = now_utc()
+    start_dt = end_dt - timedelta(days=ROLLING_DAYS)
+
+    params = {
+        "state": "PA",
+        "sts": start_dt.strftime("%Y-%m-%dT%H:%MZ"),
+        "ets": end_dt.strftime("%Y-%m-%dT%H:%MZ"),
+        "fmt": "csv",
+    }
+    return f"{IEM_LSR_URL}?{urlencode(params)}"
+
+
 def fetch_csv_text() -> str:
+    url = build_request_url()
     r = requests.get(
-        REALTIME_CSV_URL,
+        url,
         headers={"User-Agent": USER_AGENT, "Accept": "text/csv,*/*"},
-        timeout=60,
+        timeout=120,
     )
     r.raise_for_status()
     return r.text
@@ -193,10 +204,7 @@ def parse_event_time(value: str | None) -> datetime | None:
     if not s:
         return None
 
-    for candidate in (
-        s.replace("Z", "+00:00"),
-        s,
-    ):
+    for candidate in (s.replace("Z", "+00:00"), s):
         try:
             dt = datetime.fromisoformat(candidate)
             if dt.tzinfo is None:
@@ -243,10 +251,6 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
     if event_dt is None:
         return None
 
-    cutoff = now_utc() - timedelta(days=RECENT_DAYS)
-    if event_dt < cutoff:
-        return None
-
     county = clean_county(row_get(row, "county", "county_name"))
     location = row_get(row, "city", "location", "town", "remark_location")
     municipality = clean_municipality(location, county)
@@ -254,6 +258,7 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
     event_type = title_case(row_get(row, "type", "typetext", "eventtype", "phenomena"))
     magnitude_raw = clean_dash(row_get(row, "magnitude", "mag"))
     magnitude_type = clean_dash(row_get(row, "magnitude_units", "mag_units", "unit"))
+
     magnitude = None
     if magnitude_raw and magnitude_type:
         magnitude = f"{magnitude_raw} {magnitude_type}"
@@ -322,7 +327,7 @@ def normalize_row(row: dict[str, str], seq: int) -> StormEventRecent | None:
     )
 
 
-def dedupe(items: list[StormEventRecent]) -> list[StormEventRecent]:
+def dedupe_recent(items: list[StormEventRecent]) -> list[StormEventRecent]:
     out: list[StormEventRecent] = []
     seen: set[str] = set()
 
@@ -356,7 +361,7 @@ def main() -> int:
         if item is not None:
             events.append(item)
 
-    events = dedupe(events)
+    events = dedupe_recent(events)
     events.sort(key=lambda x: (x.event_time or "", x.id), reverse=True)
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
