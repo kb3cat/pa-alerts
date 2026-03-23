@@ -5,84 +5,56 @@
   <title>Regional Weather Summary (RWSCTP)</title>
 
   <style>
-    /* ==============================
-       THEME (LIGHT DEFAULT)
-       ============================== */
     :root{
       color-scheme: light;
-
       --bg: #ffffff;
       --text: #111111;
       --muted: #555555;
-
       --border: #333333;
       --borderSoft: #cccccc;
-
       --btnBg: #ffffff;
       --btnBgHover: #f3f3f3;
       --btnBorder: #333333;
-
       --panelBg: #fafafa;
       --panelBorder: #cccccc;
-
       --meta: #333333;
-
       --preBg: #ffffff;
       --preBorder: #dddddd;
-
       --link: #1d4ed8;
     }
 
-    /* ==============================
-       THEME (DARK)
-       ============================== */
     :root[data-theme="dark"]{
       color-scheme: dark;
-
       --bg: #0f1216;
       --text: #e9eef5;
       --muted: #a8b2bf;
-
       --border: #2b3646;
       --borderSoft: #2b3646;
-
       --btnBg: #171c22;
       --btnBgHover: #232b36;
       --btnBorder: #2b3646;
-
       --panelBg: #121820;
       --panelBorder: #2b3646;
-
       --meta: #a8b2bf;
-
       --preBg: #0f141b;
       --preBorder: #2b3646;
-
       --link: #7aa2ff;
     }
 
     html, body { background: var(--bg); color: var(--text); }
     body { margin: 16px; }
 
-    /* ==============================
-       TITLE ROW (MATCHES OTHER PAGES)
-       ============================== */
     .title-row{
       max-width: 1200px;
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 12px; /* space under header */
+      margin-bottom: 12px;
     }
-    .title-row h1{
-      margin: 0; /* prevents phantom top margin */
-    }
+    .title-row h1{ margin: 0; }
     .title-row .spacer{ flex: 1 1 auto; }
 
-    /* ==============================
-       CONTROLS
-       ============================== */
     .controls {
       display: flex;
       align-items: center;
@@ -106,6 +78,7 @@
       font: inherit;
       color: var(--text);
     }
+
     .nav-toggle button:hover,
     #refreshBtn:hover,
     #themeToggle:hover { background: var(--btnBgHover); }
@@ -117,9 +90,6 @@
     .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
     .section-title { margin-top: 14px; margin-bottom: 6px; max-width: 1200px; }
 
-    /* ==============================
-       PANEL
-       ============================== */
     .panel {
       max-width: 1200px;
       border: 1px solid var(--panelBorder);
@@ -127,15 +97,15 @@
       padding: 12px 14px;
       background: var(--panelBg);
     }
-    .panel h2 {
-      margin: 0 0 6px;
-      font-size: 1.05em;
-    }
+
+    .panel h2 { margin: 0 0 6px; font-size: 1.05em; }
+
     .meta {
       margin: 0 0 10px;
       color: var(--meta);
       font-size: 0.95em;
     }
+
     pre {
       margin: 0;
       padding: 10px;
@@ -149,6 +119,7 @@
       line-height: 1.35;
       font-size: 0.98em;
     }
+
     a { color: var(--link); }
   </style>
 </head>
@@ -185,8 +156,11 @@
 
   <p class="muted" style="margin-top:10px;">
     Source:
-    <a id="listLink" href="#" target="_blank" rel="noopener noreferrer">
-      NWS API (Products: RWS / CTP)
+    <a id="listLink"
+       href="https://forecast.weather.gov/product.php?site=NWS&issuedby=CTP&product=RWS"
+       target="_blank"
+       rel="noopener noreferrer">
+      NWS Forecast Office (CTP RWS Page)
     </a>
     &nbsp;|&nbsp;
     <a id="prodLink" href="#" target="_blank" rel="noopener noreferrer">
@@ -195,9 +169,6 @@
   </p>
 
   <script>
-    /* ==============================
-       THEME TOGGLE (shared across pages)
-       ============================== */
     (function () {
       const STORAGE_KEY_THEME = "pa_alerts_theme";
       const root = document.documentElement;
@@ -221,13 +192,6 @@
       }
 
       const saved = localStorage.getItem(STORAGE_KEY_THEME) || "system";
-
-      if (saved === "system" && window.matchMedia) {
-        const mq = window.matchMedia("(prefers-color-scheme: dark)");
-        if (mq.addEventListener) mq.addEventListener("change", () => setTheme("system"));
-        else if (mq.addListener) mq.addListener(() => setTheme("system"));
-      }
-
       setTheme(saved);
 
       if (btn) {
@@ -288,8 +252,6 @@
       status.textContent = "Loading RWS…";
 
       try {
-        document.getElementById("listLink").href = LIST_URL;
-
         const listing = await fetchJson(LIST_URL);
         const products = listing.products || listing["@graph"] || listing.items || [];
         const latest = pickLatestProduct(products);
