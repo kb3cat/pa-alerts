@@ -168,6 +168,7 @@ def clean_county(value: object) -> str | None:
     if not s:
         return None
 
+    # Remove directional prefixes
     s = re.sub(
         r"^(North|South|East|West|Northern|Southern|Eastern|Western|Central)\s+",
         "",
@@ -175,6 +176,23 @@ def clean_county(value: object) -> str | None:
         flags=re.IGNORECASE,
     )
 
+    # Remove terrain/zone descriptors
+    s = re.sub(
+        r"^(Higher Elevations Of|Lower Elevations Of|Ridges Of|Mountains Of)\s+",
+        "",
+        s,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove standalone terrain suffixes
+    s = re.sub(
+        r"\s+(Ridges|Mountains|Highlands|Lowlands)$",
+        "",
+        s,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove "County"
     s = re.sub(r"\s+County$", "", s, flags=re.IGNORECASE)
 
     return s.strip()
