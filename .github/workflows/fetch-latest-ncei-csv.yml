@@ -3,7 +3,10 @@ name: Update storm datasets (NCEI + recent LSR)
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 */6 * * *"
+    # Recent LSR every 30 minutes
+    - cron: "*/30 * * * *"
+    # NCEI historical every 14 days at 03:17 UTC
+    - cron: "17 3 */14 * *"
 
 permissions:
   contents: write
@@ -33,10 +36,12 @@ jobs:
           pip install requests
 
       - name: Build PA storm events JSON (historical)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '17 3 */14 * *'
         run: |
           python scripts/build_storm_events_pa.py
 
       - name: Build recent PA storm events JSON (LSR)
+        if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/30 * * * *'
         run: |
           python scripts/build_storm_events_recent_pa.py
 
@@ -55,7 +60,15 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Update storm datasets (NCEI + recent LSR)"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            COMMIT_MSG="Manual update storm datasets"
+          elif [ "${{ github.event.schedule }}" = "17 3 */14 * *" ]; then
+            COMMIT_MSG="Update storm datasets (NCEI historical)"
+          else
+            COMMIT_MSG="Update storm datasets (recent LSR)"
+          fi
+
+          git commit -m "$COMMIT_MSG"
 
           for i in 1 2 3 4 5; do
             echo "Push attempt $i..."
