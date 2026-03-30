@@ -1,19 +1,19 @@
 {
   "name": "pa_power_outages_combined",
-  "fetched_at": "2026-03-30T09:46:45Z",
+  "fetched_at": "2026-03-30T10:50:59Z",
   "sources": {
     "firstenergy_file": "data/power_outages_pa.json",
     "ppl_file": "data/power_outages_ppl.json",
     "duquesne_file": "data/power_outages_duq.json",
     "peco_file": "data/power_outages_peco.json",
-    "firstenergy_fetched_at": "2026-03-30T09:46:09Z",
-    "ppl_fetched_at": "2026-03-30T09:46:33Z",
-    "duquesne_fetched_at": "2026-03-30T09:46:45.186Z",
-    "peco_fetched_at": "2026-03-30T09:46:45Z",
+    "firstenergy_fetched_at": "2026-03-30T10:50:23Z",
+    "ppl_fetched_at": "2026-03-30T10:50:46Z",
+    "duquesne_fetched_at": "2026-03-30T10:50:58.056Z",
+    "peco_fetched_at": "2026-03-30T10:50:59Z",
     "ppl_source_last_updated": null,
     "peco_source_date_generated": null
   },
-  "total_customers_out": 269,
+  "total_customers_out": 1287,
   "summary": {
     "new": 0,
     "increasing": 0,
@@ -21,10 +21,14 @@
     "unchanged": 1527,
     "restored": 0,
     "counties_over_one_percent": 0,
-    "total_customers_served": 4310168,
-    "total_percent_out": 0.01
+    "total_customers_served": 4878122,
+    "total_percent_out": 0.03
   },
   "utility_summary": [
+    {
+      "utility": "PPL",
+      "customers_out": 1020
+    },
     {
       "utility": "FirstEnergy",
       "customers_out": 259
@@ -38,10 +42,34 @@
     },
     {
       "utility": "Duquesne Light",
-      "customers_out": 10
+      "customers_out": 8
     }
   ],
   "county_summary": [
+    {
+      "county": "Dauphin",
+      "customers_out": 1018,
+      "customers_served": 289174,
+      "percent_out": 0.35,
+      "change": 0,
+      "sources": [
+        "FirstEnergy",
+        "PPL"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 6748,
+        "percent_out": 0.0,
+        "change": 0
+      },
+      "ppl": {
+        "customers_out": 509,
+        "customers_served": 141213,
+        "percent_out": 0.36
+      },
+      "duquesne": null,
+      "peco": null
+    },
     {
       "county": "Berks",
       "customers_out": 259,
@@ -63,7 +91,7 @@
     },
     {
       "county": "ALLEGHENY",
-      "customers_out": 10,
+      "customers_out": 8,
       "customers_served": 546631,
       "percent_out": 0.0,
       "change": 0,
@@ -73,10 +101,28 @@
       "firstenergy": null,
       "ppl": null,
       "duquesne": {
-        "customers_out": 10,
+        "customers_out": 8,
         "customers_served": 546631,
         "percent_out": 0.0
       },
+      "peco": null
+    },
+    {
+      "county": "Lackawanna",
+      "customers_out": 2,
+      "customers_served": 285528,
+      "percent_out": 0.0,
+      "change": 0,
+      "sources": [
+        "PPL"
+      ],
+      "firstenergy": null,
+      "ppl": {
+        "customers_out": 1,
+        "customers_served": 142764,
+        "percent_out": 0.0
+      },
+      "duquesne": null,
       "peco": null
     },
     {
@@ -430,25 +476,6 @@
       "firstenergy": {
         "customers_out": 0,
         "customers_served": 18074,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Dauphin",
-      "customers_out": 0,
-      "customers_served": 6748,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 6748,
         "percent_out": 0.0,
         "change": 0
       },
@@ -1201,6 +1228,17 @@
   ],
   "municipality_summary": [
     {
+      "municipality": "Lower Paxton Twp",
+      "county": null,
+      "customers_out": 509,
+      "customers_served": 31532,
+      "percent_out": 1.61,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
+    },
+    {
       "municipality": "Reading City",
       "county": "Berks",
       "customers_out": 259,
@@ -1223,15 +1261,15 @@
       "source": "Duquesne Light"
     },
     {
-      "municipality": "PITTSBURGH",
+      "municipality": "South Abington Twp",
       "county": null,
-      "customers_out": 2,
-      "customers_served": 353422,
-      "percent_out": 0.0,
+      "customers_out": 1,
+      "customers_served": 6483,
+      "percent_out": 0.02,
       "outages": null,
       "etr": null,
       "masked": false,
-      "source": "Duquesne Light"
+      "source": "PPL"
     },
     {
       "municipality": "Abbottstown Borough",
@@ -41618,27 +41656,50 @@
       "status": "unchanged"
     }
   ],
-  "items_ppl": [],
+  "items_ppl": [
+    {
+      "municipality": "Lower Paxton Twp",
+      "county": "Dauphin",
+      "customers_out": 509,
+      "customers_served": 31532,
+      "percent_out": 1.61,
+      "source": "PPL"
+    },
+    {
+      "municipality": "Lower Paxton Twp",
+      "county": "Dauphin",
+      "customers_out": 509,
+      "customers_served": 31532,
+      "percent_out": 1.61,
+      "source": "PPL"
+    },
+    {
+      "municipality": "South Abington Twp",
+      "county": "Lackawanna",
+      "customers_out": 1,
+      "customers_served": 6483,
+      "percent_out": 0.02,
+      "source": "PPL"
+    },
+    {
+      "municipality": "South Abington Twp",
+      "county": "Lackawanna",
+      "customers_out": 1,
+      "customers_served": 6483,
+      "percent_out": 0.02,
+      "source": "PPL"
+    }
+  ],
   "items_duquesne": [
     {
       "utility": "Duquesne Light",
       "outages": 8,
-      "status": "Crew En-Route",
+      "status": "Awaiting Dispatch",
       "county": "ALLEGHENY",
       "municipality": "MONROEVILLE",
       "zip": "15146",
       "lat": 40.40684,
       "lon": -79.73296
-    },
-    {
-      "utility": "Duquesne Light",
-      "outages": 2,
-      "status": "Crew On-Site",
-      "county": "ALLEGHENY",
-      "municipality": "PITTSBURGH",
-      "zip": "15235",
-      "lat": 40.46995,
-      "lon": -79.85425
     }
   ],
   "items_peco": [
