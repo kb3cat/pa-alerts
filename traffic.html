@@ -579,11 +579,13 @@ function getRoadImage(text){
 
   if (/interstate/i.test(m[0])) {
     typ = "i";
-    num = m[1];
+    num = String(parseInt(m[1], 10));
   } else {
     typ = String(m[1]).toLowerCase();
-    num = m[2];
+    num = String(parseInt(m[2], 10));
   }
+
+  if (!num || num === "NaN") return "";
 
   const filename = `${typ}${num}small.png`;
   return `${repoBase}data/icons/${filename}?v=${Date.now()}`;
@@ -914,7 +916,13 @@ function normalizeRouteLabel(route){
   const r = String(route || "").toUpperCase().replace(/\s+/g, "");
   const m = r.match(/^(I|US|PA)-?(\d{1,4})$/i);
   if (!m) return String(route || "").trim().toUpperCase();
-  return `${m[1].toUpperCase()}-${m[2]}`;
+
+  const typ = m[1].toUpperCase();
+  const num = String(parseInt(m[2], 10));
+
+  if (!num || num === "NaN") return `${typ}-${m[2]}`;
+
+  return `${typ}-${num}`;
 }
 
 function normalizeDirLabel(dir){
