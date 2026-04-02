@@ -342,8 +342,6 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   border:1px solid var(--borderSoft);
   visibility:hidden;
   display:block;
-
-  /* responsive sizing for tablets/phones (no layout changes) */
   max-height: clamp(320px, 55vh, 720px);
   object-fit: contain;
 }
@@ -364,18 +362,34 @@ button:disabled{opacity:.6;cursor:not-allowed;}
 .map-fallback .title{font-weight:700;margin-bottom:6px;}
 .map-fallback .text{color:var(--muted);line-height:1.35;max-width:70ch;margin:0 auto;}
 
+.radarToolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:8px;
+}
+
+.radarHint{
+  font-size:0.9rem;
+  color:var(--muted);
+}
+
 .radarFrame{
   width:100%;
   border:1px solid var(--borderSoft);
   overflow:hidden;
   background:transparent;
+  border-radius:8px;
 }
+
 .radarFrame iframe{
   width:100%;
   height:100%;
   border:0;
   display:block;
-  pointer-events:none;
+  pointer-events:auto;
 }
 
 /* TABLE */
@@ -396,10 +410,10 @@ td{word-break:break-word;}
 
 @keyframes summaryScroll{
   0%   { transform: translateY(0); }
-  10%  { transform: translateY(0); } /* hold at top */
-  80%  { transform: translateY(calc(-1 * var(--scroll-distance))); } /* scroll down */
-  90%  { transform: translateY(calc(-1 * var(--scroll-distance))); } /* hold at bottom */
-  100% { transform: translateY(0); } /* jump back up at the end */
+  10%  { transform: translateY(0); }
+  80%  { transform: translateY(calc(-1 * var(--scroll-distance))); }
+  90%  { transform: translateY(calc(-1 * var(--scroll-distance))); }
+  100% { transform: translateY(0); }
 }
 
 /* Responsive: stack header pieces cleanly */
@@ -414,16 +428,11 @@ td{word-break:break-word;}
   #themeToggle{ grid-column:2; grid-row:1; align-self:start; }
 }
 
-/* Optional: on narrower screens, stack map/radar */
 @media (max-width: 900px){
   .visuals{ grid-template-columns:1fr; }
 }
 
-/* =========================
-   MOBILE ALERT HEIGHT FIX
-   ========================= */
 @media (max-width: 768px){
-
   .alert-summary,
   #alertSummaryContainer {
     height: auto !important;
@@ -443,12 +452,8 @@ td{word-break:break-word;}
     }
   }
 }
-/* =========================
-   MOBILE: STOP ALERT CARD CLIPPING
-   ========================= */
-@media (max-width: 768px){
 
-  /* These are common “card/panel” wrappers that end up with fixed heights */
+@media (max-width: 768px){
   .card,
   .panel,
   .section,
@@ -462,7 +467,6 @@ td{word-break:break-word;}
     overflow: visible !important;
   }
 
-  /* If your layout uses flex/grid, this prevents flex children from being forced smaller */
   .card,
   .panel,
   .alert-summary {
@@ -473,7 +477,6 @@ td{word-break:break-word;}
 </head>
 
 <body>
-<!-- Force refresh on open (cache-bust once per tab session) -->
 <script>
 (() => {
   const KEY = "paalerts_refreshed_once";
@@ -492,7 +495,6 @@ td{word-break:break-word;}
 
 <div class="wrap">
 
-  <!-- HEADER -->
   <div class="headerGrid">
     <h1>Pennsylvania Weather Hazard Overview</h1>
 
@@ -517,7 +519,6 @@ td{word-break:break-word;}
     <button id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
-  <!-- MAIN -->
   <div class="grid">
     <div class="panel">
       <div class="hdr">PA Alert Map & Radar</div>
@@ -538,15 +539,21 @@ td{word-break:break-word;}
             </div>
           </div>
 
-          <div class="radarFrame" id="radarFrame" aria-label="Locked radar">
-            <iframe
-              id="radarIframe"
-              title="Radar (locked)"
-              src="https://embed.windy.com/embed2.html?lat=40.9&lon=-77.9&detailLat=40.9&detailLon=-77.9&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=mph&metricTemp=%C2%B0F&radarRange=-1&play=1&sound=false"
-              loading="lazy"
-              referrerpolicy="no-referrer-when-downgrade"
-              allowfullscreen>
-            </iframe>
+          <div>
+            <div class="radarToolbar">
+              <div class="radarHint">Use mouse wheel or pinch to zoom, and drag to pan.</div>
+              <button id="resetRadarBtn" type="button">Reset Radar View</button>
+            </div>
+
+            <div class="radarFrame" id="radarFrame" aria-label="Interactive radar">
+              <iframe
+                id="radarIframe"
+                title="Interactive radar"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                allowfullscreen>
+              </iframe>
+            </div>
           </div>
         </div>
       </div>
@@ -561,7 +568,6 @@ td{word-break:break-word;}
   </div>
 </div>
 
-<!-- Modal -->
 <div class="modalBackdrop" id="changesModalBackdrop" hidden></div>
 <div class="modal" id="changesModal" role="dialog" aria-modal="true" aria-labelledby="changesModalTitle" hidden>
   <div class="modalCard">
@@ -648,8 +654,100 @@ function mapError(){
 
 window.addEventListener("resize", () => {
   clearTimeout(window.__syncTimer);
-  window.__syncTimer = setTimeout(syncRadarToMap, 150);
+  window.__syncTimer = setTimeout(() => {
+    syncRadarToMap();
+    setRadarZoom();
+  }, 150);
 });
+
+/* ==============================
+   RADAR
+   ============================== */
+const RADAR_DEFAULTS = {
+  lat: 40.9,
+  lon: -77.9,
+  detailLat: 40.9,
+  detailLon: -77.9,
+  zoomDesktop: 7,
+  zoomPhone: 5
+};
+
+function getRadarBaseZoom(){
+  return window.matchMedia("(max-width: 600px)").matches
+    ? RADAR_DEFAULTS.zoomPhone
+    : RADAR_DEFAULTS.zoomDesktop;
+}
+
+function buildRadarUrl(overrides = {}){
+  const params = new URLSearchParams({
+    lat: String(overrides.lat ?? RADAR_DEFAULTS.lat),
+    lon: String(overrides.lon ?? RADAR_DEFAULTS.lon),
+    detailLat: String(overrides.detailLat ?? RADAR_DEFAULTS.detailLat),
+    detailLon: String(overrides.detailLon ?? RADAR_DEFAULTS.detailLon),
+    zoom: String(overrides.zoom ?? getRadarBaseZoom()),
+    level: "surface",
+    overlay: "radar",
+    product: "radar",
+    menu: "",
+    message: "",
+    marker: "",
+    calendar: "now",
+    pressure: "",
+    type: "map",
+    location: "coordinates",
+    detail: "",
+    metricWind: "mph",
+    metricTemp: "°F",
+    radarRange: "-1",
+    play: "1",
+    sound: "false"
+  });
+
+  return "https://embed.windy.com/embed2.html?" + params.toString();
+}
+
+function setRadarView(overrides = {}){
+  const iframe = document.getElementById("radarIframe");
+  if(!iframe) return;
+  iframe.src = buildRadarUrl(overrides);
+}
+
+function resetRadarView(){
+  setRadarView();
+}
+
+function setRadarZoom(){
+  const iframe = document.getElementById("radarIframe");
+  if(!iframe) return;
+
+  const desiredZoom = getRadarBaseZoom();
+  if (!iframe.src) {
+    setRadarView({ zoom: desiredZoom });
+    return;
+  }
+
+  try{
+    const url = new URL(iframe.src);
+    const currentZoom = url.searchParams.get("zoom");
+    const currentLat = url.searchParams.get("lat");
+    const currentLon = url.searchParams.get("lon");
+    const currentDetailLat = url.searchParams.get("detailLat");
+    const currentDetailLon = url.searchParams.get("detailLon");
+
+    const isDefaultCenter =
+      currentLat === String(RADAR_DEFAULTS.lat) &&
+      currentLon === String(RADAR_DEFAULTS.lon) &&
+      currentDetailLat === String(RADAR_DEFAULTS.detailLat) &&
+      currentDetailLon === String(RADAR_DEFAULTS.detailLon);
+
+    if (isDefaultCenter && currentZoom !== String(desiredZoom)) {
+      url.searchParams.set("zoom", String(desiredZoom));
+      iframe.src = url.toString();
+    }
+  }catch{
+    setRadarView({ zoom: desiredZoom });
+  }
+}
 
 /* ==============================
    AUTO-SCROLL (only when overflow)
@@ -673,7 +771,7 @@ function setupAutoScroll(){
    ============================== */
 const API_URL = "https://api.weather.gov/alerts/active?area=PA";
 const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
-const zoneCache = new Map(); // url -> {zoneId, name, state} | null
+const zoneCache = new Map();
 
 function typePriority(evt){
   const s = (evt || "").toLowerCase();
@@ -730,10 +828,6 @@ function fetchWithTimeout(url, options={}, timeoutMs=12000){
   return fetch(url, {...options, signal: controller.signal}).finally(() => clearTimeout(t));
 }
 
-/* ✅ HAZARDS PAGE CHANGE:
-   Include ALL active PA hazards, excluding only obvious noise.
-   (You can add more excludes if you want later.)
-*/
 function isWantedAlert(p){
   const e = (p.event || "").toLowerCase();
   return (
@@ -755,7 +849,6 @@ function escapeHtml(s){
     .replaceAll("'","&#039;");
 }
 
-/* ✅ Change: fetch zoneId too (needed for correct de-dupe/precedence) */
 async function fetchZoneInfo(url){
   if(zoneCache.has(url)) return zoneCache.get(url);
   try{
@@ -764,7 +857,7 @@ async function fetchZoneInfo(url){
     const j = await r.json();
 
     const info = {
-      zoneId: j.properties?.id || j.properties?.zoneId || j.id || url, // e.g. PAZ106
+      zoneId: j.properties?.id || j.properties?.zoneId || j.id || url,
       name: j.properties?.name || null,
       state: j.properties?.state || null
     };
@@ -777,7 +870,6 @@ async function fetchZoneInfo(url){
   }
 }
 
-/* ✅ Change: precedence helpers (Emergency > Warning > Watch > Advisory > other) */
 function eventRank(eventName){
   const e = String(eventName || "").toLowerCase();
   if (e.includes("emergency")) return 4;
@@ -815,9 +907,7 @@ function refreshMap(){
 }
 
 /* ==============================
-   Recent Changes (adds/drops/time)
-   Baseline on first successful fetch (so it starts empty per open)
-   "No changes since open" then "No changes since refresh"
+   Recent Changes
    ============================== */
 const RecentChanges = (() => {
   const MAX_TICKER_ITEMS = 6;
@@ -843,7 +933,7 @@ const RecentChanges = (() => {
   let lastHadChanges = false;
 
   let hasBaselined = false;
-  let hasRefreshedOnce = false; // ✅ stays false until AFTER baseline (next successful refresh)
+  let hasRefreshedOnce = false;
 
   function clsFor(k){
     return (k === "OK") ? "ok" :
@@ -944,7 +1034,6 @@ const RecentChanges = (() => {
     const matchedPrev = new Set();
     const matchedCur = new Set();
 
-    // TIME: same event+same locations; expires changed
     for (const [key, cid] of curEventLoc.entries()){
       const pid = prevEventLoc.get(key);
       if (!pid) continue;
@@ -956,7 +1045,6 @@ const RecentChanges = (() => {
       }
     }
 
-    // +/-: same exact group (event||expires)
     for (const [cid, cv] of Object.entries(cur)){
       if (matchedCur.has(cid)) continue;
       const pv = prev[cid];
@@ -975,13 +1063,11 @@ const RecentChanges = (() => {
       matchedCur.add(cid);
     }
 
-    // NEW
     for (const [cid, cv] of Object.entries(cur)){
       if (prev[cid] || matchedCur.has(cid)) continue;
       changes.push({ kind:"NEW", text:`${cv.event} – ${cv.locSig || "Locations updated"}` });
     }
 
-    // CLR
     for (const [pid, pv] of Object.entries(prev)){
       if (cur[pid] || matchedPrev.has(pid)) continue;
       changes.push({ kind:"CLR", text:`${pv.event} – cleared` });
@@ -1004,21 +1090,18 @@ const RecentChanges = (() => {
       };
     }
 
-    // baseline first successful update (starts empty per open)
     if (!hasBaselined){
       hasBaselined = true;
       last = cur;
       history = [];
       lastHadChanges = false;
 
-      // ✅ do NOT mark refreshed yet; first view should say "since open"
-      renderTicker([]); // "No changes since open"
+      renderTicker([]);
       renderModal();
       modalSub.textContent = `Since open (${sessionStartStr})`;
       return;
     }
 
-    // ✅ second+ successful update counts as "since refresh"
     hasRefreshedOnce = true;
 
     const changes = diff(last, cur);
@@ -1041,7 +1124,7 @@ const RecentChanges = (() => {
 })();
 
 /* ==============================
-   fetchAlerts (with zoneId precedence de-dupe)
+   fetchAlerts
    ============================== */
 async function fetchAlerts(){
   const status = document.getElementById("status");
@@ -1060,7 +1143,6 @@ async function fetchAlerts(){
     if(!r.ok) throw new Error("HTTP "+r.status);
     const d = await r.json();
 
-    // Build rows (per alert), store zones with IDs
     const rows = [];
     for(const f of (d.features || [])){
       const p = f?.properties;
@@ -1089,8 +1171,7 @@ async function fetchAlerts(){
       });
     }
 
-    // ✅ Precedence by identical zoneId (keep highest severity / freshest)
-    const bestByZoneId = new Map(); // zoneId -> {alertId, rank, freshMs}
+    const bestByZoneId = new Map();
     for (const row of rows){
       for (const z of row.zones){
         const prev = bestByZoneId.get(z.zoneId);
@@ -1105,15 +1186,12 @@ async function fetchAlerts(){
       }
     }
 
-    // Keep only zones each row "wins"
     for (const row of rows){
       row.zones = row.zones.filter(z => bestByZoneId.get(z.zoneId)?.alertId === row.alertId);
     }
 
-    // Drop rows fully overridden
     const filteredRows = rows.filter(r => r.zones && r.zones.length);
 
-    // Group for summary by (event||expires), but normalize names for display grouping
     const grouped = new Map();
     for (const row of filteredRows){
       const key = `${row.event}||${row.expires || ""}`;
@@ -1213,27 +1291,9 @@ function refreshAll(){
 }
 
 document.getElementById("refreshBtn").addEventListener("click", refreshAll);
+document.getElementById("resetRadarBtn").addEventListener("click", resetRadarView);
 
-/* Phone radar: zoom out to show all of PA */
-function setRadarZoom(){
-  const iframe = document.getElementById("radarIframe");
-  if(!iframe) return;
-
-  const isPhone = window.matchMedia("(max-width: 600px)").matches;
-  const zoom = isPhone ? 5 : 7;
-
-  const url = new URL(iframe.src);
-  url.searchParams.set("zoom", String(zoom));
-
-  if (iframe.src !== url.toString()) iframe.src = url.toString();
-}
-
-setRadarZoom();
-window.addEventListener("resize", () => {
-  clearTimeout(window.__radarZoomTimer);
-  window.__radarZoomTimer = setTimeout(setRadarZoom, 200);
-});
-
+setRadarView();
 refreshAll();
 setInterval(refreshAll, 5 * 60 * 1000);
 
