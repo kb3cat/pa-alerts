@@ -1,33 +1,37 @@
 {
   "name": "pa_power_outages_combined",
-  "fetched_at": "2026-04-04T06:11:36Z",
+  "fetched_at": "2026-04-04T07:19:01Z",
   "sources": {
     "firstenergy_file": "data/power_outages_pa.json",
     "ppl_file": "data/power_outages_ppl.json",
     "duquesne_file": "data/power_outages_duq.json",
     "peco_file": "data/power_outages_peco.json",
-    "firstenergy_fetched_at": "2026-04-04T06:11:00Z",
-    "ppl_fetched_at": "2026-04-04T06:11:24Z",
-    "duquesne_fetched_at": "2026-04-04T06:11:35.401Z",
+    "firstenergy_fetched_at": "2026-04-04T07:18:26Z",
+    "ppl_fetched_at": "2026-04-04T07:18:50Z",
+    "duquesne_fetched_at": "2026-04-04T07:19:01.195Z",
     "peco_fetched_at": "2026-04-04T05:05:51Z",
     "ppl_source_last_updated": null,
     "peco_source_date_generated": null
   },
-  "total_customers_out": 478,
+  "total_customers_out": 3119,
   "summary": {
-    "new": 3,
-    "increasing": 1,
+    "new": 4,
+    "increasing": 0,
     "decreasing": 0,
-    "unchanged": 1522,
-    "restored": 1,
-    "counties_over_one_percent": 0,
-    "total_customers_served": 4895278,
-    "total_percent_out": 0.01
+    "unchanged": 1519,
+    "restored": 4,
+    "counties_over_one_percent": 2,
+    "total_customers_served": 4348647,
+    "total_percent_out": 0.07
   },
   "utility_summary": [
     {
       "utility": "FirstEnergy",
-      "customers_out": 326
+      "customers_out": 1894
+    },
+    {
+      "utility": "Duquesne Light",
+      "customers_out": 1157
     },
     {
       "utility": "PECO",
@@ -37,10 +41,6 @@
       "outages": 20
     },
     {
-      "utility": "Duquesne Light",
-      "customers_out": 84
-    },
-    {
       "utility": "PPL",
       "customers_out": 68
     }
@@ -48,21 +48,39 @@
   "county_summary": [
     {
       "county": "Allegheny",
-      "customers_out": 238,
+      "customers_out": 1808,
       "customers_served": 103813,
-      "percent_out": 0.23,
-      "change": 238,
+      "percent_out": 1.74,
+      "change": 1570,
       "sources": [
         "FirstEnergy"
       ],
       "firstenergy": {
-        "customers_out": 238,
+        "customers_out": 1808,
         "customers_served": 103813,
-        "percent_out": 0.23,
-        "change": 238
+        "percent_out": 1.74,
+        "change": 1570
       },
       "ppl": null,
       "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "BEAVER",
+      "customers_out": 1157,
+      "customers_served": 74958,
+      "percent_out": 1.54,
+      "change": 0,
+      "sources": [
+        "Duquesne Light"
+      ],
+      "firstenergy": null,
+      "ppl": null,
+      "duquesne": {
+        "customers_out": 1157,
+        "customers_served": 74958,
+        "percent_out": 1.54
+      },
       "peco": null
     },
     {
@@ -90,24 +108,6 @@
       "peco": null
     },
     {
-      "county": "ALLEGHENY",
-      "customers_out": 65,
-      "customers_served": 546631,
-      "percent_out": 0.01,
-      "change": 0,
-      "sources": [
-        "Duquesne Light"
-      ],
-      "firstenergy": null,
-      "ppl": null,
-      "duquesne": {
-        "customers_out": 65,
-        "customers_served": 546631,
-        "percent_out": 0.01
-      },
-      "peco": null
-    },
-    {
       "county": "Mercer",
       "customers_out": 35,
       "customers_served": 51794,
@@ -131,7 +131,7 @@
       "customers_out": 23,
       "customers_served": 27979,
       "percent_out": 0.08,
-      "change": 12,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -139,28 +139,10 @@
         "customers_out": 23,
         "customers_served": 27979,
         "percent_out": 0.08,
-        "change": 12
+        "change": 0
       },
       "ppl": null,
       "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "BEAVER",
-      "customers_out": 19,
-      "customers_served": 74958,
-      "percent_out": 0.03,
-      "change": 0,
-      "sources": [
-        "Duquesne Light"
-      ],
-      "firstenergy": null,
-      "ppl": null,
-      "duquesne": {
-        "customers_out": 19,
-        "customers_served": 74958,
-        "percent_out": 0.03
-      },
       "peco": null
     },
     {
@@ -184,18 +166,18 @@
     },
     {
       "county": "Crawford",
-      "customers_out": 8,
+      "customers_out": 6,
       "customers_served": 33164,
       "percent_out": 0.02,
-      "change": 2,
+      "change": -2,
       "sources": [
         "FirstEnergy"
       ],
       "firstenergy": {
-        "customers_out": 8,
+        "customers_out": 6,
         "customers_served": 33164,
         "percent_out": 0.02,
-        "change": 2
+        "change": -2
       },
       "ppl": null,
       "duquesne": null,
@@ -222,6 +204,25 @@
         "customers_served": 180287,
         "percent_out": 0.0
       },
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Westmoreland",
+      "customers_out": 2,
+      "customers_served": 186049,
+      "percent_out": 0.0,
+      "change": 1,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 2,
+        "customers_served": 186049,
+        "percent_out": 0.0,
+        "change": 1
+      },
+      "ppl": null,
       "duquesne": null,
       "peco": null
     },
@@ -256,44 +257,6 @@
       "firstenergy": {
         "customers_out": 1,
         "customers_served": 34624,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Washington",
-      "customers_out": 1,
-      "customers_served": 110454,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 1,
-        "customers_served": 110454,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Westmoreland",
-      "customers_out": 1,
-      "customers_served": 186049,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 1,
-        "customers_served": 186049,
         "percent_out": 0.0,
         "change": 0
       },
@@ -628,7 +591,7 @@
       "customers_out": 0,
       "customers_served": 18772,
       "percent_out": 0.0,
-      "change": -1,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -636,7 +599,7 @@
         "customers_out": 0,
         "customers_served": 18772,
         "percent_out": 0.0,
-        "change": -1
+        "change": 0
       },
       "ppl": null,
       "duquesne": null,
@@ -1166,6 +1129,25 @@
       "peco": null
     },
     {
+      "county": "Washington",
+      "customers_out": 0,
+      "customers_served": 110454,
+      "percent_out": 0.0,
+      "change": -1,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 110454,
+        "percent_out": 0.0,
+        "change": -1
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
       "county": "Wayne",
       "customers_out": 0,
       "customers_served": 3687,
@@ -1233,26 +1215,37 @@
   ],
   "municipality_summary": [
     {
-      "municipality": "Mccandless Township",
+      "municipality": "North Fayette Township",
       "county": "Allegheny",
-      "customers_out": 208,
-      "customers_served": 8357,
-      "percent_out": 2.0,
+      "customers_out": 1767,
+      "customers_served": 7916,
+      "percent_out": 22.0,
       "outages": null,
-      "etr": "04/04/2026 05:30 AM",
+      "etr": "04/04/2026 07:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
     {
-      "municipality": "PITTSBURGH",
+      "municipality": "AMBRIDGE",
       "county": null,
-      "customers_out": 64,
-      "customers_served": 353422,
-      "percent_out": 0.02,
+      "customers_out": 1138,
+      "customers_served": 6736,
+      "percent_out": 16.89,
       "outages": null,
       "etr": null,
       "masked": false,
       "source": "Duquesne Light"
+    },
+    {
+      "municipality": "Oakdale Borough",
+      "county": "Allegheny",
+      "customers_out": 37,
+      "customers_served": 990,
+      "percent_out": 4.0,
+      "outages": null,
+      "etr": "04/04/2026 07:00 AM",
+      "masked": false,
+      "source": "FirstEnergy"
     },
     {
       "municipality": "Hermitage City",
@@ -1261,7 +1254,7 @@
       "customers_served": 8720,
       "percent_out": null,
       "outages": null,
-      "etr": "04/04/2026 03:00 AM",
+      "etr": "04/04/2026 05:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -1277,24 +1270,13 @@
       "source": "PPL"
     },
     {
-      "municipality": "Pine Township",
-      "county": "Allegheny",
-      "customers_out": 30,
-      "customers_served": 4039,
-      "percent_out": null,
-      "outages": null,
-      "etr": "04/04/2026 05:30 AM",
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "White Township",
       "county": "Indiana",
       "customers_out": 23,
       "customers_served": 5177,
       "percent_out": null,
       "outages": null,
-      "etr": "04/04/2026 06:00 AM",
+      "etr": "04/04/2026 05:30 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -1327,7 +1309,7 @@
       "customers_served": 457,
       "percent_out": 1.0,
       "outages": null,
-      "etr": "04/04/2026 03:30 AM",
+      "etr": "04/04/2026 05:30 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -1343,13 +1325,13 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "South Shenango Township",
-      "county": "Crawford",
-      "customers_out": 2,
-      "customers_served": 1831,
-      "percent_out": null,
+      "municipality": "Findlay Township",
+      "county": "Allegheny",
+      "customers_out": 4,
+      "customers_served": 96,
+      "percent_out": 4.0,
       "outages": null,
-      "etr": "04/04/2026 05:30 AM",
+      "etr": "04/04/2026 07:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -1376,17 +1358,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "Peters Township",
-      "county": "Washington",
-      "customers_out": 1,
-      "customers_served": 9817,
-      "percent_out": null,
-      "outages": null,
-      "etr": "04/04/2026 03:30 AM",
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "Polk Twp",
       "county": null,
       "customers_out": 1,
@@ -1404,20 +1375,9 @@
       "customers_served": 6419,
       "percent_out": null,
       "outages": null,
-      "etr": "04/04/2026 03:00 AM",
+      "etr": "04/04/2026 05:00 AM",
       "masked": false,
       "source": "FirstEnergy"
-    },
-    {
-      "municipality": "TURTLE CREEK",
-      "county": null,
-      "customers_out": 1,
-      "customers_served": 3856,
-      "percent_out": 0.03,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "Duquesne Light"
     },
     {
       "municipality": "Union Township",
@@ -1427,6 +1387,17 @@
       "percent_out": null,
       "outages": null,
       "etr": "04/04/2026 04:00 AM",
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Unity Township",
+      "county": "Westmoreland",
+      "customers_out": 1,
+      "customers_served": 10191,
+      "percent_out": null,
+      "outages": null,
+      "etr": "04/04/2026 07:30 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -6249,17 +6220,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "Findlay Township",
-      "county": "Allegheny",
-      "customers_out": 0,
-      "customers_served": 96,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "Findley Township",
       "county": "Mercer",
       "customers_out": 0,
@@ -9714,6 +9674,17 @@
       "source": "FirstEnergy"
     },
     {
+      "municipality": "Mccandless Township",
+      "county": "Allegheny",
+      "customers_out": 0,
+      "customers_served": 8357,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
       "municipality": "Mcconnellsburg Borough",
       "county": "Fulton",
       "customers_out": 0,
@@ -11144,17 +11115,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "North Fayette Township",
-      "county": "Allegheny",
-      "customers_out": 0,
-      "customers_served": 7916,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "North Franklin Township",
       "county": "Washington",
       "customers_out": 0,
@@ -11390,17 +11350,6 @@
       "county": "Washington",
       "customers_out": 0,
       "customers_served": 1511,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
-      "municipality": "Oakdale Borough",
-      "county": "Allegheny",
-      "customers_out": 0,
-      "customers_served": 990,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -11914,6 +11863,17 @@
       "source": "FirstEnergy"
     },
     {
+      "municipality": "Peters Township",
+      "county": "Washington",
+      "customers_out": 0,
+      "customers_served": 9817,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
       "municipality": "Petersburg Borough",
       "county": "Huntingdon",
       "customers_out": 0,
@@ -11995,6 +11955,17 @@
       "county": "Warren",
       "customers_out": 0,
       "customers_served": 972,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Pine Township",
+      "county": "Allegheny",
+      "customers_out": 0,
+      "customers_served": 4039,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -14026,6 +13997,17 @@
       "source": "FirstEnergy"
     },
     {
+      "municipality": "South Shenango Township",
+      "county": "Crawford",
+      "customers_out": 0,
+      "customers_served": 1831,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
       "municipality": "South Strabane Township",
       "county": "Washington",
       "customers_out": 0,
@@ -15262,17 +15244,6 @@
       "county": "Centre",
       "customers_out": 0,
       "customers_served": 153,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
-      "municipality": "Unity Township",
-      "county": "Westmoreland",
-      "customers_out": 0,
-      "customers_served": 10191,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -17262,76 +17233,124 @@
   ],
   "items_firstenergy": [
     {
-      "municipality": "Mccandless Township",
+      "municipality": "North Fayette Township",
       "county": "Allegheny",
       "state": "PA",
       "company": null,
-      "customers_out": 208,
-      "customers_served": 8357,
-      "percent_out": 2.0,
-      "etr": "04/04/2026 05:30 AM",
+      "customers_out": 1767,
+      "customers_served": 7916,
+      "percent_out": 22.0,
+      "etr": "04/04/2026 07:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 0,
-      "change": 208,
+      "change": 1767,
       "status": "new"
+    },
+    {
+      "municipality": "Oakdale Borough",
+      "county": "Allegheny",
+      "state": "PA",
+      "company": null,
+      "customers_out": 37,
+      "customers_served": 990,
+      "percent_out": 4.0,
+      "etr": "04/04/2026 07:00 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 37,
+      "status": "new"
+    },
+    {
+      "municipality": "Findlay Township",
+      "county": "Allegheny",
+      "state": "PA",
+      "company": null,
+      "customers_out": 4,
+      "customers_served": 96,
+      "percent_out": 4.0,
+      "etr": "04/04/2026 07:00 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 4,
+      "status": "new"
+    },
+    {
+      "municipality": "Unity Township",
+      "county": "Westmoreland",
+      "state": "PA",
+      "company": null,
+      "customers_out": 1,
+      "customers_served": 10191,
+      "percent_out": null,
+      "etr": "04/04/2026 07:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 1,
+      "status": "new"
+    },
+    {
+      "municipality": "Mccandless Township",
+      "county": "Allegheny",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 8357,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 208,
+      "change": -208,
+      "status": "restored"
     },
     {
       "municipality": "Pine Township",
       "county": "Allegheny",
       "state": "PA",
       "company": null,
-      "customers_out": 30,
+      "customers_out": 0,
       "customers_served": 4039,
-      "percent_out": null,
-      "etr": "04/04/2026 05:30 AM",
+      "percent_out": 0.0,
+      "etr": null,
       "cause": null,
       "earliest_start": null,
       "message": null,
-      "previous_customers_out": 0,
-      "change": 30,
-      "status": "new"
+      "previous_customers_out": 30,
+      "change": -30,
+      "status": "restored"
     },
     {
       "municipality": "South Shenango Township",
       "county": "Crawford",
       "state": "PA",
       "company": null,
-      "customers_out": 2,
+      "customers_out": 0,
       "customers_served": 1831,
-      "percent_out": null,
-      "etr": "04/04/2026 05:30 AM",
+      "percent_out": 0.0,
+      "etr": null,
       "cause": null,
       "earliest_start": null,
       "message": null,
-      "previous_customers_out": 0,
-      "change": 2,
-      "status": "new"
+      "previous_customers_out": 2,
+      "change": -2,
+      "status": "restored"
     },
     {
-      "municipality": "White Township",
-      "county": "Indiana",
-      "state": "PA",
-      "company": null,
-      "customers_out": 23,
-      "customers_served": 5177,
-      "percent_out": null,
-      "etr": "04/04/2026 06:00 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 11,
-      "change": 12,
-      "status": "increasing"
-    },
-    {
-      "municipality": "Benezette Township",
-      "county": "Elk",
+      "municipality": "Peters Township",
+      "county": "Washington",
       "state": "PA",
       "company": null,
       "customers_out": 0,
-      "customers_served": 842,
+      "customers_served": 9817,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -17349,11 +17368,27 @@
       "customers_out": 34,
       "customers_served": 8720,
       "percent_out": null,
-      "etr": "04/04/2026 03:00 AM",
+      "etr": "04/04/2026 05:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 34,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "White Township",
+      "county": "Indiana",
+      "state": "PA",
+      "company": null,
+      "customers_out": 23,
+      "customers_served": 5177,
+      "percent_out": null,
+      "etr": "04/04/2026 05:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 23,
       "change": 0,
       "status": "unchanged"
     },
@@ -17381,7 +17416,7 @@
       "customers_out": 6,
       "customers_served": 457,
       "percent_out": 1.0,
-      "etr": "04/04/2026 03:30 AM",
+      "etr": "04/04/2026 05:30 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -17445,23 +17480,7 @@
       "customers_out": 1,
       "customers_served": 6419,
       "percent_out": null,
-      "etr": "04/04/2026 03:00 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 1,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Peters Township",
-      "county": "Washington",
-      "state": "PA",
-      "company": null,
-      "customers_out": 1,
-      "customers_served": 9817,
-      "percent_out": null,
-      "etr": "04/04/2026 03:30 AM",
+      "etr": "04/04/2026 05:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -18174,22 +18193,6 @@
       "status": "unchanged"
     },
     {
-      "municipality": "Findlay Township",
-      "county": "Allegheny",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 96,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
       "municipality": "Forward Township",
       "county": "Allegheny",
       "state": "PA",
@@ -18356,38 +18359,6 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 86,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "North Fayette Township",
-      "county": "Allegheny",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 7916,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Oakdale Borough",
-      "county": "Allegheny",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 990,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -27604,6 +27575,22 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 69,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Benezette Township",
+      "county": "Elk",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 842,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -40206,22 +40193,6 @@
       "status": "unchanged"
     },
     {
-      "municipality": "Unity Township",
-      "county": "Westmoreland",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 10191,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
       "municipality": "Upper Burrell Township",
       "county": "Westmoreland",
       "state": "PA",
@@ -41747,43 +41718,23 @@
   "items_duquesne": [
     {
       "utility": "Duquesne Light",
-      "outages": 63,
-      "status": "Awaiting Dispatch",
-      "county": "ALLEGHENY",
-      "municipality": "PITTSBURGH",
-      "zip": "15220",
-      "lat": 40.41154,
-      "lon": -80.04432
+      "outages": 1138,
+      "status": "Crew Dispatched",
+      "county": "BEAVER",
+      "municipality": "AMBRIDGE",
+      "zip": "15003",
+      "lat": 40.60407,
+      "lon": -80.21083
     },
     {
       "utility": "Duquesne Light",
       "outages": 19,
-      "status": "Crew On-Site",
+      "status": "Awaiting Dispatch",
       "county": "BEAVER",
       "municipality": "CLINTON",
       "zip": "15026",
       "lat": 40.53706,
       "lon": -80.39886
-    },
-    {
-      "utility": "Duquesne Light",
-      "outages": 1,
-      "status": "Crew Dispatched",
-      "county": "ALLEGHENY",
-      "municipality": "PITTSBURGH",
-      "zip": "15236",
-      "lat": 40.34898,
-      "lon": -79.98751
-    },
-    {
-      "utility": "Duquesne Light",
-      "outages": 1,
-      "status": "Awaiting Dispatch",
-      "county": "ALLEGHENY",
-      "municipality": "TURTLE CREEK",
-      "zip": "15145",
-      "lat": 40.42272,
-      "lon": -79.81831
     }
   ],
   "items_peco": [
