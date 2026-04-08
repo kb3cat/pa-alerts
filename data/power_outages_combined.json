@@ -1,27 +1,27 @@
 {
   "name": "pa_power_outages_combined",
-  "fetched_at": "2026-04-08T09:53:48Z",
+  "fetched_at": "2026-04-08T10:58:03Z",
   "sources": {
     "firstenergy_file": "data/power_outages_pa.json",
     "ppl_file": "data/power_outages_ppl.json",
     "duquesne_file": "data/power_outages_duq.json",
     "peco_file": "data/power_outages_peco.json",
-    "firstenergy_fetched_at": "2026-04-08T09:53:13Z",
-    "ppl_fetched_at": "2026-04-08T09:53:36Z",
+    "firstenergy_fetched_at": "2026-04-08T10:57:27Z",
+    "ppl_fetched_at": "2026-04-08T10:57:50Z",
     "duquesne_fetched_at": "2026-04-08T05:57:30.950Z",
     "peco_fetched_at": "2026-04-04T14:35:42Z",
     "ppl_source_last_updated": null,
     "peco_source_date_generated": null
   },
-  "total_customers_out": 131,
+  "total_customers_out": 147,
   "summary": {
-    "new": 0,
-    "increasing": 1,
+    "new": 1,
+    "increasing": 0,
     "decreasing": 0,
-    "unchanged": 1525,
-    "restored": 1,
+    "unchanged": 1524,
+    "restored": 2,
     "counties_over_one_percent": 0,
-    "total_customers_served": 4337012,
+    "total_customers_served": 5043532,
     "total_percent_out": 0.0
   },
   "utility_summary": [
@@ -33,12 +33,12 @@
       "outages": 20
     },
     {
-      "utility": "FirstEnergy",
-      "customers_out": 95
+      "utility": "PPL",
+      "customers_out": 74
     },
     {
-      "utility": "PPL",
-      "customers_out": 20
+      "utility": "FirstEnergy",
+      "customers_out": 57
     },
     {
       "utility": "Duquesne Light",
@@ -47,21 +47,26 @@
   ],
   "county_summary": [
     {
-      "county": "Washington",
-      "customers_out": 38,
-      "customers_served": 110477,
-      "percent_out": 0.03,
+      "county": "Lancaster",
+      "customers_out": 54,
+      "customers_served": 518504,
+      "percent_out": 0.01,
       "change": 0,
       "sources": [
-        "FirstEnergy"
+        "FirstEnergy",
+        "PPL"
       ],
       "firstenergy": {
-        "customers_out": 38,
-        "customers_served": 110477,
-        "percent_out": 0.03,
+        "customers_out": 0,
+        "customers_served": 2208,
+        "percent_out": 0.0,
         "change": 0
       },
-      "ppl": null,
+      "ppl": {
+        "customers_out": 27,
+        "customers_served": 258148,
+        "percent_out": 0.01
+      },
       "duquesne": null,
       "peco": null
     },
@@ -89,7 +94,7 @@
       "customers_out": 23,
       "customers_served": 13184,
       "percent_out": 0.17,
-      "change": 22,
+      "change": 0,
       "sources": [
         "FirstEnergy"
       ],
@@ -97,43 +102,35 @@
         "customers_out": 23,
         "customers_served": 13184,
         "percent_out": 0.17,
-        "change": 22
+        "change": 0
       },
       "ppl": null,
       "duquesne": null,
       "peco": null
     },
     {
-      "county": "Chester",
+      "county": "Cumberland",
       "customers_out": 20,
-      "customers_served": 249325,
+      "customers_served": 234410,
       "percent_out": 0.01,
       "change": 0,
       "sources": [
         "FirstEnergy",
-        "PPL",
-        "PECO"
+        "PPL"
       ],
       "firstenergy": {
         "customers_out": 0,
-        "customers_served": 1296,
+        "customers_served": 18084,
         "percent_out": 0.0,
         "change": 0
       },
       "ppl": {
         "customers_out": 10,
-        "customers_served": 13051,
-        "percent_out": 0.08
+        "customers_served": 108163,
+        "percent_out": 0.01
       },
       "duquesne": null,
-      "peco": {
-        "customers_out": 0,
-        "customers_served": 221927,
-        "percent_out": 0.0,
-        "outages": 4,
-        "etr": "ETR-EXP",
-        "masked": true
-      }
+      "peco": null
     },
     {
       "county": "ALLEGHENY",
@@ -154,19 +151,19 @@
       "peco": null
     },
     {
-      "county": "Venango",
+      "county": "Berks",
       "customers_out": 1,
-      "customers_served": 21507,
+      "customers_served": 148815,
       "percent_out": 0.0,
-      "change": 0,
+      "change": 1,
       "sources": [
         "FirstEnergy"
       ],
       "firstenergy": {
         "customers_out": 1,
-        "customers_served": 21507,
+        "customers_served": 148815,
         "percent_out": 0.0,
-        "change": 0
+        "change": 1
       },
       "ppl": null,
       "duquesne": null,
@@ -241,25 +238,6 @@
       "firstenergy": {
         "customers_out": 0,
         "customers_served": 16822,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Berks",
-      "customers_out": 0,
-      "customers_served": 148815,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 148815,
         "percent_out": 0.0,
         "change": 0
       },
@@ -390,6 +368,33 @@
       "peco": null
     },
     {
+      "county": "Chester",
+      "customers_out": 0,
+      "customers_served": 223223,
+      "percent_out": 0.0,
+      "change": 0,
+      "sources": [
+        "FirstEnergy",
+        "PECO"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 1296,
+        "percent_out": 0.0,
+        "change": 0
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": {
+        "customers_out": 0,
+        "customers_served": 221927,
+        "percent_out": 0.0,
+        "outages": 4,
+        "etr": "ETR-EXP",
+        "masked": true
+      }
+    },
+    {
       "county": "Clarion",
       "customers_out": 0,
       "customers_served": 16600,
@@ -451,32 +456,13 @@
       "customers_out": 0,
       "customers_served": 33181,
       "percent_out": 0.0,
-      "change": -1,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 33181,
-        "percent_out": 0.0,
-        "change": -1
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Cumberland",
-      "customers_out": 0,
-      "customers_served": 18084,
-      "percent_out": 0.0,
       "change": 0,
       "sources": [
         "FirstEnergy"
       ],
       "firstenergy": {
         "customers_out": 0,
-        "customers_served": 18084,
+        "customers_served": 33181,
         "percent_out": 0.0,
         "change": 0
       },
@@ -726,25 +712,6 @@
       "firstenergy": {
         "customers_out": 0,
         "customers_served": 810,
-        "percent_out": 0.0,
-        "change": 0
-      },
-      "ppl": null,
-      "duquesne": null,
-      "peco": null
-    },
-    {
-      "county": "Lancaster",
-      "customers_out": 0,
-      "customers_served": 2208,
-      "percent_out": 0.0,
-      "change": 0,
-      "sources": [
-        "FirstEnergy"
-      ],
-      "firstenergy": {
-        "customers_out": 0,
-        "customers_served": 2208,
         "percent_out": 0.0,
         "change": 0
       },
@@ -1105,6 +1072,25 @@
       "peco": null
     },
     {
+      "county": "Venango",
+      "customers_out": 0,
+      "customers_served": 21507,
+      "percent_out": 0.0,
+      "change": -1,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 21507,
+        "percent_out": 0.0,
+        "change": -1
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
       "county": "Warren",
       "customers_out": 0,
       "customers_served": 17345,
@@ -1118,6 +1104,25 @@
         "customers_served": 17345,
         "percent_out": 0.0,
         "change": 0
+      },
+      "ppl": null,
+      "duquesne": null,
+      "peco": null
+    },
+    {
+      "county": "Washington",
+      "customers_out": 0,
+      "customers_served": 110477,
+      "percent_out": 0.0,
+      "change": -38,
+      "sources": [
+        "FirstEnergy"
+      ],
+      "firstenergy": {
+        "customers_out": 0,
+        "customers_served": 110477,
+        "percent_out": 0.0,
+        "change": -38
       },
       "ppl": null,
       "duquesne": null,
@@ -1210,26 +1215,26 @@
   ],
   "municipality_summary": [
     {
-      "municipality": "Canton Township",
-      "county": "Washington",
-      "customers_out": 38,
-      "customers_served": 3950,
-      "percent_out": null,
-      "outages": null,
-      "etr": "04/08/2026 07:30 AM",
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "Johnstown City",
       "county": "Cambria",
       "customers_out": 32,
       "customers_served": 10829,
       "percent_out": null,
       "outages": null,
-      "etr": "04/08/2026 07:00 AM",
+      "etr": "04/08/2026 09:00 AM",
       "masked": false,
       "source": "FirstEnergy"
+    },
+    {
+      "municipality": "East Cocalico Twp",
+      "county": null,
+      "customers_out": 27,
+      "customers_served": 7378,
+      "percent_out": 0.37,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "PPL"
     },
     {
       "municipality": "Marion Township",
@@ -1254,11 +1259,11 @@
       "source": "Duquesne Light"
     },
     {
-      "municipality": "Honeybrook Twp",
+      "municipality": "North Middleton Twp",
       "county": null,
       "customers_out": 10,
-      "customers_served": 6076,
-      "percent_out": 0.16,
+      "customers_served": 7776,
+      "percent_out": 0.13,
       "outages": null,
       "etr": null,
       "masked": false,
@@ -1271,18 +1276,18 @@
       "customers_served": 2176,
       "percent_out": null,
       "outages": null,
-      "etr": "04/08/2026 07:00 AM",
+      "etr": "04/08/2026 09:00 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
     {
-      "municipality": "Richland Township",
-      "county": "Venango",
+      "municipality": "Reading City",
+      "county": "Berks",
       "customers_out": 1,
-      "customers_served": 5486,
-      "percent_out": 1.0,
+      "customers_served": 35813,
+      "percent_out": null,
       "outages": null,
-      "etr": "04/08/2026 08:30 AM",
+      "etr": "04/08/2026 10:30 AM",
       "masked": false,
       "source": "FirstEnergy"
     },
@@ -3161,6 +3166,17 @@
       "county": "Bradford",
       "customers_out": 0,
       "customers_served": 932,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Canton Township",
+      "county": "Washington",
+      "customers_out": 0,
+      "customers_served": 3950,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -12386,17 +12402,6 @@
       "source": "FirstEnergy"
     },
     {
-      "municipality": "Reading City",
-      "county": "Berks",
-      "customers_out": 0,
-      "customers_served": 35813,
-      "percent_out": 0.0,
-      "outages": null,
-      "etr": null,
-      "masked": false,
-      "source": "FirstEnergy"
-    },
-    {
       "municipality": "Reading Township",
       "county": "Adams",
       "customers_out": 0,
@@ -12478,6 +12483,17 @@
       "county": "Lebanon",
       "customers_out": 0,
       "customers_served": 31,
+      "percent_out": 0.0,
+      "outages": null,
+      "etr": null,
+      "masked": false,
+      "source": "FirstEnergy"
+    },
+    {
+      "municipality": "Richland Township",
+      "county": "Venango",
+      "customers_out": 0,
+      "customers_served": 5486,
       "percent_out": 0.0,
       "outages": null,
       "etr": null,
@@ -17195,28 +17211,28 @@
   ],
   "items_firstenergy": [
     {
-      "municipality": "Marion Township",
-      "county": "Beaver",
+      "municipality": "Reading City",
+      "county": "Berks",
       "state": "PA",
       "company": null,
-      "customers_out": 23,
-      "customers_served": 478,
-      "percent_out": 5.0,
-      "etr": "04/08/2026 08:30 AM",
+      "customers_out": 1,
+      "customers_served": 35813,
+      "percent_out": null,
+      "etr": "04/08/2026 10:30 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
-      "previous_customers_out": 1,
-      "change": 22,
-      "status": "increasing"
+      "previous_customers_out": 0,
+      "change": 1,
+      "status": "new"
     },
     {
-      "municipality": "Fairfield Township",
-      "county": "Crawford",
+      "municipality": "Richland Township",
+      "county": "Venango",
       "state": "PA",
       "company": null,
       "customers_out": 0,
-      "customers_served": 462,
+      "customers_served": 73,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -17231,16 +17247,16 @@
       "county": "Washington",
       "state": "PA",
       "company": null,
-      "customers_out": 38,
+      "customers_out": 0,
       "customers_served": 3950,
-      "percent_out": null,
-      "etr": "04/08/2026 07:30 AM",
+      "percent_out": 0.0,
+      "etr": null,
       "cause": null,
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 38,
-      "change": 0,
-      "status": "unchanged"
+      "change": -38,
+      "status": "restored"
     },
     {
       "municipality": "Johnstown City",
@@ -17250,11 +17266,27 @@
       "customers_out": 32,
       "customers_served": 10829,
       "percent_out": null,
-      "etr": "04/08/2026 07:00 AM",
+      "etr": "04/08/2026 09:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
       "previous_customers_out": 32,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Marion Township",
+      "county": "Beaver",
+      "state": "PA",
+      "company": null,
+      "customers_out": 23,
+      "customers_served": 478,
+      "percent_out": 5.0,
+      "etr": "04/08/2026 08:30 AM",
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 23,
       "change": 0,
       "status": "unchanged"
     },
@@ -17266,23 +17298,7 @@
       "customers_out": 1,
       "customers_served": 2176,
       "percent_out": null,
-      "etr": "04/08/2026 07:00 AM",
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 1,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Richland Township",
-      "county": "Venango",
-      "state": "PA",
-      "company": null,
-      "customers_out": 1,
-      "customers_served": 73,
-      "percent_out": 1.0,
-      "etr": "04/08/2026 08:30 AM",
+      "etr": "04/08/2026 09:00 AM",
       "cause": null,
       "earliest_start": null,
       "message": null,
@@ -20721,22 +20737,6 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 747,
-      "percent_out": 0.0,
-      "etr": null,
-      "cause": null,
-      "earliest_start": null,
-      "message": null,
-      "previous_customers_out": 0,
-      "change": 0,
-      "status": "unchanged"
-    },
-    {
-      "municipality": "Reading City",
-      "county": "Berks",
-      "state": "PA",
-      "company": null,
-      "customers_out": 0,
-      "customers_served": 35813,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -26577,6 +26577,22 @@
       "company": null,
       "customers_out": 0,
       "customers_served": 129,
+      "percent_out": 0.0,
+      "etr": null,
+      "cause": null,
+      "earliest_start": null,
+      "message": null,
+      "previous_customers_out": 0,
+      "change": 0,
+      "status": "unchanged"
+    },
+    {
+      "municipality": "Fairfield Township",
+      "county": "Crawford",
+      "state": "PA",
+      "company": null,
+      "customers_out": 0,
+      "customers_served": 462,
       "percent_out": 0.0,
       "etr": null,
       "cause": null,
@@ -41629,19 +41645,35 @@
   ],
   "items_ppl": [
     {
-      "municipality": "Honeybrook Twp",
-      "county": "Chester",
-      "customers_out": 10,
-      "customers_served": 6076,
-      "percent_out": 0.16,
+      "municipality": "East Cocalico Twp",
+      "county": "Lancaster",
+      "customers_out": 27,
+      "customers_served": 7378,
+      "percent_out": 0.37,
       "source": "PPL"
     },
     {
-      "municipality": "Honeybrook Twp",
-      "county": "Chester",
+      "municipality": "East Cocalico Twp",
+      "county": "Lancaster",
+      "customers_out": 27,
+      "customers_served": 7378,
+      "percent_out": 0.37,
+      "source": "PPL"
+    },
+    {
+      "municipality": "North Middleton Twp",
+      "county": "Cumberland",
       "customers_out": 10,
-      "customers_served": 6076,
-      "percent_out": 0.16,
+      "customers_served": 7776,
+      "percent_out": 0.13,
+      "source": "PPL"
+    },
+    {
+      "municipality": "North Middleton Twp",
+      "county": "Cumberland",
+      "customers_out": 10,
+      "customers_served": 7776,
+      "percent_out": 0.13,
       "source": "PPL"
     }
   ],
