@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Pennsylvania Fire Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #111a2b;
+      --panel-2: #16233a;
+      --border: #2b3a55;
+      --text: #e8eef9;
+      --muted: #a9b7d0;
+      --accent: #61dafb;
+      --good: #18a957;
+      --warn: #e0a100;
+      --bad: #d9485f;
+      --chip: #22324d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 28px;
+    }
+
+    .subline {
+      color: var(--muted);
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      line-height: 1;
+    }
+
+    .pill.ok { border-color: rgba(24, 169, 87, 0.6); }
+    .pill.warn { border-color: rgba(224, 161, 0, 0.6); }
+    .pill.bad { border-color: rgba(217, 72, 95, 0.6); }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .count-chip {
+      background: var(--chip);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    .item {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .item-name {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .item-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      font-size: 12px;
+      color: var(--text);
+      background: var(--chip);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 8px;
+    }
+
+    .desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    .footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+      }
+
+      .item-list {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Pennsylvania Fire Board</h1>
+    <div class="subline" id="subline">Loading...</div>
+
+    <div class="topbar">
+      <div class="pill" id="status-pill">Status</div>
+      <div class="pill" id="source-pill">Source</div>
+      <div class="pill" id="updated-pill">Updated</div>
+    </div>
+
+    <div class="stats">
+      <div class="card">
+        <div class="stat-label">All PA Records</div>
+        <div class="stat-value" id="all-count">0</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Confirmed Wildfires</div>
+        <div class="stat-value" id="wf-count">0</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Active Fire Candidates</div>
+        <div class="stat-value" id="candidate-count">0</div>
+      </div>
+      <div class="card">
+        <div class="stat-label">Other Records</div>
+        <div class="stat-value" id="other-count">0</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="section-title">
+          <h2>Confirmed Wildfires</h2>
+          <div class="count-chip" id="wf-chip">0 records</div>
+        </div>
+        <div class="item-list" id="wf-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <h2>Active Fire Candidates</h2>
+          <div class="count-chip" id="candidate-chip">0 records</div>
+        </div>
+        <div class="item-list" id="candidate-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">
+          <h2>Other Records</h2>
+          <div class="count-chip" id="other-chip">0 records</div>
+        </div>
+        <div class="item-list" id="other-list"></div>
+      </div>
+    </div>
+
+    <div class="footer" id="footer"></div>
+  </div>
+
+  <script>
+    const DATA_URL_CANDIDATES = [
+      "./data/pa_fires.json",
+      "data/pa_fires.json",
+      "../data/pa_fires.json",
+      "/data/pa_fires.json"
+    ];
+
+    function formatNumber(value) {
+      if (value === null || value === undefined || value === "") return "—";
+      const num = Number(value);
+      return Number.isFinite(num) ? num.toLocaleString() : "—";
+    }
+
+    function formatPercent(value) {
+      if (value === null || value === undefined || value === "") return "—";
+      const num = Number(value);
+      return Number.isFinite(num) ? `${num}%` : "—";
+    }
+
+    function formatDate(isoString) {
+      if (!isoString) return "—";
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleString("en-US", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+          timeZoneName: "short"
+        });
+      } catch {
+        return isoString;
+      }
+    }
+
+    function minutesSince(isoString) {
+      if (!isoString) return null;
+      const then = new Date(isoString).getTime();
+      const now = Date.now();
+      return Math.floor((now - then) / 60000);
+    }
+
+    function getStatusClass(minutesOld) {
+      if (minutesOld === null) return "bad";
+      if (minutesOld <= 25) return "ok";
+      if (minutesOld <= 60) return "warn";
+      return "bad";
+    }
+
+    function buildItem(record) {
+      const div = document.createElement("div");
+      div.className = "item";
+
+      const countyCity = [record.county, record.city].filter(Boolean).join(" / ");
+      const size = record.incident_size != null ? `${formatNumber(record.incident_size)} ac` : "—";
+      const contained = formatPercent(record.percent_contained);
+      const modified = formatDate(record.modified_time_utc);
+      const discovered = formatDate(record.discovery_time_utc);
+
+      div.innerHTML = `
+        <div class="item-name">${escapeHtml(record.incident_name || "Unnamed Incident")}</div>
+        <div class="item-meta">
+          <span class="chip">${escapeHtml(record.incident_type_category || "UNKNOWN")}</span>
+          <span class="chip">${escapeHtml(record.incident_type_kind || "—")}</span>
+          <span class="chip">${escapeHtml(countyCity || "Location unknown")}</span>
+          <span class="chip">Size: ${escapeHtml(size)}</span>
+          <span class="chip">Contained: ${escapeHtml(contained)}</span>
+        </div>
+        <div class="desc">
+          <div><strong>Discovered:</strong> ${escapeHtml(discovered)}</div>
+          <div><strong>Modified:</strong> ${escapeHtml(modified)}</div>
+          <div><strong>Agency:</strong> ${escapeHtml(record.protecting_agency || record.jurisdictional_agency || "—")}</div>
+          <div><strong>Dispatch:</strong> ${escapeHtml(record.dispatch_center_id || "—")}</div>
+          <div><strong>IRWIN ID:</strong> ${escapeHtml(record.irwin_id || "—")}</div>
+          ${record.short_description ? `<div style="margin-top:6px;"><strong>Notes:</strong> ${escapeHtml(record.short_description)}</div>` : ""}
+        </div>
+      `;
+
+      return div;
+    }
+
+    function renderList(containerId, records) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+
+      if (!records || !records.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No records in this section.";
+        container.appendChild(empty);
+        return;
+      }
+
+      records.forEach(record => {
+        container.appendChild(buildItem(record));
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    async function loadData() {
+      let lastError = null;
+
+      for (const url of DATA_URL_CANDIDATES) {
+        try {
+          const response = await fetch(url, { cache: "no-store" });
+          if (!response.ok) continue;
+          return await response.json();
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      throw lastError || new Error("Unable to load pa_fires.json");
+    }
+
+    function updatePage(data) {
+      const generatedAt = data.generated_at_utc || null;
+      const minutesOld = minutesSince(generatedAt);
+      const statusClass = getStatusClass(minutesOld);
+
+      const allCount = data.summary?.all_pa_records?.count ?? 0;
+      const wfCount = data.summary?.confirmed_wildfires?.count ?? 0;
+      const candidateCount = data.summary?.active_fire_candidates?.count ?? 0;
+      const otherCount = data.summary?.other_records?.count ?? 0;
+
+      document.getElementById("subline").textContent =
+        "WFIGS Pennsylvania incident view with separate buckets for confirmed wildfires, active fire candidates, and other records.";
+
+      const statusPill = document.getElementById("status-pill");
+      statusPill.className = `pill ${statusClass}`;
+      statusPill.textContent = minutesOld === null
+        ? "Status: No timestamp"
+        : `Status: ${minutesOld} min old`;
+
+      document.getElementById("source-pill").textContent =
+        `Source: ${data.source || "Unknown"}`;
+
+      document.getElementById("updated-pill").textContent =
+        `Updated: ${formatDate(generatedAt)}`;
+
+      document.getElementById("all-count").textContent = formatNumber(allCount);
+      document.getElementById("wf-count").textContent = formatNumber(wfCount);
+      document.getElementById("candidate-count").textContent = formatNumber(candidateCount);
+      document.getElementById("other-count").textContent = formatNumber(otherCount);
+
+      document.getElementById("wf-chip").textContent = `${formatNumber(wfCount)} records`;
+      document.getElementById("candidate-chip").textContent = `${formatNumber(candidateCount)} records`;
+      document.getElementById("other-chip").textContent = `${formatNumber(otherCount)} records`;
+
+      renderList("wf-list", data.confirmed_wildfires || []);
+      renderList("candidate-list", data.active_fire_candidates || []);
+      renderList("other-list", data.other_records || []);
+
+      const categoryBreakdown = data.category_breakdown || {};
+      const debugCounts = data.debug_counts || {};
+
+      document.getElementById("footer").textContent =
+        `Debug counts — PA all incidents: ${debugCounts.pa_all_incidents ?? "—"}, `
+        + `PA wildfires: ${debugCounts.pa_wildfires ?? "—"}, `
+        + `PA active fire candidates: ${debugCounts.pa_active_fire_candidates ?? "—"} | `
+        + `Category breakdown: ${Object.entries(categoryBreakdown).map(([k, v]) => `${k}:${v}`).join(", ") || "none"}`;
+    }
+
+    async function init() {
+      try {
+        const data = await loadData();
+        updatePage(data);
+      } catch (err) {
+        document.getElementById("subline").textContent = "Failed to load fire data.";
+        document.getElementById("status-pill").className = "pill bad";
+        document.getElementById("status-pill").textContent = "Status: Load failed";
+        document.getElementById("footer").textContent = err?.message || String(err);
+      }
+    }
+
+    init();
+    setInterval(init, 60000);
+  </script>
+</body>
+</html>
