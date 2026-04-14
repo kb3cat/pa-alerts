@@ -1,8 +1,20 @@
+#!/usr/bin/env python3
+"""
+fetch_pa_fires.py
+
+Pull current Pennsylvania incident records from the public WFIGS ArcGIS layer
+and write a normalized JSON file for a dashboard.
+
+Output:
+  data/pa_fires.json
+"""
+
 from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass, asdict
+from collections import Counter
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -52,7 +64,6 @@ def arcgis_ms_to_iso(value: Any) -> Optional[str]:
     if value in (None, "", 0):
         return None
     try:
-        # ArcGIS dates are usually Unix epoch milliseconds
         dt = datetime.fromtimestamp(float(value) / 1000.0, tz=timezone.utc)
         return dt.isoformat().replace("+00:00", "Z")
     except Exception:
@@ -84,9 +95,21 @@ def clean_int(value: Any) -> Optional[int]:
         return None
 
 
+def run_count(where: str) -> int:
+    params = {
+        "where": where,
+        "returnCountOnly": "true",
+        "f": "json",
+    }
+    response = requests.get(WFIGS_URL, params=params, timeout=TIMEOUT)
+    response.raise_for_status()
+    payload = response.json()
+    return int(payload.get("count", 0))
+
+
 def fetch_features() -> List[Dict[str, Any]]:
     params = {
-        "where": "POOState='PA' AND IncidentTypeCategory='WF'",
+        "where": "POOState='PA'",
         "outFields": ",".join(
             [
                 "IncidentName",
@@ -98,7 +121,7 @@ def fetch_features() -> List[Dict[str, Any]]:
                 "POOCity",
                 "IncidentSize",
                 "PercentContained",
-                "DiscoveryDateTime",
+                "FireDiscoveryDateTime",
                 "InitialResponseDateTime",
                 "ModifiedOnDateTime_dt",
                 "CreatedOnDateTime_dt",
@@ -117,9 +140,9 @@ def fetch_features() -> List[Dict[str, Any]]:
         "f": "geojson",
     }
 
-    resp = requests.get(WFIGS_URL, params=params, timeout=TIMEOUT)
-    resp.raise_for_status()
-    data = resp.json()
+    response = requests.get(WFIGS_URL, params=params, timeout=TIMEOUT)
+    response.raise_for_status()
+    data = response.json()
 
     features = data.get("features", [])
     if not isinstance(features, list):
@@ -150,7 +173,7 @@ def normalize_feature(feature: Dict[str, Any]) -> FireRecord:
         initial_longitude=clean_float(props.get("InitialLongitude")),
         incident_size=clean_float(props.get("IncidentSize")),
         percent_contained=clean_float(props.get("PercentContained")),
-        discovery_time_utc=arcgis_ms_to_iso(props.get("DiscoveryDateTime")),
+        discovery_time_utc=arcgis_ms_to_iso(props.get("FireDiscoveryDateTime")),
         initial_response_time_utc=arcgis_ms_to_iso(props.get("InitialResponseDateTime")),
         modified_time_utc=arcgis_ms_to_iso(props.get("ModifiedOnDateTime_dt")),
         created_time_utc=arcgis_ms_to_iso(props.get("CreatedOnDateTime_dt")),
@@ -165,40 +188,53 @@ def normalize_feature(feature: Dict[str, Any]) -> FireRecord:
 
 
 def sort_records(records: List[FireRecord]) -> List[FireRecord]:
-    def sort_key(r: FireRecord):
-        # Largest incidents first, then most recently modified
-        size = r.incident_size if r.incident_size is not None else -1
-        modified = r.modified_time_utc or ""
-        return (-size, modified)
+    def sort_key(record: FireRecord):
+        size = record.incident_size if record.incident_size is not None else -1
+        modified = record.modified_time_utc or ""
+        name = record.incident_name or ""
+        return (-size, modified, name)
 
-    return sorted(records, key=sort_key)
+    return sorted(records, key=sort_key, reverse=False)
 
 
-def build_output(records: List[FireRecord]) -> Dict[str, Any]:
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
+def summarize_bucket(records: List[FireRecord]) -> Dict[str, Any]:
     largest = max(
         (r.incident_size for r in records if r.incident_size is not None),
         default=None,
     )
+    counties = sorted({r.county for r in records if r.county})
+    return {
+        "count": len(records),
+        "largest_incident_size_acres": largest,
+        "counties": counties,
+    }
 
-    counties = sorted(
-        {
-            r.county
-            for r in records
-            if r.county
-        }
-    )
+
+def build_output(
+    all_records: List[FireRecord],
+    confirmed_wildfires: List[FireRecord],
+    active_fire_candidates: List[FireRecord],
+    other_records: List[FireRecord],
+    debug_counts: Dict[str, int],
+) -> Dict[str, Any]:
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    categories = Counter(r.incident_type_category or "UNKNOWN" for r in all_records)
 
     return {
         "generated_at_utc": now,
         "source": "WFIGS_Incident_Locations_Current",
         "state_filter": "PA",
-        "incident_type_filter": "WF",
-        "count": len(records),
-        "largest_incident_size_acres": largest,
-        "counties_with_incidents": counties,
-        "incidents": [asdict(r) for r in records],
+        "debug_counts": debug_counts,
+        "category_breakdown": dict(categories),
+        "summary": {
+            "all_pa_records": summarize_bucket(all_records),
+            "confirmed_wildfires": summarize_bucket(confirmed_wildfires),
+            "active_fire_candidates": summarize_bucket(active_fire_candidates),
+            "other_records": summarize_bucket(other_records),
+        },
+        "confirmed_wildfires": [asdict(r) for r in confirmed_wildfires],
+        "active_fire_candidates": [asdict(r) for r in active_fire_candidates],
+        "other_records": [asdict(r) for r in other_records],
     }
 
 
@@ -209,30 +245,74 @@ def write_json(payload: Dict[str, Any], path: Path) -> None:
 
 def main() -> int:
     try:
-        features = fetch_features()
-        records = [normalize_feature(f) for f in features]
+        debug_counts = {
+            "pa_all_incidents": run_count("POOState='PA'"),
+            "pa_wildfires": run_count("POOState='PA' AND IncidentTypeCategory='WF'"),
+            "pa_active_fire_candidates": run_count("POOState='PA' AND ActiveFireCandidate=1"),
+        }
 
-        # Extra safety: keep only PA wildfires even if source/query behavior changes
-        records = [
-            r for r in records
-            if r.state == "PA" and r.incident_type_category == "WF"
+        features = fetch_features()
+        all_records = [normalize_feature(feature) for feature in features]
+        all_records = [record for record in all_records if record.state == "PA"]
+
+        confirmed_wildfires = [
+            record for record in all_records
+            if record.incident_type_category == "WF"
         ]
 
-        records = sort_records(records)
-        payload = build_output(records)
+        active_fire_candidates = [
+            record for record in all_records
+            if record.active_fire_candidate == 1
+        ]
+
+        confirmed_ids = {
+            (r.irwin_id or "", r.incident_name, r.modified_time_utc or "")
+            for r in confirmed_wildfires
+        }
+        candidate_ids = {
+            (r.irwin_id or "", r.incident_name, r.modified_time_utc or "")
+            for r in active_fire_candidates
+        }
+
+        other_records = [
+            record for record in all_records
+            if (record.irwin_id or "", record.incident_name, record.modified_time_utc or "")
+            not in confirmed_ids
+            and (record.irwin_id or "", record.incident_name, record.modified_time_utc or "")
+            not in candidate_ids
+        ]
+
+        all_records = sort_records(all_records)
+        confirmed_wildfires = sort_records(confirmed_wildfires)
+        active_fire_candidates = sort_records(active_fire_candidates)
+        other_records = sort_records(other_records)
+
+        payload = build_output(
+            all_records=all_records,
+            confirmed_wildfires=confirmed_wildfires,
+            active_fire_candidates=active_fire_candidates,
+            other_records=other_records,
+            debug_counts=debug_counts,
+        )
+
         write_json(payload, OUT_PATH)
 
-        print(f"Wrote {len(records)} incidents to {OUT_PATH}")
+        print(f"Wrote {len(all_records)} PA records to {OUT_PATH}")
+        print(f"Confirmed wildfires: {len(confirmed_wildfires)}")
+        print(f"Active fire candidates: {len(active_fire_candidates)}")
+        print(f"Other records: {len(other_records)}")
+        print(f"Category breakdown: {payload['category_breakdown']}")
+
         return 0
 
-    except requests.HTTPError as e:
-        print(f"HTTP error fetching WFIGS data: {e}", file=sys.stderr)
+    except requests.HTTPError as exc:
+        print(f"HTTP error fetching WFIGS data: {exc}", file=sys.stderr)
         return 1
-    except requests.RequestException as e:
-        print(f"Network error fetching WFIGS data: {e}", file=sys.stderr)
+    except requests.RequestException as exc:
+        print(f"Network error fetching WFIGS data: {exc}", file=sys.stderr)
         return 1
-    except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
+    except Exception as exc:
+        print(f"Unexpected error: {exc}", file=sys.stderr)
         return 1
 
 
