@@ -27,6 +27,9 @@ jobs:
       - name: Fetch PA fires
         run: python scripts/fetch_pa_fires.py
 
+      - name: Fetch DCNR Fires
+        run: python scripts/fetch_dcnr_fires.py 
+
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
