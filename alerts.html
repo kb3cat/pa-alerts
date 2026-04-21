@@ -127,6 +127,32 @@
     .section-title { margin-top: 16px; margin-bottom: 6px; max-width: 1200px; }
     .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
 
+    .summary-title-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    #copySummaryBtn{
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--btnBorder);
+      background: var(--btnBg);
+      cursor: pointer;
+      font: inherit;
+      color: var(--text);
+    }
+
+    #copySummaryBtn:hover{
+      background: var(--btnBgHover);
+    }
+
+    #copySummaryBtn:disabled{
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .type-cell { font-weight: 600; color: var(--text); }
     .type-watch   { background-color: var(--watchBg); }
     .type-warning { background-color: var(--warningBg); }
@@ -220,7 +246,7 @@
     /* MAP: prevent blip by starting hidden until onload */
     #wwaMap {
       border: 1px solid var(--borderSoft) !important;
-      visibility: hidden; /* ✅ prevents broken-image flash */
+      visibility: hidden;
     }
 
     .map-wrap{
@@ -263,7 +289,6 @@
       100% { transform: scale(1); }
     }
 
-    /* ✅ This is your "flash" class for the Changes button */
     .changes-hot{
       border-color: rgba(59, 130, 246, 0.95) !important;
       box-shadow: 0 0 14px rgba(59, 130, 246, 0.75);
@@ -355,10 +380,14 @@
 
   <p id="status">Loading alerts…</p>
 
-  <!-- Hidden until user clicks Changes -->
   <div id="changesContainer" style="display:none;"></div>
 
-  <h2 class="section-title">Summary</h2>
+  <div class="section-title summary-title-row">
+    <h2 style="margin:0;">Summary</h2>
+    <button id="copySummaryBtn" type="button" title="Copy formatted watches and warnings summary">
+      Copy Summary
+    </button>
+  </div>
   <div class="muted">New information since your last acknowledgment will be highlighted in blue.</div>
   <div id="tableContainer"></div>
 
@@ -368,7 +397,6 @@
 
   <h2 style="margin-top: 18px; max-width:1200px;">Alert Map</h2>
 
-  <!-- ✅ Map + CSS fallback -->
   <div class="map-wrap">
     <img
       id="wwaMap"
@@ -390,7 +418,6 @@
     </div>
   </div>
 
-  <!-- ✅ Source link BELOW the map/fallback (always visible) -->
   <p class="muted" id="mapSourceLine">
     Map source:
     <a href="https://www.weather.gov/images/crh/noc/wwa_pa.png" target="_blank" rel="noopener noreferrer">
@@ -409,7 +436,6 @@
     </iframe>
   </div>
 
-  <!-- Modal -->
   <div id="modalBackdrop" class="modal-backdrop">
     <div class="modal">
       <h3 id="modalTitle"></h3>
@@ -449,7 +475,6 @@
   /* your existing code (theme toggle etc.) */
 </script>
 
-  
   <script>
     /* ==============================
        THEME TOGGLE (shared across pages)
@@ -499,9 +524,10 @@
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
 
-    // ✅ bumped to v4 to avoid old baselines breaking change logic (dup/precedence changes)
     const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_index_v4";
     const STORAGE_KEY_CURRENT  = "paAlertsSnapshotCurrent_index_v4";
+
+    let latestSummaryGroups = [];
 
     /* ==============================
        MAP FALLBACK (no-blip)
@@ -530,7 +556,6 @@
       const img = document.getElementById("wwaMap");
       const fallback = document.getElementById("wwaMapFallback");
 
-      // hide both briefly while we attempt reload (prevents blip)
       if (fallback) fallback.style.display = "none";
       if (img) {
         img.style.display = "block";
@@ -539,7 +564,6 @@
       }
     }
 
-    // Handle cached/instant completion edge cases
     window.addEventListener("load", () => {
       const img = document.getElementById("wwaMap");
       if (!img) return;
@@ -559,7 +583,6 @@
     const zoneCache = new Map();
     const alertStore = new Map();
 
-    // UI state
     let changesVisible = false;
     let lastChangesSignature = "";
     let latestHasAnyChanges = false;
@@ -571,6 +594,71 @@
       if (!v) return "N/A";
       const d = new Date(v);
       return isNaN(d) ? String(v) : d.toLocaleString();
+    }
+
+    function formatSummaryDateShort(value) {
+      if (!value) return "N/A";
+      const d = new Date(value);
+      if (isNaN(d)) return String(value);
+
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      const year = String(d.getFullYear()).slice(-2);
+      return `${month}/${day}/${year}`;
+    }
+
+    function formatSummaryTimeHHMM(value) {
+      if (!value) return "0000";
+      const d = new Date(value);
+      if (isNaN(d)) return "0000";
+
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return `${hh}${mm}`;
+    }
+
+    function joinWithAnd(items) {
+      const arr = (items || []).map(String).filter(Boolean);
+      if (arr.length === 0) return "";
+      if (arr.length === 1) return arr[0];
+      if (arr.length === 2) return `${arr[0]} and ${arr[1]}`;
+      return `${arr.slice(0, -1).join(", ")}, and ${arr[arr.length - 1]}`;
+    }
+
+    function buildFormattedSummaryText(groups) {
+      if (!Array.isArray(groups) || !groups.length) {
+        return "No active watches or warnings for Pennsylvania.";
+      }
+
+      return groups.map(g => {
+        const event = g.event || "Alert";
+        const names = sortLocations([...(g.names || [])]);
+        const countyLabel = names.length === 1 ? "County" : "Counties";
+        const hhmm = formatSummaryTimeHHMM(g.expires);
+        const shortDate = formatSummaryDateShort(g.expires);
+        const countyText = joinWithAnd(names);
+
+        return `A ${event} is in effect until ${hhmm} hours on ${shortDate} for ${countyText} ${countyLabel}.`;
+      }).join("\n\n");
+    }
+
+    async function copyFormattedSummary() {
+      const btn = document.getElementById("copySummaryBtn");
+      if (!btn) return;
+
+      const text = buildFormattedSummaryText(latestSummaryGroups);
+
+      try {
+        await navigator.clipboard.writeText(text);
+        const original = btn.textContent;
+        btn.textContent = "Copied";
+        setTimeout(() => {
+          btn.textContent = original;
+        }, 1500);
+      } catch (err) {
+        console.error("Clipboard copy failed:", err);
+        alert("Could not copy the summary to the clipboard.");
+      }
     }
 
     function toTimeMs(v) {
@@ -596,9 +684,6 @@
         .finally(() => clearTimeout(t));
     }
 
-    // ==============================
-    // DUP / PRECEDENCE HELPERS (additions only)
-    // ==============================
     function eventRank(eventName) {
       const e = String(eventName || "").toLowerCase();
       if (e.includes("emergency")) return 4;
@@ -620,9 +705,8 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         const d = await r.json();
 
-        // ✅ include zoneId for precedence
         const info = {
-          zoneId: d.properties?.id || d.properties?.zoneId || d.id || url, // e.g. "PAZ106"
+          zoneId: d.properties?.id || d.properties?.zoneId || d.id || url,
           name: d.properties?.name,
           state: d.properties?.state
         };
@@ -677,7 +761,6 @@
         .replaceAll("'", "&#039;");
     }
 
-    // Snapshots store Summary-derived models (not raw NWS IDs)
     function loadSnapshot(key) {
       try {
         const raw = localStorage.getItem(key);
@@ -721,9 +804,6 @@
       }).join("; ");
     }
 
-    /* ==============================
-       CHANGES BUTTON + PANEL
-       ============================== */
     function setChangesButtonState({ hasChanges, isNew }) {
       const btn = document.getElementById("changesBtn");
       if (!btn) return;
@@ -737,8 +817,6 @@
         return;
       }
 
-      // ✅ CHANGE REQUESTED:
-      // Flash whenever there are unacknowledged changes (not only when "new")
       btn.classList.add("changes-hot");
 
       if (isNew) {
@@ -871,23 +949,17 @@
 
       try { localStorage.setItem(STORAGE_KEY_BASELINE, JSON.stringify(current)); } catch {}
 
-      // close panel
       changesVisible = false;
       const wrap = document.getElementById("changesContainer");
       if (wrap) wrap.style.display = "none";
 
-      // reset "new" indicator
       lastChangesSignature = "";
       latestHasAnyChanges = false;
       setChangesButtonState({ hasChanges: false, isNew: false });
 
-      // rerender (clears highlights)
       fetchAlerts();
     }
 
-    /* ------------------------------
-       RWS indicator helpers
-       ------------------------------ */
     function normalizeListingProducts(listing) {
       if (!listing) return [];
       if (Array.isArray(listing.products)) return listing.products;
@@ -920,7 +992,7 @@
 
       mapped.sort((a, b) => {
         if (a.t !== b.t) return b.t - a.t;
-        return String(b.pid).localeCompare(String(b.pid));
+        return String(b.pid).localeCompare(String(a.pid));
       });
 
       return mapped[0].p;
@@ -975,7 +1047,6 @@
 
         setRwsButtonNewState(currentRwsMarker !== lastSeen);
       } catch {
-        // silent
       }
     }
 
@@ -1012,7 +1083,6 @@
       status.textContent = "Loading alerts…";
 
       try {
-        // baseline (if missing/invalid, we init later)
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
 
         const r = await fetchWithTimeout(API_URL, { headers: { "Accept": "application/geo+json" } }, 12000);
@@ -1031,7 +1101,6 @@
 
           const zoneInfos = await Promise.all(zones.map(z => fetchZone(z)));
 
-          // ✅ store zones with IDs so we can de-dupe correctly
           const zoneItems = [];
           for (const info of zoneInfos) {
             if (info && info.state === "PA" && info.name && info.zoneId) {
@@ -1048,18 +1117,13 @@
               zones: zoneItems,
               description: p.description,
               instruction: p.instruction,
-
-              // ✅ for precedence / tie-break
               _rank: eventRank(p.event),
               _freshMs: alertFreshnessMs(p)
             });
           }
         }
 
-        // ✅ Precedence by identical zoneId.
-        // Same zoneId: keep highest severity (Emergency > Warning > Watch).
-        // Different zoneIds (Northern/Southern/Higher Elevations): keep both.
-        const bestByZoneId = new Map(); // zoneId -> {alertId, rank, freshMs}
+        const bestByZoneId = new Map();
 
         for (const row of rows) {
           for (const z of row.zones) {
@@ -1073,38 +1137,30 @@
           }
         }
 
-        // Keep only the zones each row "wins"
         for (const row of rows) {
           row.zones = row.zones.filter(z => bestByZoneId.get(z.zoneId)?.alertId === row.alertId);
         }
 
-        // Drop rows fully overridden
         const filteredRows = rows.filter(r => r.zones && r.zones.length);
 
         status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${filteredRows.length}`;
         refreshMap();
 
-        // ===== BUILD SUMMARY GROUPS (the source of truth for changes) =====
-        const grouped = new Map(); // key: event||expires -> {event, expires, names:Set}
+        const grouped = new Map();
         for (const row of filteredRows) {
           const k = `${row.event}||${row.expires || ""}`;
           if (!grouped.has(k)) grouped.set(k, { event: row.event, expires: row.expires, names: new Set() });
-
-          // NOTE: leaving your existing normalization intact (no other changes requested)
           row.zones.forEach(z => grouped.get(k).names.add(normalizeSummaryCounty(z.zoneName)));
         }
 
-        // summary snapshot map (for blue highlights)
         const currentSummarySnap = {};
         for (const [k, g] of grouped.entries()) currentSummarySnap[k] = sortLocations([...g.names]);
 
-        // alert links snapshot kept for completeness
         const currentAlertsSnap = {};
         for (const row of filteredRows) {
           currentAlertsSnap[row.alertId] = sortLocations(row.zones.map(z => z.zoneName));
         }
 
-        // rollupByEvent: event -> all counties in any Summary group
         const rollupByEvent = {};
         for (const g of grouped.values()) {
           if (!rollupByEvent[g.event]) rollupByEvent[g.event] = new Set();
@@ -1115,9 +1171,7 @@
           currentRollup[event] = sortLocations([...set]);
         }
 
-        // expiresByEventAndSet: (event + countiesSig) -> expires
         const currentExpiresByEventSet = {};
-        // eventsByCountySet: countiesSig -> Set(events)  (for type change)
         const countySetToEvents = new Map();
 
         for (const g of grouped.values()) {
@@ -1136,7 +1190,6 @@
           currentEventsByCountySet[sig] = Array.from(set).sort((a,b)=>String(a).localeCompare(String(b)));
         }
 
-        // store CURRENT snapshot every refresh
         saveSnapshot(STORAGE_KEY_CURRENT, {
           summary: currentSummarySnap,
           alerts: currentAlertsSnap,
@@ -1145,7 +1198,6 @@
           eventsByCountySet: currentEventsByCountySet
         });
 
-        // init baseline if missing or incompatible
         const baselineOk =
           baselineSnap &&
           baselineSnap.summary && baselineSnap.rollup &&
@@ -1162,14 +1214,12 @@
           baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
         }
 
-        // ===== COMPUTE CHANGES (FROM SUMMARY MODELS) =====
         const changes = { added: [], removed: [], timeChanged: [], typeChanged: [], cleared: [] };
 
         const baseRollup = baselineSnap.rollup || {};
         const baseExpiresByEventSet = baselineSnap.expiresByEventSet || {};
         const baseEventsByCountySet = baselineSnap.eventsByCountySet || {};
 
-        // 1) added/removed counties (per event)
         for (const event of Object.keys(currentRollup)) {
           const cur = currentRollup[event] || [];
           const base = baseRollup[event] || [];
@@ -1179,7 +1229,6 @@
           if (rem.length) changes.removed.push({ event, names: rem });
         }
 
-        // 2) cleared events (event existed in baseline but not current)
         for (const event of Object.keys(baseRollup)) {
           if (!(event in currentRollup)) {
             const names = Array.isArray(baseRollup[event]) ? baseRollup[event] : [];
@@ -1187,7 +1236,6 @@
           }
         }
 
-        // 3) expiration updated (same event + same countiesSig, different expires)
         for (const eventSetKey of Object.keys(currentExpiresByEventSet)) {
           if (!(eventSetKey in baseExpiresByEventSet)) continue;
           const curExp = currentExpiresByEventSet[eventSetKey] || "";
@@ -1204,7 +1252,6 @@
           }
         }
 
-        // 4) type changed (same countiesSig exists in both, but event sets differ)
         for (const countiesSig of Object.keys(currentEventsByCountySet)) {
           if (!(countiesSig in baseEventsByCountySet)) continue;
 
@@ -1234,7 +1281,6 @@
           }
         }
 
-        // sort change groups for stability
         changes.added.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
         changes.removed.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
         changes.cleared.sort((a,b)=>String(a.event).localeCompare(String(b.event)));
@@ -1256,12 +1302,17 @@
           isNew: (!changesVisible && isNewChanges)
         });
 
-        // ===== SUMMARY HIGHLIGHTS (baseline vs current per group key) =====
         const groupedArr = [...grouped.values()].sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
           return ae - be || String(a.event).localeCompare(String(b.event));
         });
+
+        latestSummaryGroups = groupedArr.map(g => ({
+          event: g.event,
+          expires: g.expires,
+          names: [...g.names]
+        }));
 
         function diffNewNames(currentArr, prevArr) {
           const prev = new Set((prevArr || []).map(String));
@@ -1296,7 +1347,7 @@
           </table>
         `;
 
-        // ===== ALERT LINKS (same display; now uses filteredRows + zone names) =====
+        alertStore.clear();
         filteredRows.sort((a, b) => {
           const ae = toTimeMs(a.expires);
           const be = toTimeMs(b.expires);
@@ -1308,7 +1359,6 @@
           return an.localeCompare(bn);
         });
 
-        alertStore.clear();
         filteredRows.forEach((r, i) => alertStore.set(i, r));
 
         document.getElementById("linksContainer").innerHTML = `
@@ -1371,6 +1421,7 @@
     };
 
     document.getElementById("refreshBtn").onclick = fetchAlerts;
+    document.getElementById("copySummaryBtn").onclick = copyFormattedSummary;
 
     fetchAlerts();
     setInterval(fetchAlerts, 5 * 60 * 1000);
