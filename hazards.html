@@ -153,7 +153,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
 /* Recent changes (center column) */
 .changesBox{
   grid-column:2;
-  grid-row:1 / span 2;    /* spans both rows so it stays centered vertically vs title+controls */
+  grid-row:1 / span 2;
   align-self:start;
   justify-self:center;
 
@@ -333,7 +333,18 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:10px;
-  align-items:start;
+  align-items:stretch;
+}
+
+.mapColumn{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  min-height:0;
+}
+
+.mapFrame{
+  width:100%;
 }
 
 #wwaMap{
@@ -362,6 +373,12 @@ button:disabled{opacity:.6;cursor:not-allowed;}
 .map-fallback .title{font-weight:700;margin-bottom:6px;}
 .map-fallback .text{color:var(--muted);line-height:1.35;max-width:70ch;margin:0 auto;}
 
+.radarColumn{
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+
 .radarToolbar{
   display:flex;
   align-items:center;
@@ -382,6 +399,7 @@ button:disabled{opacity:.6;cursor:not-allowed;}
   overflow:hidden;
   background:transparent;
   border-radius:8px;
+  flex:1 1 auto;
 }
 
 .radarFrame iframe{
@@ -430,6 +448,7 @@ td{word-break:break-word;}
 
 @media (max-width: 900px){
   .visuals{ grid-template-columns:1fr; }
+  .mapColumn{ justify-content:flex-start; }
 }
 
 @media (max-width: 768px){
@@ -524,22 +543,24 @@ td{word-break:break-word;}
       <div class="hdr">PA Alert Map & Radar</div>
       <div class="body">
         <div class="visuals">
-          <div>
-            <img id="wwaMap"
-              src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
-              alt="NWS Watches, Warnings, and Advisories map for Pennsylvania"
-              onload="mapLoaded()"
-              onerror="mapError()"
-            />
-            <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
-              <div>
-                <div class="title">NWS Alert Map Unavailable</div>
-                <div class="text">The NWS Watches, Warnings, and Advisories map is currently unavailable.</div>
+          <div class="mapColumn">
+            <div class="mapFrame">
+              <img id="wwaMap"
+                src="https://www.weather.gov/images/crh/noc/wwa_pa.png"
+                alt="NWS Watches, Warnings, and Advisories map for Pennsylvania"
+                onload="mapLoaded()"
+                onerror="mapError()"
+              />
+              <div id="wwaMapFallback" class="map-fallback" role="status" aria-live="polite">
+                <div>
+                  <div class="title">NWS Alert Map Unavailable</div>
+                  <div class="text">The NWS Watches, Warnings, and Advisories map is currently unavailable.</div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div>
+          <div class="radarColumn">
             <div class="radarToolbar">
               <div class="radarHint">Use mouse wheel or pinch to zoom, and drag to pan.</div>
               <button id="resetRadarBtn" type="button">Reset Radar View</button>
