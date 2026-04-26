@@ -19,10 +19,6 @@ const AIRPORT_META = {
   KPHL:{iata:"PHL"}, KABE:{iata:"ABE"}, KAVP:{iata:"AVP"}, KHZL:{iata:"HZL"}
 };
 
-const IATA_TO_ICAO = Object.fromEntries(
-  Object.entries(AIRPORT_META).map(([icao, meta]) => [meta.iata, icao])
-);
-
 const FAA_NAS_XML_URL = "https://nasstatus.faa.gov/api/airport-status-information";
 const FAA_OPS_PLAN_URL = "https://www.fly.faa.gov/adv/adv_spt";
 
@@ -195,11 +191,20 @@ function normalizeEventLine(line) {
 }
 
 function extractSectionLines(text, sectionName) {
-  const lines = String(text || "").split("\n").map(l => l.trim()).filter(Boolean);
-  const startIdx = lines.findIndex(l => l.toUpperCase() === sectionName.toUpperCase());
+  const rawLines = String(text || "")
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  const upperSection = sectionName.toUpperCase();
+
+  const startIdx = rawLines.findIndex(l =>
+    l.toUpperCase().includes(upperSection)
+  );
+
   if (startIdx === -1) return [];
 
-  const stopHeaders = new Set([
+  const stopHeaders = [
     "TERMINAL PLANNED",
     "EN ROUTE PLANNED",
     "ACTIVE AIRPORT EVENTS",
@@ -207,24 +212,51 @@ function extractSectionLines(text, sectionName) {
     "FORECAST EVENTS",
     "CONSTRAINTS",
     "PLANNED INITIATIVES",
-    "STAFFING TRIGGER(S)",
+    "STAFFING TRIGGER",
     "TERMINAL CONSTRAINTS",
     "EN ROUTE CONSTRAINTS"
-  ]);
+  ];
 
-  const out = [];
-  for (let i = startIdx + 1; i < lines.length; i++) {
-    const upper = lines[i].toUpperCase();
-    if (i > startIdx + 1 && stopHeaders.has(upper)) break;
+  const sectionParts = [];
 
-    if (/^(TIME|EVENT)$/i.test(lines[i])) continue;
+  for (let i = startIdx; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    const upper = line.toUpperCase();
 
-    if (/^(AFTER|UNTIL|\d{4}\s*-\s*\d{4}|\d{4})\b/i.test(lines[i]) || lines[i].startsWith("-")) {
-      out.push(normalizeEventLine(lines[i]));
+    if (
+      i > startIdx &&
+      stopHeaders.some(h => h !== upperSection && upper.includes(h))
+    ) {
+      break;
     }
+
+    sectionParts.push(line);
   }
 
-  return out;
+  let blob = sectionParts.join(" ");
+
+  const sectionRe = new RegExp(sectionName.replace(/\s+/g, "\\s+"), "ig");
+
+  blob = blob
+    .replace(sectionRe, " ")
+    .replace(/\bTime\b/gi, " ")
+    .replace(/\bEvent\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!blob) return [];
+
+  const markerRe = /(?=(?:AFTER|UNTIL)\s+(?:\d{1,2}:\d{2}\s*(?:AM|PM)\s*(?:[A-Z]{2,4})?|\d{3,4}(?:\s*[A-Z]{2,4})?)\s*-?|\b\d{4}\s*(?:-\s*)?)/gi;
+
+  const chunks = blob
+    .split(markerRe)
+    .map(x => normalizeEventLine(x))
+    .filter(Boolean);
+
+  return chunks.filter(line =>
+    /^(AFTER|UNTIL|\d{4}\s*-\s*\d{4}|\d{4})\b/i.test(line) ||
+    line.trim().startsWith("-")
+  );
 }
 
 function classifyFlowEvent(text, section) {
@@ -267,7 +299,8 @@ function classifyFlowEvent(text, section) {
 function parseTimeAndEvent(line) {
   const clean = normalizeEventLine(line);
 
-  const m = clean.match(/^((?:AFTER|UNTIL)\s+[A-Z0-9: ]+(?:\s+[A-Z]{2,4})?|\d{4}\s*-\s*\d{4}|\d{4})\s*-?\s*(.+)$/i);
+  const m = clean.match(/^((?:AFTER|UNTIL)\s+(?:\d{1,2}:\d{2}\s*(?:AM|PM)\s*(?:[A-Z]{2,4})?|\d{3,4}(?:\s*[A-Z]{2,4})?)|\d{4}\s*-\s*\d{4}|\d{4})\s*-?\s*(.+)$/i);
+
   if (m) {
     return {
       time: m[1].trim(),
@@ -325,6 +358,7 @@ async function parseFaaFlow() {
   for (const a of AIRPORTS) base.airports[a] = null;
 
   let text = "";
+
   try {
     const html = await fetchText(FAA_OPS_PLAN_URL);
     text = htmlToText(html);
@@ -334,8 +368,8 @@ async function parseFaaFlow() {
     return base;
   }
 
-  const terminalLines = extractSectionLines(text, "TERMINAL PLANNED");
-  const enrouteLines = extractSectionLines(text, "EN ROUTE PLANNED");
+  const terminalLines = extractSectionLines(text, "Terminal Planned");
+  const enrouteLines = extractSectionLines(text, "En Route Planned");
 
   function parseLines(lines, section) {
     return lines.map(line => {
@@ -368,6 +402,7 @@ async function parseFaaFlow() {
         text: ev.text,
         section: ev.section
       };
+
       base.airports[icao] = betterFlow(base.airports[icao], compact);
     }
   }
@@ -377,6 +412,7 @@ async function parseFaaFlow() {
 
 async function main() {
   let nasMap;
+
   try {
     const nasXml = await fetchText(FAA_NAS_XML_URL);
     nasMap = parseNasXml(nasXml);
@@ -386,6 +422,7 @@ async function main() {
   }
 
   let metarMap;
+
   try {
     const metars = await fetchJson(METAR_URL(AIRPORTS));
     metarMap = parseMetars(metars);
@@ -395,6 +432,7 @@ async function main() {
   }
 
   let faaFlow;
+
   try {
     faaFlow = await parseFaaFlow();
   } catch (e) {
@@ -432,7 +470,9 @@ async function main() {
 
   fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, JSON.stringify(combined, null, 2));
+
   console.log(`Wrote ${OUTPUT_PATH} at ${combined.generatedAt}`);
+  console.log(`FAA Flow: terminal=${faaFlow?.terminal?.length || 0}, enroute=${faaFlow?.enroute?.length || 0}`);
 }
 
 main().catch((e) => {
