@@ -501,10 +501,10 @@
     </div>
     <div class="modal-body">
       <div class="modal-grid">
-        <div class="kv"><div class="k">Category</div><div class="v" id="mCat">—</div></div>
-        <div class="kv"><div class="k">Visibility</div><div class="v" id="mVis">—</div></div>
-        <div class="kv"><div class="k">Temp</div><div class="v" id="mTemp">—</div></div>
-        <div class="kv"><div class="k">Wx Notes</div><div class="v" id="mWx">—</div></div>
+        <div class="kv"><div class="k" id="mK1">Category</div><div class="v" id="mCat">—</div></div>
+        <div class="kv"><div class="k" id="mK2">Visibility</div><div class="v" id="mVis">—</div></div>
+        <div class="kv"><div class="k" id="mK3">Temp</div><div class="v" id="mTemp">—</div></div>
+        <div class="kv"><div class="k" id="mK4">Wx Notes</div><div class="v" id="mWx">—</div></div>
       </div>
       <div class="mono" id="modalText"></div>
     </div>
@@ -527,7 +527,7 @@
         <div class="key-row"><span class="faa-pill blue">ROUTE</span><span>En route routing constraint, reroute, SWAP/CDR, or arrival-route issue possible.</span></div>
         <div class="key-row"><span class="faa-pill red">CLOSURE</span><span>Airport closure or planned closure impact.</span></div>
       </div>
-      <div class="key-note">These indicators are intended as early warning / situational awareness. “Possible” or “probable” FAA planned events are not guaranteed delays, but they can signal airports or airspace that may develop travel impacts.</div>
+      <div class="key-note">Pill codes are board summaries derived from FAA wording. Click a pill to see both a plain-language decode and the raw FAA event text.</div>
     </div>
   </div>
 </div>
@@ -1013,6 +1013,10 @@
   const mWx = document.getElementById("mWx");
   const modalTitle = document.getElementById("modalTitle");
   const modalText = document.getElementById("modalText");
+  const mK1 = document.getElementById("mK1");
+  const mK2 = document.getElementById("mK2");
+  const mK3 = document.getElementById("mK3");
+  const mK4 = document.getElementById("mK4");
 
   document.getElementById("modalClose").addEventListener("click", () => modalBackdrop.classList.remove("show"));
   modalBackdrop.addEventListener("click", (e) => { if(e.target === modalBackdrop) modalBackdrop.classList.remove("show"); });
@@ -1034,8 +1038,16 @@
   if(faaKeyBackdrop) faaKeyBackdrop.addEventListener("click", (e) => { if(e.target === faaKeyBackdrop) closeFaaKeyModal(); });
   window.addEventListener("keydown", (e) => { if(e.key === "Escape") closeFaaKeyModal(); });
 
+  function setModalLabels(k1, k2, k3, k4){
+    if(mK1) mK1.textContent = k1;
+    if(mK2) mK2.textContent = k2;
+    if(mK3) mK3.textContent = k3;
+    if(mK4) mK4.textContent = k4;
+  }
+
   function openMetarModal(icao, cat, raw, vis, temp, wx){
-    modalTitle.textContent = `${icao} — METAR`;
+    setModalLabels("Category", "Visibility", "Temp", "Wx Notes");
+    modalTitle.textContent = icao + " — METAR";
     mCat.textContent = cat || "—";
     mVis.textContent = vis || "—";
     mTemp.textContent = temp || "—";
@@ -1044,21 +1056,66 @@
     modalBackdrop.classList.add("show");
   }
 
+  function decodeFaaPlainLanguage(code, text, section){
+    const s = String(text || "").toUpperCase();
+    const c = String(code || "").toUpperCase();
+    const parts = [];
+
+    if(c === "ROUTE" || s.includes("SWAP") || s.includes("CDRS") || s.includes("ROUTE")){
+      parts.push("Type: En route routing initiative");
+      parts.push("Plain language: The FAA may use alternate routing or coded departure routes for the airspace or airport named in the event.");
+      parts.push("What this could mean: Flights involving that routing may be assigned different routes than normal. This can affect flow, routing, or timing.");
+    } else if(c === "GDP" || s.includes("GROUND DELAY") || s.includes("DELAY PROGRAM")){
+      parts.push("Type: Ground Delay Program / delay program item");
+      parts.push("Plain language: The FAA is indicating that inbound flights may be delayed before departure to manage arrival demand.");
+      parts.push("What this could mean: Flights headed to the named airport may receive controlled departure times.");
+    } else if(c === "GS" || s.includes("GROUND STOP")){
+      parts.push("Type: Ground Stop item");
+      parts.push("Plain language: The FAA is indicating that some flights may be held on the ground rather than allowed to depart toward the affected airport or airspace.");
+      parts.push("What this could mean: Departures to the affected airport or airspace may be temporarily stopped if the event becomes active.");
+    } else if(c === "CLOSURE" || s.includes("CLOSURE") || s.includes("CLOSED")){
+      parts.push("Type: Closure item");
+      parts.push("Plain language: The FAA text includes a closure reference for the named airport, route, or airspace item.");
+      parts.push("What this could mean: Operations may be restricted or unavailable for that airport, route, or airspace item depending on the event wording.");
+    } else {
+      parts.push("Type: FAA planned flow item");
+      parts.push("Plain language: The FAA has listed a planned traffic-management item involving the named airport or airspace.");
+      parts.push("What this could mean: Traffic flow, routing, or timing may be affected if the planned item is used.");
+    }
+
+    if(s.includes("POSSIBLE")) parts.push("FAA wording: Possible — planned or anticipated, not necessarily active.");
+    else if(s.includes("PROBABLE")) parts.push("FAA wording: Probable — FAA wording indicates it is more likely than possible, but this still does not mean active.");
+    else if(s.includes("EXPECTED")) parts.push("FAA wording: Expected — FAA wording indicates the item is expected, but review the raw text for context.");
+
+    const terms = [];
+    if(s.includes("SWAP")) terms.push("SWAP = Severe Weather Avoidance Plan");
+    if(s.includes("CDRS") || s.includes("CDR")) terms.push("CDRS/CDR = Coded Departure Routes");
+    if(s.includes("N90")) terms.push("N90 = New York TRACON airspace");
+    if(s.includes("PHL")) terms.push("PHL = Philadelphia");
+    if(s.includes("GDP")) terms.push("GDP = Ground Delay Program");
+    if(terms.length) parts.push("Terms: " + terms.join("; "));
+
+    return parts.join("\n");
+  }
+
   function openFaaFlowModal(pill){
     const icao = pill.getAttribute("data-icao") || "—";
     const code = pill.getAttribute("data-code") || "—";
-    const label = pill.getAttribute("data-label") || "FAA flow impact";
-    const level = pill.getAttribute("data-level") || "—";
     const time = pill.getAttribute("data-time") || "—";
     const section = pill.getAttribute("data-section") || "—";
     const text = pill.getAttribute("data-text") || "—";
+    const source = "FAA Ops Plan";
 
-    modalTitle.textContent = `${icao} — FAA Flow`;
+    setModalLabels("Pill", "Time", "Section", "Source");
+    modalTitle.textContent = icao + " — FAA Planned Event";
     mCat.textContent = code;
     mVis.textContent = time;
     mTemp.textContent = section;
-    mWx.textContent = level;
-    modalText.textContent = `FAA Flow Event\n\nAirport: ${icao}\nCode: ${code}\nLabel: ${label}\nLevel: ${level}\nTime: ${time}\nSection: ${section}\n\nEvent:\n${text}`;
+    mWx.textContent = source;
+
+    const decoded = decodeFaaPlainLanguage(code, text, section);
+
+    modalText.textContent = "Decoded / Plain Language\n\n" + decoded + "\n\nFAA Raw Data\n\nSection: " + section + "\nTime: " + time + "\nEvent: " + text + "\nSource: " + source;
     modalBackdrop.classList.add("show");
   }
 
