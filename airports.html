@@ -323,6 +323,8 @@
     .faa-pill.red{ outline: 1px solid rgba(231,76,60,.60); color:#ff8a80; }
     .faa-pill.blue{ outline: 1px solid rgba(52,152,219,.55); color:#82c8f5; }
     .faa-pill.gray{ outline: 1px solid rgba(127,140,141,.45); color:#bdc3c7; }
+    .faa-pill.clickable{ cursor:pointer; font-family: inherit; }
+    .faa-pill.clickable:hover{ filter:brightness(1.18); }
 
     .key-list{
       display:grid;
@@ -836,19 +838,33 @@
     return "yellow";
   }
 
-  function faaBadgeHTML(faa){
+  function faaBadgeHTML(faa, icao){
     if(!faa || !faa.code) return `<span class="faa-pill none">—</span>`;
 
     const code = String(faa.code || "FLOW").toUpperCase();
     const level = normalizeFaaLevel(faa);
-    const pieces = [];
-    if(faa.label) pieces.push(faa.label);
-    if(faa.time) pieces.push(faa.time);
-    if(faa.source) pieces.push(faa.source);
-    if(faa.text) pieces.push(faa.text);
-    const title = pieces.length ? pieces.join("\n") : code;
+    const label = faa.label || "FAA flow impact";
+    const time = faa.time || "—";
+    const section = faa.section || faa.source || "—";
+    const text = faa.text || "—";
+    const levelText = faa.level || level || "—";
 
-    return `<span class="faa-pill ${level}" title="${escapeAttr(title)}">${escapeAttr(code)}</span>`;
+    const title = [label, time, section, text].filter(Boolean).join("\n");
+
+    return `
+      <button class="faa-pill ${level} clickable faa-flow-pill"
+              type="button"
+              title="${escapeAttr(title)}"
+              data-icao="${escapeAttr(icao || "—")}"
+              data-code="${escapeAttr(code)}"
+              data-label="${escapeAttr(label)}"
+              data-level="${escapeAttr(levelText)}"
+              data-time="${escapeAttr(time)}"
+              data-section="${escapeAttr(section)}"
+              data-text="${escapeAttr(text)}">
+        ${escapeAttr(code)}
+      </button>
+    `;
   }
 
   function rowHTML(a){
@@ -877,7 +893,7 @@
           </span>
         </td>
         <td class="delay">${d.delay ?? "—"}</td>
-        <td>${faaBadgeHTML(d.faaFlow)}</td>
+        <td>${faaBadgeHTML(d.faaFlow, a.icao)}</td>
         <td>
           <span class="metar-pill"
                 data-cat="${d.cat || "—"}"
@@ -1028,6 +1044,24 @@
     modalBackdrop.classList.add("show");
   }
 
+  function openFaaFlowModal(pill){
+    const icao = pill.getAttribute("data-icao") || "—";
+    const code = pill.getAttribute("data-code") || "—";
+    const label = pill.getAttribute("data-label") || "FAA flow impact";
+    const level = pill.getAttribute("data-level") || "—";
+    const time = pill.getAttribute("data-time") || "—";
+    const section = pill.getAttribute("data-section") || "—";
+    const text = pill.getAttribute("data-text") || "—";
+
+    modalTitle.textContent = `${icao} — FAA Flow`;
+    mCat.textContent = code;
+    mVis.textContent = time;
+    mTemp.textContent = section;
+    mWx.textContent = level;
+    modalText.textContent = `FAA Flow Event\n\nAirport: ${icao}\nCode: ${code}\nLabel: ${label}\nLevel: ${level}\nTime: ${time}\nSection: ${section}\n\nEvent:\n${text}`;
+    modalBackdrop.classList.add("show");
+  }
+
   document.addEventListener("mouseover", (e) => {
     const pill = e.target.closest(".metar-pill");
     if(!pill) return;
@@ -1037,6 +1071,12 @@
   document.addEventListener("mousemove", (e) => moveTip(e.clientX, e.clientY));
   document.addEventListener("mouseout", (e) => {
     if(e.target.closest(".metar-pill")) hideTip();
+  });
+
+  document.addEventListener("click", (e) => {
+    const pill = e.target.closest(".faa-flow-pill");
+    if(!pill) return;
+    openFaaFlowModal(pill);
   });
 
   document.addEventListener("click", (e) => {
