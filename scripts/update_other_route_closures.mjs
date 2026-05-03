@@ -4,11 +4,10 @@ import { chromium } from "playwright";
 const OUT_FILE = "data/other_route_closures.json";
 const PAGE_SIZE = 100;
 
-const BASE =
-  "https://www.511pa.com/list/events/traffic";
+const BASE_URL = "https://www.511pa.com/list/events/traffic";
 
 function buildUrl(start) {
-  const u = new URL(BASE);
+  const u = new URL(BASE_URL);
   u.searchParams.set("start", String(start));
   u.searchParams.set("length", String(PAGE_SIZE));
   u.searchParams.set("filters[0][i]", "1");
@@ -18,53 +17,38 @@ function buildUrl(start) {
   return u.toString();
 }
 
-function isIncidentClosure(row) {
-  const text = `${row.description || ""} ${row.roadway || ""}`.toLowerCase();
-
-  const drop = [
-    "roadwork",
-    "utility work",
-    "bridge outage",
-    "construction",
-    "maintenance",
-    "paving",
-    "planned"
-  ];
-
-  const keep = [
-    "crash",
-    "downed tree",
-    "tree down",
-    "wires down",
-    "wire down",
-    "debris on roadway",
-    "flooding",
-    "damaged roadway",
-    "police activity",
-    "fire activity",
-    "incident"
-  ];
-
-  if (!text.includes("all lanes closed")) return false;
-  if (drop.some(k => text.includes(k))) return false;
-  return keep.some(k => text.includes(k));
+function norm(s) {
+  return String(s || "").replace(/\s+/g, " ").trim();
 }
 
-function formatRow(row) {
-  return `${row.description} | ${row.roadway} | ${row.county} | Start: ${row.startTime} | End: ${row.anticipatedEndTime} | Updated: ${row.lastUpdated}`;
+async function dismissPopups(page) {
+  for (const sel of [
+    'button:has-text("Done")',
+    'button:has-text("Next")',
+    'button[aria-label="Close"]'
+  ]) {
+    try {
+      await page.click(sel, { timeout: 1500 });
+    } catch {}
+  }
 }
 
 async function scrapePage(page, start) {
   const url = buildUrl(start);
-  console.log(`Loading ${url}`);
+  console.log(`Loading other-route closures start=${start}`);
+  console.log(url);
 
-  await page.goto(url, { waitUntil: "networkidle", timeout: 60000 });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 
-  await page.waitForSelector("table tbody tr", { timeout: 30000 }).catch(() => null);
+  await dismissPopups(page);
 
-  const rows = await page.$$eval("table tbody tr", trs => {
+  await page.waitForTimeout(2500);
+
+  await page.waitForSelector("tbody tr", { timeout: 30000 }).catch(() => null);
+
+  const rows = await page.$$eval("tbody tr", trs => {
     return trs.map(tr => {
-      const cells = [...tr.querySelectorAll("td")].map(td =>
+      const cells = Array.from(tr.querySelectorAll("td")).map(td =>
         td.innerText.replace(/\s+/g, " ").trim()
       );
 
@@ -76,22 +60,91 @@ async function scrapePage(page, start) {
         state: cells[2] || "",
         county: cells[3] || "",
         description: cells[4] || "",
-        startTime: cells[5] || "",
-        anticipatedEndTime: cells[6] || "",
-        lastUpdated: cells[7] || "",
+        start_time: cells[5] || "",
+        anticipated_end_time: cells[6] || "",
+        last_updated: cells[7] || "",
         map: cells[8] || ""
       };
     }).filter(Boolean);
   });
 
-  return rows.filter(r => r.type === "Closure - Other Route");
+  const filteredToType = rows.filter(r =>
+    /Closure\s*-\s*Other\s*Route/i.test(r.type)
+  );
+
+  console.log(`Rows found: ${rows.length}; Other Route rows: ${filteredToType.length}`);
+
+  return filteredToType;
+}
+
+function isIncidentClosure(row) {
+  const text = norm(`${row.description} ${row.roadway}`).toLowerCase();
+
+  if (!/all lanes closed/i.test(text)) return false;
+
+  const drop = [
+    "roadwork",
+    "utility work",
+    "bridge outage",
+    "construction",
+    "maintenance",
+    "paving",
+    "planned",
+    "line painting",
+    "special event",
+    "parade",
+    "permit"
+  ];
+
+  const keep = [
+    "crash",
+    "vehicle crash",
+    "multi-vehicle",
+    "multi vehicle",
+    "overturned",
+    "jackknifed",
+    "downed tree",
+    "tree down",
+    "downed wire",
+    "downed wires",
+    "wire down",
+    "wires down",
+    "debris on roadway",
+    "flooding",
+    "damaged roadway",
+    "disabled vehicle",
+    "police activity",
+    "fire activity",
+    "incident"
+  ];
+
+  if (drop.some(k => text.includes(k))) return false;
+  return keep.some(k => text.includes(k));
+}
+
+function formatRow(row) {
+  return `${row.description} | ${row.roadway} | ${row.county} County | Start: ${row.start_time || "TBD"} | End: ${row.anticipated_end_time || "TBD"} | Updated: ${row.last_updated || "TBD"}`;
+}
+
+function dedupeKey(row) {
+  return [
+    row.type,
+    row.roadway,
+    row.county,
+    row.description,
+    row.start_time,
+    row.anticipated_end_time
+  ].map(norm).join("|").toLowerCase();
 }
 
 async function main() {
   await fs.mkdir("data", { recursive: true });
+  await fs.mkdir("debug", { recursive: true }).catch(() => {});
 
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage({
+    viewport: { width: 1600, height: 1000 }
+  });
 
   const all = [];
   const seen = new Set();
@@ -100,18 +153,16 @@ async function main() {
     for (let start = 0; ; start += PAGE_SIZE) {
       const rows = await scrapePage(page, start);
 
-      console.log(`Fetched ${rows.length} rows at start=${start}`);
+      if (start === 0 && rows.length === 0) {
+        await page.screenshot({
+          path: "debug/other_route_closures_0.png",
+          fullPage: true
+        });
+        console.log("No rows found at start=0. Debug screenshot saved to debug/other_route_closures_0.png");
+      }
 
       for (const row of rows) {
-        const key = [
-          row.type,
-          row.roadway,
-          row.county,
-          row.description,
-          row.startTime,
-          row.anticipatedEndTime
-        ].join("|").toLowerCase();
-
+        const key = dedupeKey(row);
         if (seen.has(key)) continue;
         seen.add(key);
         all.push(row);
@@ -134,12 +185,17 @@ async function main() {
       ...row,
       formatted: formatRow(row)
     })),
-    raw_items: all
+    raw_items: all.map(row => ({
+      ...row,
+      formatted: formatRow(row)
+    }))
   };
 
   await fs.writeFile(OUT_FILE, JSON.stringify(output, null, 2));
+
   console.log(`Wrote ${OUT_FILE}`);
-  console.log(`Raw: ${all.length}, Filtered: ${filtered.length}`);
+  console.log(`Raw: ${all.length}`);
+  console.log(`Filtered: ${filtered.length}`);
 }
 
 main().catch(err => {
