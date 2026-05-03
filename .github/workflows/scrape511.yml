@@ -56,9 +56,6 @@ jobs:
       - name: Run 511PA major roadway scraper
         run: node ./scripts/scrape_511.mjs
 
-      - name: Run 511PA other roadway scraper
-        run: node ./scripts/update_other_route_closures.mjs
-
       - name: Write last run timestamp
         run: |
           mkdir -p data
