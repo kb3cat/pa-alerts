@@ -70,18 +70,18 @@ async function scrapePage(page, start) {
   });
 
   // 🔥 THIS IS THE FIXED LOGIC
-  const filteredToType = rows.filter(r => {
-    const type = (r.type || "").toLowerCase();
-    const roadway = (r.roadway || "").toLowerCase();
+const filteredToType = rows.filter(r => {
+  const type = (r.type || "").toLowerCase();
+  const roadway = (r.roadway || "").toLowerCase();
 
-    // Only closures
-    if (!type.includes("closure")) return false;
+  // Must be a closure
+  if (!type.includes("closure")) return false;
 
-    // Exclude major routes (I, US, PA)
-    if (/(^|\s)(i-|us-|pa-)/i.test(roadway)) return false;
+  // Exclude major routes (handle real formats)
+  if (/\b(i|us|pa)\s*\d+\b/i.test(roadway)) return false;
 
-    return true;
-  });
+  return true;
+});
 
   console.log(`Rows found: ${rows.length}; Other Route rows: ${filteredToType.length}`);
 
