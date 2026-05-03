@@ -36,50 +36,21 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
 .header-left{ display:flex; flex-direction:column; }
 
-/* PBS WARN-style status block (upper right) */
-.pbs-status{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  justify-content:center;
-  gap:3px;
-  min-width:130px;
-  padding:2px 16px 2px 4px;
-  position:relative;
-  user-select:none;
-  white-space:nowrap;
-}
-.pbs-status::after{
-  content:"";
-  position:absolute;
-  right:0;
-  top:50%;
-  transform:translateY(-50%);
-  width:7px;
-  height:7px;
+/* Data updated status dot */
+.updated-dot{
+  display:inline-block;
+  width:8px;
+  height:8px;
   border-radius:999px;
+  margin-right:7px;
   background:#ff2b2b;
   box-shadow:0 0 0 3px rgba(255,255,255,.05);
+  vertical-align:middle;
 }
-.pbs-status-main{
-  font-size:20px;
-  line-height:1;
-  font-weight:900;
-  letter-spacing:.02em;
-  color:#b8b6ff;
-}
-.pbs-status-sub{
-  font-size:10px;
-  line-height:1;
-  font-weight:800;
-  color:var(--muted);
-}
-.pbs-status.status-ok::after{ background:#29d36a; }
-.pbs-status.status-attn::after{ background:#ffb000; }
-.pbs-status.status-err::after{ background:#ff2b2b; }
-.pbs-status.status-ok .pbs-status-main{ color:#c9ffcf; }
-.pbs-status.status-attn .pbs-status-main{ color:#ffe6b8; }
-.pbs-status.status-err .pbs-status-main{ color:#ffd0d0; }
+.updated-dot.ok{ background:#29d36a; }
+.updated-dot.attn{ background:#ffb000; }
+.updated-dot.err{ background:#ff2b2b; }
+.updated-text{ vertical-align:middle; }
 
 /* Header right cluster */
 .header-right{
@@ -296,7 +267,10 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   <div class="header-left">
     <div class="title">Pennsylvania 511 Roadway Status Board</div>
     <div class="subtitle">Requested every 5 minutes via GitHub Actions; execution timing may vary.</div>
-    <div class="footer header-updated" id="updated">Data Last Updated: —</div>
+    <div class="footer header-updated" id="updated" title="Loading…">
+      <span class="updated-dot err" id="updatedDot"></span>
+      <span class="updated-text" id="updatedText">Data Last Updated: —</span>
+    </div>
 
     <div class="header-links">
       <a href="https://www.511pa.com/map/page/vehiclerestriction" target="_blank" rel="noopener">
@@ -311,10 +285,6 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
       <span class="lbl">Wallboard Scroll</span>
     </label>
 
-    <div id="statuspill" class="pbs-status status-err" title="Loading…">
-      <div id="statusline" class="pbs-status-main">LOADING…</div>
-      <div id="statussubline" class="pbs-status-sub">Updated —</div>
-    </div>
   </div>
 </div>
 
@@ -515,34 +485,26 @@ function minutesAgo(dt) {
   return (Date.now() - dt.getTime()) / 60000;
 }
 
-function setStatus(state, text, hover, updatedDt) {
-  const pill = document.getElementById("statuspill");
-  const line = document.getElementById("statusline");
-  const subline = document.getElementById("statussubline");
-  if (!pill || !line) return;
+function setUpdatedStatus(state, hover) {
+  const updated = document.getElementById("updated");
+  const dot = document.getElementById("updatedDot");
+  if (!dot) return;
 
-  pill.classList.remove("status-ok","status-attn","status-err");
-  if (state === "ok") pill.classList.add("status-ok");
-  if (state === "attn") pill.classList.add("status-attn");
-  if (state === "err") pill.classList.add("status-err");
+  dot.classList.remove("ok","attn","err");
+  if (state === "ok") dot.classList.add("ok");
+  else if (state === "attn") dot.classList.add("attn");
+  else dot.classList.add("err");
 
-  line.textContent = text;
-
-  if (subline) {
-    const dt = updatedDt instanceof Date && !isNaN(updatedDt.getTime()) ? updatedDt : new Date();
-    subline.textContent = "Updated " + dt.toLocaleString();
-  }
-
-  pill.title = hover || "";
+  if (updated) updated.title = hover || "";
 }
 
 window.addEventListener("error", (e) => {
-  try { setStatus("err","JS ERROR", e?.message || "Unknown error"); } catch {}
+  try { setUpdatedStatus("err", e?.message || "Unknown error"); } catch {}
 });
 window.addEventListener("unhandledrejection", (e) => {
   try {
     const r = e && e.reason;
-    setStatus("err","JS ERROR", r ? (r.stack || r.message || String(r)) : "Unhandled rejection");
+    setUpdatedStatus("err", r ? (r.stack || r.message || String(r)) : "Unhandled rejection");
   } catch {}
 });
 
@@ -1294,18 +1256,21 @@ async function loadBoard(){
       warnings.push(`Could not load data/${LAST_RUN_FILE}.`);
     }
 
-    document.getElementById("updated").textContent = lastRunDt
-      ? formatDataLastUpdated(lastRunDt)
-      : "Data Last Updated: Unknown";
+    const updatedText = document.getElementById("updatedText");
+    if (updatedText) {
+      updatedText.textContent = lastRunDt
+        ? formatDataLastUpdated(lastRunDt)
+        : "Data Last Updated: Unknown";
+    }
 
     if (!lastRunDt) {
-      setStatus("err","NOT UPDATING",`Dashboard can't determine last run time.\nFix: ensure the workflow writes data/${LAST_RUN_FILE}.`);
+      setUpdatedStatus("err",`Dashboard can't determine last run time.\nFix: ensure the workflow writes data/${LAST_RUN_FILE}.`);
       return;
     }
 
     const ageMin = minutesAgo(lastRunDt);
     if (ageMin > STALE_MINUTES) {
-      setStatus("err","NOT UPDATING",`Last successful run was ${ageMin.toFixed(1)} minutes ago.\nThreshold is ${STALE_MINUTES} minutes.\nFix: check GitHub Actions runs/logs.`);
+      setUpdatedStatus("err",`Last successful run was ${ageMin.toFixed(1)} minutes ago.\nThreshold is ${STALE_MINUTES} minutes.\nFix: check GitHub Actions runs/logs.`);
       return;
     }
 
@@ -1373,12 +1338,12 @@ async function loadBoard(){
     if (WALL_SCROLL_ENABLED) applyWallScroll(true);
 
     if (warnings.length) {
-      setStatus("attn","NEEDS ATTENTION",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
+      setUpdatedStatus("attn",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
     } else {
-      setStatus("ok","OK",`Workflow ran ${ageMin.toFixed(1)} minutes ago.\nData files loaded successfully.\nNo action needed.`);
+      setUpdatedStatus("ok",`Workflow ran ${ageMin.toFixed(1)} minutes ago.\nData files loaded successfully.\nNo action needed.`);
     }
   } catch (e) {
-    setStatus("err","JS ERROR", e?.stack || e?.message || String(e));
+    setUpdatedStatus("err", e?.stack || e?.message || String(e));
   }
 }
 
