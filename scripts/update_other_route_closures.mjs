@@ -68,9 +68,15 @@ async function scrapePage(page, start) {
     }).filter(Boolean);
   });
 
-  const filteredToType = rows.filter(r =>
-    /Closure\s*-\s*Other\s*Route/i.test(r.type)
+  const filteredToType = rows.filter(r => {
+  const type = (r.type || "").toLowerCase();
+  const desc = (r.description || "").toLowerCase();
+
+  return (
+    type.includes("other route") ||
+    desc.includes("other route")
   );
+});
 
   console.log(`Rows found: ${rows.length}; Other Route rows: ${filteredToType.length}`);
 
