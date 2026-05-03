@@ -35,6 +35,7 @@ async function dismissPopups(page) {
 
 async function scrapePage(page, start) {
   const url = buildUrl(start);
+
   console.log(`Loading other-route closures start=${start}`);
   console.log(url);
 
@@ -68,15 +69,19 @@ async function scrapePage(page, start) {
     }).filter(Boolean);
   });
 
+  // 🔥 THIS IS THE FIXED LOGIC
   const filteredToType = rows.filter(r => {
-  const type = (r.type || "").toLowerCase();
-  const desc = (r.description || "").toLowerCase();
+    const type = (r.type || "").toLowerCase();
+    const roadway = (r.roadway || "").toLowerCase();
 
-  return (
-    type.includes("other route") ||
-    desc.includes("other route")
-  );
-});
+    // Only closures
+    if (!type.includes("closure")) return false;
+
+    // Exclude major routes (I, US, PA)
+    if (/(^|\s)(i-|us-|pa-)/i.test(roadway)) return false;
+
+    return true;
+  });
 
   console.log(`Rows found: ${rows.length}; Other Route rows: ${filteredToType.length}`);
 
@@ -164,7 +169,7 @@ async function main() {
           path: "debug/other_route_closures_0.png",
           fullPage: true
         });
-        console.log("No rows found at start=0. Debug screenshot saved to debug/other_route_closures_0.png");
+        console.log("No rows found at start=0. Screenshot saved.");
       }
 
       for (const row of rows) {
