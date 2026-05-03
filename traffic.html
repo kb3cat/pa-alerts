@@ -36,42 +36,50 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
 .subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
 .header-left{ display:flex; flex-direction:column; }
 
-/* Status pill (upper right) */
-.status-pill{
-  display:inline-flex;
-  align-items:center;
-  gap:.5rem;
-  padding:6px 12px;
-  border-radius:999px;
-  font-weight:900;
-  font-size:12px;
-  border:1px solid rgba(255,255,255,.14);
+/* PBS WARN-style status block (upper right) */
+.pbs-status{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  justify-content:center;
+  gap:3px;
+  min-width:130px;
+  padding:2px 16px 2px 4px;
+  position:relative;
   user-select:none;
   white-space:nowrap;
 }
-.status-dot{
-  width:10px;
-  height:10px;
+.pbs-status::after{
+  content:"";
+  position:absolute;
+  right:0;
+  top:50%;
+  transform:translateY(-50%);
+  width:7px;
+  height:7px;
   border-radius:999px;
-  background: currentColor;
-  opacity:.95;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+  background:#ff2b2b;
+  box-shadow:0 0 0 3px rgba(255,255,255,.05);
 }
-.status-ok{
-  background: rgba(41, 211, 106, .18);
-  color: #c9ffcf;
-  border-color: rgba(41, 211, 106, .35);
+.pbs-status-main{
+  font-size:20px;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.02em;
+  color:#b8b6ff;
 }
-.status-attn{
-  background: rgba(255, 176, 0, .18);
-  color: #ffe6b8;
-  border-color: rgba(255, 176, 0, .35);
+.pbs-status-sub{
+  font-size:10px;
+  line-height:1;
+  font-weight:800;
+  color:var(--muted);
 }
-.status-err{
-  background: rgba(255, 43, 43, .18);
-  color: #ffd0d0;
-  border-color: rgba(255, 43, 43, .35);
-}
+.pbs-status.status-ok::after{ background:#29d36a; }
+.pbs-status.status-attn::after{ background:#ffb000; }
+.pbs-status.status-err::after{ background:#ff2b2b; }
+.pbs-status.status-ok .pbs-status-main{ color:#c9ffcf; }
+.pbs-status.status-attn .pbs-status-main{ color:#ffe6b8; }
+.pbs-status.status-err .pbs-status-main{ color:#ffd0d0; }
 
 /* Header right cluster */
 .header-right{
@@ -303,9 +311,9 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
       <span class="lbl">Wallboard Scroll</span>
     </label>
 
-    <div id="statuspill" class="status-pill status-err" title="Loading…">
-      <span class="status-dot"></span>
-      <span id="statusline">LOADING…</span>
+    <div id="statuspill" class="pbs-status status-err" title="Loading…">
+      <div id="statusline" class="pbs-status-main">LOADING…</div>
+      <div id="statussubline" class="pbs-status-sub">Updated —</div>
     </div>
   </div>
 </div>
@@ -507,9 +515,10 @@ function minutesAgo(dt) {
   return (Date.now() - dt.getTime()) / 60000;
 }
 
-function setStatus(state, text, hover) {
+function setStatus(state, text, hover, updatedDt) {
   const pill = document.getElementById("statuspill");
   const line = document.getElementById("statusline");
+  const subline = document.getElementById("statussubline");
   if (!pill || !line) return;
 
   pill.classList.remove("status-ok","status-attn","status-err");
@@ -518,6 +527,12 @@ function setStatus(state, text, hover) {
   if (state === "err") pill.classList.add("status-err");
 
   line.textContent = text;
+
+  if (subline) {
+    const dt = updatedDt instanceof Date && !isNaN(updatedDt.getTime()) ? updatedDt : new Date();
+    subline.textContent = "Updated " + dt.toLocaleString();
+  }
+
   pill.title = hover || "";
 }
 
