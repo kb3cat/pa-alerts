@@ -172,15 +172,24 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Hel
   margin:8px 0;
   background:#141415;
   border:1px solid #232326;
-  border-left:7px solid var(--red);
+  border-left:7px solid var(--border);
   border-radius:6px;
   font-size:15px;
   line-height:1.25;
   word-break:break-word;
 }
-.speed .item{ border-left-color: var(--blue); }
-.vehicle .item{ border-left-color: var(--yellow); }
-.lane .item{ border-left-color: var(--purple); }
+
+/* Correct section colors */
+.row.closures .item{ border-left-color: var(--red); }
+.row.lane .item{ border-left-color: var(--orange); }
+.row.speed .item{ border-left-color: var(--yellow); }
+.row.vehicle:not(.planned) .item{ border-left-color: var(--blue); }
+.row.vehicle.planned .item{ border-left-color: var(--purple); }
+
+/* None state override */
+.item.none{
+  border-left-color: var(--green) !important;
+}
 
 /* Vehicle grouping headers */
 .grouphead{
