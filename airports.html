@@ -225,6 +225,21 @@
     }
 
     .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+    .updated-dot{
+      display:inline-block;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      margin-right:7px;
+      background:#e74c3c;
+      box-shadow:0 0 0 3px rgba(255,255,255,.05);
+      vertical-align:middle;
+      flex:0 0 8px;
+    }
+    .updated-dot.ok{ background:#2ecc71; }
+    .updated-dot.attn{ background:#f1c40f; }
+    .updated-dot.err{ background:#e74c3c; }
     .ok{ background: var(--ok); }
     .warn{ background: var(--warn); }
     .bad{ background: var(--bad); }
@@ -439,7 +454,7 @@
     <div>
       <div class="title">PA Airports Status Board</div>
       <div class="sub" id="subtitle">
-        Updated every 10 minutes. Last update: <span class="mono-inline" id="lastUpdate">—</span>
+        <span class="updated-dot err" id="updatedDot"></span>Updated every 10 minutes. Last update: <span class="mono-inline" id="lastUpdate">—</span>
       </div>
     </div>
 
@@ -938,7 +953,19 @@
   /***********************
    * 6) Live data fetch
    ***********************/
+  function setUpdatedStatus(state){
+    const dot = document.getElementById("updatedDot");
+    if(!dot) return;
+
+    dot.classList.remove("ok", "attn", "err");
+    if(state === "ok") dot.classList.add("ok");
+    else if(state === "attn") dot.classList.add("attn");
+    else dot.classList.add("err");
+  }
+
   async function refreshLive() {
+    setUpdatedStatus("attn");
+
     try {
       const url = `data/airports_live.json?ts=${Date.now()}`;
       const res = await fetch(url, { cache: "no-store" });
@@ -974,12 +1001,15 @@
         const dt = data?.generatedAt ? new Date(data.generatedAt) : new Date();
         last.textContent = formatLastUpdate(dt);
       }
+
+      setUpdatedStatus("ok");
     } catch (err) {
       console.warn("refreshLive failed:", err);
       render();
       setScrollbarWidthVar();
       const last = document.getElementById("lastUpdate");
       if (last) last.textContent = "live data unavailable";
+      setUpdatedStatus("err");
     }
   }
 
