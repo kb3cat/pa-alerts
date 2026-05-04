@@ -115,6 +115,23 @@ body{
   text-overflow:ellipsis;
 }
 
+/* Data updated status dot */
+.updated-dot{
+  display:inline-block;
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  margin-right:7px;
+  background:#ff2b2b;
+  box-shadow:0 0 0 3px rgba(255,255,255,.05);
+  vertical-align:middle;
+  flex:0 0 auto;
+}
+.updated-dot.ok{ background:#29d36a; }
+.updated-dot.attn{ background:#ffb000; }
+.updated-dot.err{ background:#ff2b2b; }
+.subtitle-text{ vertical-align:middle; }
+
 .header-right{
   text-align:right;
   font-size:14px;
@@ -598,7 +615,7 @@ body{
 <header class="topbar">
   <div class="header-left">
     <div class="title">Pennsylvania Storm Reports</div>
-    <div class="subtitle" id="subtitle">Source: NWS Storm Reports | Updates every 15 minutes | Last updated: loading...</div>
+    <div class="subtitle" id="subtitle"><span class="updated-dot attn" id="updatedDot"></span><span class="subtitle-text" id="subtitleText">Source: NWS Storm Reports | Updates every 15 minutes | Last updated: loading...</span></div>
   </div>
   <div class="header-right">
     <div class="report-window-line" id="reportWindow">
@@ -920,10 +937,26 @@ function buildBoardSignature(data){
   ].join("~")).join("|");
 }
 
+function setUpdatedStatus(state){
+  const dot = document.getElementById("updatedDot");
+  if (!dot) return;
+
+  dot.classList.remove("ok", "attn", "err");
+
+  if (state === "ok") dot.classList.add("ok");
+  else if (state === "attn") dot.classList.add("attn");
+  else dot.classList.add("err");
+}
+
+function setSubtitleText(text){
+  const el = document.getElementById("subtitleText");
+  if (el) el.textContent = text;
+}
+
 function renderHeader(data){
   const updated = formatDateTimeHeader(data.generated_at);
-  document.getElementById("subtitle").textContent =
-    `Source: NWS Storm Reports | Updates every 15 minutes | Last updated: ${updated}`;
+  setSubtitleText(`Source: NWS Storm Reports | Updates every 15 minutes | Last updated: ${updated}`);
+  setUpdatedStatus("ok");
 
   document.getElementById("reportWindow").textContent =
     `Storm reports issued from ${formatWindowText(data.window_start)} to ${formatWindowText(data.window_end)}`;
@@ -1342,6 +1375,7 @@ async function loadBoardData(){
 
 async function initBoard(force = false){
   try {
+    setUpdatedStatus("attn");
     const boardData = await loadBoardData();
 
     renderHeader(boardData);
@@ -1376,8 +1410,8 @@ async function initBoard(force = false){
     lastBoardSignature = newSignature;
   } catch (err) {
     console.error("Storm reports board failed to load:", err);
-    document.getElementById("subtitle").textContent =
-      "Source: NWS Storm Reports | Updates every 15 minutes | Load failed";
+    setSubtitleText("Source: NWS Storm Reports | Updates every 15 minutes | Load failed");
+    setUpdatedStatus("err");
     document.getElementById("reportWindow").textContent =
       "Storm reports failed to load";
     document.getElementById("totalReports").textContent = "0";
