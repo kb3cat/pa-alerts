@@ -3,7 +3,7 @@
 
   footer.innerHTML = `
     <div class="site-footer-inner">
-      <a href="/https://kb3cat.com/contact.html">Contact / Suggestions</a>
+      <a href="https://kb3cat.com/contact.html">Contact / Suggestions</a>
     </div>
   `;
 
