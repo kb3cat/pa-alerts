@@ -434,6 +434,23 @@ td{word-break:break-word;}
   100% { transform: translateY(0); }
 }
 
+
+/* Data updated status dot */
+.updated-dot{
+  display:inline-block;
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  margin-right:7px;
+  background:#ff2b2b;
+  box-shadow:0 0 0 3px rgba(255,255,255,.05);
+  vertical-align:middle;
+}
+.updated-dot.ok{ background:#29d36a; }
+.updated-dot.attn{ background:#ffb000; }
+.updated-dot.err{ background:#ff2b2b; }
+.updated-text{ vertical-align:middle; }
+
 /* Responsive: stack header pieces cleanly */
 @media (max-width: 1100px){
   .headerGrid{
@@ -520,7 +537,7 @@ td{word-break:break-word;}
     <div class="controls">
       <span>Auto-refresh: 5 min</span>
       <button id="refreshBtn" type="button">Refresh</button>
-      <span id="status">Loading…</span>
+      <span id="status"><span class="updated-dot err" id="updatedDot"></span><span class="updated-text" id="statusText">Loading…</span></span>
     </div>
 
     <div class="changesBox" aria-label="Recent changes">
@@ -1144,16 +1161,27 @@ const RecentChanges = (() => {
   return { update };
 })();
 
+function setUpdatedStatus(state){
+  const dot = document.getElementById("updatedDot");
+  if (!dot) return;
+
+  dot.classList.remove("ok","attn","err");
+  if (state === "ok") dot.classList.add("ok");
+  else if (state === "attn") dot.classList.add("attn");
+  else dot.classList.add("err");
+}
+
 /* ==============================
    fetchAlerts
    ============================== */
 async function fetchAlerts(){
-  const status = document.getElementById("status");
+  const status = document.getElementById("statusText");
   const btn = document.getElementById("refreshBtn");
   const container = document.getElementById("tableContainer");
 
   btn.disabled = true;
   status.textContent = "Loading…";
+  setUpdatedStatus("attn");
 
   try{
     const r = await fetchWithTimeout(
@@ -1234,6 +1262,7 @@ async function fetchAlerts(){
     if(!arr.length){
       container.innerHTML = `<div style="color:var(--muted)">No active hazards.</div>`;
       status.textContent = `Last updated: ${nowStr} | Alert Groups: 0`;
+      setUpdatedStatus("ok");
       RecentChanges.update([], nowStr);
       setupAutoScroll();
       requestAnimationFrame(syncRadarToMap);
@@ -1249,6 +1278,7 @@ async function fetchAlerts(){
     });
 
     status.textContent = `Last updated: ${nowStr} | Alert Groups: ${arr.length}`;
+    setUpdatedStatus("ok");
 
     const changeGroups = arr.map(g => {
       const namesSorted = sortLocations([...g.names]);
@@ -1292,6 +1322,7 @@ async function fetchAlerts(){
     console.error(err);
     container.innerHTML = `<div style="color:var(--muted)">Unable to load alerts.</div>`;
     status.textContent = "Error: " + (err?.message || String(err));
+    setUpdatedStatus("err");
 
     const track = document.getElementById("changesTrack");
     if (track) {
