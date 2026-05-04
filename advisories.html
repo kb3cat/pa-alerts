@@ -138,6 +138,30 @@
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
+
+    /* Data updated status dot */
+    .updated-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.95em;
+      color: var(--muted);
+    }
+    .updated-dot{
+      display:inline-block;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#ff2b2b;
+      box-shadow:0 0 0 3px rgba(255,255,255,.05);
+      vertical-align:middle;
+      flex: 0 0 auto;
+    }
+    .updated-dot.ok{ background:#29d36a; }
+    .updated-dot.attn{ background:#ffb000; }
+    .updated-dot.err{ background:#ff2b2b; }
+    .updated-text{ vertical-align:middle; }
+
     .section-title { margin-top: 16px; margin-bottom: 6px; max-width: 1200px; }
     .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
 
@@ -337,6 +361,10 @@
 
   <div class="controls">
     <span class="refresh-label">Auto-refresh: every 5 minutes</span>
+    <span class="updated-status" id="updated" title="Loading…">
+      <span class="updated-dot err" id="updatedDot"></span>
+      <span class="updated-text" id="updatedText">Data Last Updated: —</span>
+    </span>
     <button id="refreshBtn" type="button">Refresh Now</button>
     <button id="changesBtn" type="button" disabled title="No unacknowledged changes">Changes</button>
   </div>
@@ -457,8 +485,16 @@
   <script>
     // If something blows up, don't leave "Loading..." forever
     window.addEventListener("error", (e) => {
+      const msg = e?.message || "Unknown error";
       const s = document.getElementById("status");
-      if (s) s.textContent = "Script error: " + (e?.message || "Unknown error");
+      if (s) s.textContent = "Script error: " + msg;
+      try { setUpdatedStatus("err", "Data Last Updated: Error", msg); } catch {}
+    });
+
+    window.addEventListener("unhandledrejection", (e) => {
+      const r = e && e.reason;
+      const msg = r ? (r.stack || r.message || String(r)) : "Unhandled rejection";
+      try { setUpdatedStatus("err", "Data Last Updated: Error", msg); } catch {}
     });
 
     /* ==============================
@@ -508,6 +544,22 @@
 
     const API_URL = "https://api.weather.gov/alerts/active?area=PA";
     const MAP_URL = "https://www.weather.gov/images/crh/noc/wwa_pa.png";
+
+    function setUpdatedStatus(state, text, hover) {
+      const updated = document.getElementById("updated");
+      const dot = document.getElementById("updatedDot");
+      const updatedText = document.getElementById("updatedText");
+
+      if (dot) {
+        dot.classList.remove("ok", "attn", "err");
+        if (state === "ok") dot.classList.add("ok");
+        else if (state === "attn") dot.classList.add("attn");
+        else dot.classList.add("err");
+      }
+
+      if (updatedText && text) updatedText.textContent = text;
+      if (updated) updated.title = hover || text || "";
+    }
 
     // ✅ bumped to v4 to avoid old baselines breaking change logic (dup/precedence changes)
     const STORAGE_KEY_BASELINE = "paAlertsSnapshotBaseline_advisories_v4";
@@ -986,6 +1038,7 @@
 
       refreshBtn.disabled = true;
       status.textContent = "Loading alerts…";
+      setUpdatedStatus("attn", "Data Last Updated: Refreshing…", "Refreshing NWS alert data…");
 
       try {
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
@@ -1060,7 +1113,10 @@
         // Drop rows fully overridden
         const filteredRows = rows.filter(r => r.zones && r.zones.length);
 
-        status.textContent = `Last updated: ${new Date().toLocaleString()} | Alerts: ${filteredRows.length}`;
+        const refreshedAt = new Date();
+        const refreshedText = refreshedAt.toLocaleString();
+        status.textContent = `Last updated: ${refreshedText} | Alerts: ${filteredRows.length}`;
+        setUpdatedStatus("ok", `Data Last Updated: ${refreshedText}`, `NWS API refresh successful. Alerts: ${filteredRows.length}`);
 
         // Summary grouping (normalized)
         const grouped = new Map();
@@ -1294,7 +1350,9 @@
 
       } catch (err) {
         console.error(err);
-        document.getElementById("status").textContent = "Error loading alerts: " + (err?.message || String(err));
+        const msg = err?.message || String(err);
+        document.getElementById("status").textContent = "Error loading alerts: " + msg;
+        setUpdatedStatus("err", "Data Last Updated: Error", msg);
       } finally {
         document.getElementById("refreshBtn").disabled = false;
       }
