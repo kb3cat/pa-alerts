@@ -124,6 +124,23 @@
 
     .refresh-label { font-size: 0.95em; color: var(--muted); }
 
+
+    /* Data updated status dot */
+    .updated-dot{
+      display:inline-block;
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      margin-right:7px;
+      background:#ff2b2b;
+      box-shadow:0 0 0 3px rgba(255,255,255,.05);
+      vertical-align:middle;
+    }
+    .updated-dot.ok{ background:#29d36a; }
+    .updated-dot.attn{ background:#ffb000; }
+    .updated-dot.err{ background:#ff2b2b; }
+    .updated-text{ vertical-align:middle; }
+
     .section-title { margin-top: 16px; margin-bottom: 6px; max-width: 1200px; }
     .muted { color: var(--muted); font-size: 0.95em; max-width: 1200px; }
 
@@ -341,30 +358,6 @@
     .title-row h1{ margin: 0; }
     .title-row .spacer{ flex: 1 1 auto; }
 
-
-
-    /* Data updated status dot */
-    .updated-dot{
-      display:inline-block;
-      width:8px;
-      height:8px;
-      border-radius:999px;
-      margin-right:7px;
-      background:#ff2b2b;
-      box-shadow:0 0 0 3px rgba(255,255,255,.05);
-      vertical-align:middle;
-    }
-    .updated-dot.ok{ background:#29d36a; }
-    .updated-dot.attn{ background:#ffb000; }
-    .updated-dot.err{ background:#ff2b2b; }
-    .updated-text{ vertical-align:middle; }
-
-    .header-updated{
-      color: var(--muted);
-      font-size: 0.95em;
-      white-space: nowrap;
-    }
-
     #status,
     #changesContainer,
     #tableContainer,
@@ -376,10 +369,6 @@
   <div class="title-row">
     <h1>PA Watches & Warnings</h1>
     <div class="spacer"></div>
-    <div class="header-updated" id="updated" title="Loading…">
-      <span class="updated-dot err" id="updatedDot"></span>
-      <span class="updated-text" id="updatedText">Data Last Updated: —</span>
-    </div>
     <button id="themeToggle" type="button">🌙 Dark</button>
   </div>
 
@@ -406,7 +395,10 @@
     </button>
   </div>
 
-  <p id="status">Loading alerts…</p>
+  <p id="status" title="Loading…">
+    <span class="updated-dot err" id="updatedDot"></span>
+    <span class="updated-text" id="statusText">Loading alerts…</span>
+  </p>
 
   <div id="changesContainer" style="display:none;"></div>
 
@@ -624,9 +616,8 @@
       return isNaN(d) ? String(v) : d.toLocaleString();
     }
 
-
     function setUpdatedStatus(state, hover) {
-      const updated = document.getElementById("updated");
+      const status = document.getElementById("status");
       const dot = document.getElementById("updatedDot");
       if (!dot) return;
 
@@ -635,26 +626,13 @@
       else if (state === "attn") dot.classList.add("attn");
       else dot.classList.add("err");
 
-      if (updated) updated.title = hover || "";
+      if (status) status.title = hover || "";
     }
 
-    function setUpdatedText(dt) {
-      const updatedText = document.getElementById("updatedText");
-      if (!updatedText) return;
-      updatedText.textContent = dt
-        ? "Data Last Updated: " + dt.toLocaleString()
-        : "Data Last Updated: —";
+    function setStatusText(text) {
+      const statusText = document.getElementById("statusText");
+      if (statusText) statusText.textContent = text;
     }
-
-    window.addEventListener("error", (e) => {
-      try { setUpdatedStatus("err", e?.message || "Unknown error"); } catch {}
-    });
-    window.addEventListener("unhandledrejection", (e) => {
-      try {
-        const r = e && e.reason;
-        setUpdatedStatus("err", r ? (r.stack || r.message || String(r)) : "Unhandled rejection");
-      } catch {}
-    });
 
     function formatSummaryDateShort(value) {
       if (!value) return "N/A";
@@ -1136,12 +1114,11 @@
     });
 
     async function fetchAlerts() {
-      const status = document.getElementById("status");
       const refreshBtn = document.getElementById("refreshBtn");
 
       refreshBtn.disabled = true;
-      status.textContent = "Loading alerts…";
-      setUpdatedStatus("attn", "Loading alerts…");
+      setStatusText("Loading alerts…");
+      setUpdatedStatus("attn", "Refreshing alert data…");
 
       try {
         let baselineSnap = loadSnapshot(STORAGE_KEY_BASELINE);
@@ -1204,10 +1181,8 @@
 
         const filteredRows = rows.filter(r => r.zones && r.zones.length);
 
-        const updatedAt = new Date();
-        status.textContent = `Last updated: ${updatedAt.toLocaleString()} | Alerts: ${filteredRows.length}`;
-        setUpdatedText(updatedAt);
-        setUpdatedStatus("ok", `NWS API refreshed successfully. Alerts loaded: ${filteredRows.length}.`);
+        setStatusText(`Last updated: ${new Date().toLocaleString()} | Alerts: ${filteredRows.length}`);
+        setUpdatedStatus("ok", `NWS API refresh succeeded. Alerts: ${filteredRows.length}`);
         refreshMap();
 
         const grouped = new Map();
@@ -1449,7 +1424,7 @@
         checkRWSIndicator();
       } catch (err) {
         console.error(err);
-        document.getElementById("status").textContent = "Error loading alerts: " + err.message;
+        setStatusText("Error loading alerts: " + err.message);
         setUpdatedStatus("err", err?.stack || err?.message || String(err));
       } finally {
         document.getElementById("refreshBtn").disabled = false;
