@@ -30,7 +30,11 @@ function cleanText(text = "") {
 }
 
 function hashItem(source, title, url, date) {
-  return crypto.createHash("sha1").update(`${source}|${title}|${url}|${date}`).digest("hex").slice(0, 16);
+  return crypto
+    .createHash("sha1")
+    .update(`${source}|${title}|${url}|${date}`)
+    .digest("hex")
+    .slice(0, 16);
 }
 
 function normalizeDate(value) {
@@ -40,10 +44,12 @@ function normalizeDate(value) {
 
 function makeItem(sourceName, title, url, published, description = "", image = "", type = "item") {
   const publishedISO = normalizeDate(published);
-  const safeTitle = cleanText(title || "Untitled");
+
+  // Important: preserve intentionally blank titles, especially PSP non-MEPA posts.
+  const safeTitle = title === "" ? "" : cleanText(title || "Untitled");
 
   return {
-    id: hashItem(sourceName, safeTitle, url || "", publishedISO),
+    id: hashItem(sourceName, safeTitle || description || url || sourceName, url || "", publishedISO),
     source: sourceName,
     type,
     title: safeTitle,
@@ -82,9 +88,10 @@ async function fetchLocalJson(source) {
   const items = Array.isArray(data) ? data : (data.items || []);
 
   return items.map(item => {
+    // Important: if title exists and is blank, keep it blank.
     const title = Object.prototype.hasOwnProperty.call(item, "title")
       ? item.title
-      : (item.text || `${source.name} item`);
+      : "";
 
     return makeItem(
       item.source || source.name,
@@ -105,7 +112,11 @@ async function scrapeSource(browser, source) {
   });
 
   try {
-    await page.goto(source.url, { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.goto(source.url, {
+      waitUntil: "domcontentloaded",
+      timeout: 45000
+    });
+
     await page.waitForTimeout(4500);
 
     const origin = new URL(source.url).origin;
@@ -117,7 +128,11 @@ async function scrapeSource(browser, source) {
       }
 
       function absUrl(href) {
-        try { return new URL(href, origin).href; } catch { return ""; }
+        try {
+          return new URL(href, origin).href;
+        } catch {
+          return "";
+        }
       }
 
       function isRealArticle(url, title) {
@@ -153,15 +168,13 @@ async function scrapeSource(browser, source) {
           return u.includes("/news/") && !u.endsWith("/news/");
         }
 
-        if (hostname.includes("phila.gov")) {
-          return u.includes("/departments/oem/") || u.includes("/programs/");
-        }
-
         return u.includes("/news/") || u.includes("/article/") || u.includes("/story/");
       }
 
       function bestImageFrom(el) {
-        const scope = el.closest("article, .card, .story, .article, .tease, .content-item, .promo") || el;
+        const scope =
+          el.closest("article, .card, .story, .article, .tease, .content-item, .promo") || el;
+
         const img = scope.querySelector("img") || el.querySelector("img");
         if (!img) return "";
 
@@ -176,12 +189,18 @@ async function scrapeSource(browser, source) {
 
         const srcset = img.getAttribute("srcset") || img.getAttribute("data-srcset") || "";
         if (srcset) {
-          const best = srcset.split(",").map(x => x.trim().split(" ")[0]).filter(Boolean).pop();
+          const best = srcset
+            .split(",")
+            .map(x => x.trim().split(" ")[0])
+            .filter(Boolean)
+            .pop();
+
           if (best) candidates.unshift(best);
         }
 
         for (const c of candidates) {
           const url = absUrl(c);
+
           if (
             url &&
             !url.includes("logo") &&
@@ -190,7 +209,9 @@ async function scrapeSource(browser, source) {
             !url.includes("avatar") &&
             !url.includes("profile") &&
             !url.includes("placeholder")
-          ) return url;
+          ) {
+            return url;
+          }
         }
 
         return "";
@@ -205,7 +226,10 @@ async function scrapeSource(browser, source) {
           clean(a.innerText);
 
         const href = absUrl(a.getAttribute("href"));
-        const article = a.closest("article, .card, .story, .article, .tease, .content-item, .promo") || a.parentElement;
+
+        const article =
+          a.closest("article, .card, .story, .article, .tease, .content-item, .promo") ||
+          a.parentElement;
 
         const description = clean(
           article?.querySelector("p, .summary, .description, .dek, .teaser, .excerpt")?.innerText || ""
@@ -243,7 +267,15 @@ async function scrapeSource(browser, source) {
     }, { sourceName: source.name, sourceUrl: source.url, origin, hostname });
 
     return items.map(item =>
-      makeItem(source.name, item.title, item.url, item.published_at || new Date().toISOString(), item.description || "", item.image || "", "scrape")
+      makeItem(
+        source.name,
+        item.title,
+        item.url,
+        item.published_at || new Date().toISOString(),
+        item.description || "",
+        item.image || "",
+        "scrape"
+      )
     );
   } finally {
     await page.close();
@@ -275,9 +307,13 @@ async function main() {
         if (!source.url || source.disabled) continue;
 
         try {
-          if (source.type === "rss") items.push(...await fetchRss(source));
-          else if (source.type === "local-json") items.push(...await fetchLocalJson(source));
-          else if (source.type === "scrape") items.push(...await scrapeSource(browser, source));
+          if (source.type === "rss") {
+            items.push(...await fetchRss(source));
+          } else if (source.type === "local-json") {
+            items.push(...await fetchLocalJson(source));
+          } else if (source.type === "scrape") {
+            items.push(...await scrapeSource(browser, source));
+          }
         } catch (err) {
           console.log(`${source.type || "source"} failed: ${source.name} — ${err.message}`);
         }
@@ -289,7 +325,7 @@ async function main() {
         .filter(i => new Date(i.published_at).getTime() >= cutoff)
         .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
         .filter(i => {
-          const key = i.url || i.id || `${i.source}|${i.title}`;
+          const key = i.url || i.id || `${i.source}|${i.title}|${i.description}`;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
