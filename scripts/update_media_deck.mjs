@@ -10,9 +10,7 @@ const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36";
 
 const parser = new Parser({
-  headers: {
-    "User-Agent": USER_AGENT
-  },
+  headers: { "User-Agent": USER_AGENT },
   timeout: 25000
 });
 
@@ -87,7 +85,6 @@ async function fetchRss(source) {
 async function fetchLocalJson(source) {
   const raw = await fs.readFile(source.url, "utf8");
   const data = JSON.parse(raw);
-
   const items = Array.isArray(data) ? data : (data.items || []);
 
   return items.map((item, idx) =>
@@ -106,7 +103,7 @@ async function fetchLocalJson(source) {
 async function scrapeSource(browser, source) {
   const page = await browser.newPage({
     userAgent: USER_AGENT,
-    viewport: { width: 1366, height: 900 }
+    viewport: { width: 1366, height: 1000 }
   });
 
   try {
@@ -115,11 +112,12 @@ async function scrapeSource(browser, source) {
       timeout: 45000
     });
 
-    await page.waitForTimeout(3500);
+    await page.waitForTimeout(4500);
 
     const origin = new URL(source.url).origin;
+    const hostname = new URL(source.url).hostname.replace(/^www\./, "");
 
-    const items = await page.evaluate(({ sourceName, sourceUrl, origin }) => {
+    const items = await page.evaluate(({ sourceName, sourceUrl, origin, hostname }) => {
       function clean(s) {
         return String(s || "").replace(/\s+/g, " ").trim();
       }
@@ -132,22 +130,119 @@ async function scrapeSource(browser, source) {
         }
       }
 
-      const badWords = [
+      function bestImageFrom(el) {
+        const scope = el.closest("article, .card, .story, .article, .tease, .content-item, .promo") || el;
+        const img = scope.querySelector("img") || el.querySelector("img");
+
+        if (!img) return "";
+
+        const candidates = [
+          img.currentSrc,
+          img.src,
+          img.getAttribute("data-src"),
+          img.getAttribute("data-lazy-src"),
+          img.getAttribute("data-original"),
+          img.getAttribute("data-url")
+        ].filter(Boolean);
+
+        const srcset = img.getAttribute("srcset") || img.getAttribute("data-srcset") || "";
+        if (srcset) {
+          const best = srcset
+            .split(",")
+            .map(x => x.trim().split(" ")[0])
+            .filter(Boolean)
+            .pop();
+          if (best) candidates.unshift(best);
+        }
+
+        for (const c of candidates) {
+          const url = absUrl(c);
+          if (
+            url &&
+            !url.includes("logo") &&
+            !url.includes("sprite") &&
+            !url.includes("icon") &&
+            !url.includes("avatar") &&
+            !url.includes("profile") &&
+            !url.includes("placeholder")
+          ) {
+            return url;
+          }
+        }
+
+        return "";
+      }
+
+      const junkExact = new Set([
+        "sign in",
+        "sign in or create account",
         "subscribe",
         "log in",
-        "sign in",
-        "advertise",
-        "privacy",
-        "terms",
-        "weather",
-        "sports",
-        "watch",
-        "menu",
-        "search",
+        "newsletter sign up",
         "newsletter",
-        "facebook",
-        "twitter",
-        "instagram"
+        "question of the day",
+        "contact information",
+        "hometown favorites",
+        "tv program schedule",
+        "tv apps and streaming",
+        "alerts & free apps",
+        "forecast and conditions",
+        "doppler max 5d storm spotter",
+        "share photos/videos",
+        "closing and delays",
+        "athlete of the week",
+        "giving you the business",
+        "letters to the editor",
+        "other commentaries",
+        "professional sports",
+        "pennsylvania sports",
+        "northern lehigh county",
+        "southern lehigh county",
+        "western lehigh county",
+        "eastern berks county",
+        "northern berks county",
+        "northampton county",
+        "armstrong army strong",
+        "crisis in the classroom"
+      ]);
+
+      const junkContains = [
+        "/weather",
+        "/sports",
+        "/watch",
+        "/features",
+        "/money",
+        "/community",
+        "/contests",
+        "/about",
+        "/contact",
+        "/privacy",
+        "/terms",
+        "/login",
+        "/signin",
+        "/sign-in",
+        "/subscribe",
+        "/newsletter",
+        "/account",
+        "/search",
+        "/category/weather",
+        "/category/sports",
+        "/calendar",
+        "/obituaries",
+        "/classifieds"
+      ];
+
+      const goodPathHints = [
+        "/news/",
+        "/article/",
+        "/story/",
+        "/local/",
+        "/2026/",
+        "/breaking",
+        "/crime",
+        "/traffic",
+        "/fire",
+        "/police"
       ];
 
       const anchors = [...document.querySelectorAll("a[href]")];
@@ -159,16 +254,10 @@ async function scrapeSource(browser, source) {
           clean(a.innerText);
 
         const href = absUrl(a.getAttribute("href"));
-        const img = a.querySelector("img");
-        const image =
-          img?.currentSrc ||
-          img?.src ||
-          img?.getAttribute("data-src") ||
-          "";
+        const article = a.closest("article, .card, .story, .article, .tease, .content-item, .promo") || a.parentElement;
 
-        const article = a.closest("article, .card, .story, .article, .tease, .content-item") || a.parentElement;
         const description = clean(
-          article?.querySelector("p, .summary, .description, .dek")?.innerText || ""
+          article?.querySelector("p, .summary, .description, .dek, .teaser, .excerpt")?.innerText || ""
         );
 
         const timeEl = article?.querySelector("time");
@@ -182,7 +271,7 @@ async function scrapeSource(browser, source) {
           title,
           url: href,
           description,
-          image,
+          image: bestImageFrom(a),
           published_at: published
         };
       });
@@ -193,9 +282,19 @@ async function scrapeSource(browser, source) {
         .filter(item => item.title && item.url)
         .filter(item => item.url.startsWith(origin))
         .filter(item => item.url !== sourceUrl)
-        .filter(item => item.title.length >= 18)
+        .filter(item => item.title.length >= 22)
         .filter(item => item.title.length <= 180)
-        .filter(item => !badWords.some(w => item.title.toLowerCase() === w))
+        .filter(item => !junkExact.has(item.title.toLowerCase()))
+        .filter(item => !junkContains.some(j => item.url.toLowerCase().includes(j)))
+        .filter(item => goodPathHints.some(h => item.url.toLowerCase().includes(h)))
+        .filter(item => {
+          const lower = item.title.toLowerCase();
+          if (lower.includes("sign in")) return false;
+          if (lower.includes("create account")) return false;
+          if (lower.includes("newsletter")) return false;
+          if (lower.includes("weather app")) return false;
+          return true;
+        })
         .filter(item => {
           const key = item.url;
           if (seen.has(key)) return false;
@@ -206,7 +305,8 @@ async function scrapeSource(browser, source) {
     }, {
       sourceName: source.name,
       sourceUrl: source.url,
-      origin
+      origin,
+      hostname
     });
 
     return items.map(item =>
