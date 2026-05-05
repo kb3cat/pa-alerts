@@ -1,144 +1,477 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PA Media Deck</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PA Media Deck</title>
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #050505;
+      --border: #263241;
+      --text: #e6edf3;
+      --muted: #8fa3b8;
+      --blue: #1d9bf0;
+      --card: #050505;
+    }
 
-<style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0b0f14;
-  color: #e6edf3;
-}
+    * { box-sizing: border-box; }
 
-.header {
-  padding: 10px 16px;
-  font-size: 20px;
-  font-weight: bold;
-}
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      overflow: hidden;
+    }
 
-.updated {
-  float: right;
-  font-size: 12px;
-  color: #8b949e;
-}
+    .topbar {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border);
+      background: #050505;
+    }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1px;
-  background: #1f2933;
-}
+    .brand {
+      font-weight: 800;
+      font-size: 16px;
+    }
 
-.column {
-  background: #0b0f14;
-  display: flex;
-  flex-direction: column;
-}
+    .updated {
+      color: var(--muted);
+      font-size: 12px;
+    }
 
-.column h2 {
-  margin: 0;
-  padding: 10px;
-  font-size: 16px;
-  border-bottom: 1px solid #1f2933;
-}
+    .deck {
+      height: calc(100vh - 42px);
+      display: flex;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
 
-.card {
-  padding: 10px;
-  border-bottom: 1px solid #1f2933;
-}
+    .column {
+      width: 320px;
+      min-width: 320px;
+      height: 100%;
+      border-right: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+    }
 
-.source {
-  font-size: 11px;
-  color: #8b949e;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-}
+    .column-header {
+      padding: 12px 12px 8px;
+      border-bottom: 1px solid var(--border);
+      background: #050505;
+    }
 
-.title {
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 6px;
-}
+    .column-title {
+      font-size: 16px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.desc {
-  font-size: 12px;
-  color: #c9d1d9;
-}
+    .column-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: #050505;
+    }
 
-img {
-  width: 100%;
-  border-radius: 6px;
-  margin-top: 6px;
-}
-</style>
+    .tab {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      padding: 9px 6px 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      color: #fff;
+      border-bottom: 3px solid var(--blue);
+      font-weight: 800;
+    }
+
+    .items {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .card {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .card:hover {
+      background: #080d12;
+    }
+
+    .card-source {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .25px;
+      margin-bottom: 4px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      line-height: 1.25;
+      font-weight: 800;
+      color: var(--text);
+      text-decoration: none;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .card-title:hover {
+      text-decoration: underline;
+    }
+
+    .card-desc {
+      color: #d0d7de;
+      font-size: 13px;
+      line-height: 1.25;
+      margin-bottom: 8px;
+      text-decoration: none;
+      display: block;
+    }
+
+    .card-desc:hover {
+      text-decoration: underline;
+    }
+
+    .card-image {
+      width: 100%;
+      max-height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid #202b36;
+      margin: 4px 0 8px;
+      display: block;
+      background: #111;
+    }
+
+    .card-footer {
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .empty {
+      padding: 18px 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .modal.hidden { display: none; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .modal-card {
+      width: min(560px, 92vw);
+      max-height: 82vh;
+      overflow: hidden;
+      background: #0f1720;
+      color: var(--text);
+      border: 1px solid #2b3a4a;
+      border-radius: 16px;
+      box-shadow: 0 18px 60px rgba(0,0,0,.6);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal-close {
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 30px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal-body {
+      padding: 14px 16px;
+      overflow-y: auto;
+      max-height: 68vh;
+    }
+
+    .source-row {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .source-row:last-child { border-bottom: 0; }
+
+    .source-name {
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+
+    .source-type {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .source-url {
+      display: block;
+      color: #58a6ff;
+      font-size: 12px;
+      word-break: break-all;
+      text-decoration: none;
+    }
+
+    .source-url:hover { text-decoration: underline; }
+  </style>
 </head>
 
 <body>
+  <header class="topbar">
+    <div class="brand">PA Media Deck</div>
+    <div id="updated" class="updated">Loading…</div>
+  </header>
 
-<div class="header">
-  PA Media Deck
-  <span class="updated" id="updated"></span>
-</div>
+  <main id="deck" class="deck"></main>
 
-<div class="grid" id="grid"></div>
+  <div id="sourcesModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="sourcesModalTitle">Sources</h2>
+        <button id="closeSourcesModal" class="modal-close" type="button">×</button>
+      </div>
+      <div id="sourcesModalBody" class="modal-body"></div>
+    </div>
+  </div>
 
-<script>
-async function load() {
-  const res = await fetch("data/media_deck.json");
-  const data = await res.json();
+  <script>
+    const DATA_URL = "data/media_deck.json";
+    const SOURCES_URL = "data/media_sources.json";
 
-  document.getElementById("updated").innerText =
-    "Updated " + new Date(data.generated_at).toLocaleString();
+    const hiddenColumns = new Set([
+      "nws",
+      "philly_oem",
+      "pa511"
+    ]);
 
-  const grid = document.getElementById("grid");
+    let mediaSourcesConfig = null;
 
-  data.markets.forEach(market => {
-    const col = document.createElement("div");
-    col.className = "column";
+    function escapeHtml(value = "") {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-    const title = document.createElement("h2");
-    title.innerText = market.title;
-    col.appendChild(title);
+    function cleanTitle(value = "") {
+      return String(value)
+        .replace(/^\s*\d+\s+PHOTOS?\s*\|\s*/i, "")
+        .replace(/^\s*\d+\s+HOURS?\s+AGO\s*\|\s*/i, "")
+        .replace(/^\s*\d+\s+MINUTES?\s+AGO\s*\|\s*/i, "")
+        .replace(/^\s*\d+\s+PHOTOS?\s+/i, "")
+        .replace(/^\s*\d+\s+HOURS?\s+AGO\s+/i, "")
+        .replace(/^\s*\d+\s+MINUTES?\s+AGO\s+/i, "")
+        .replace(/^\s*PHOTOS?\s*\|\s*/i, "")
+        .trim();
+    }
 
-    (market.items || []).slice(0, 20).forEach(item => {
-      const card = document.createElement("div");
-      card.className = "card";
+    function formatDateTime(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toLocaleString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "2-digit",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    }
 
-      const source = document.createElement("div");
-      source.className = "source";
-      source.innerText = item.source;
+    function timeAgo(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return "";
 
-      const t = document.createElement("div");
-      t.className = "title";
-      t.innerText = item.title;
+      const diff = Date.now() - d.getTime();
+      const mins = Math.floor(diff / 60000);
 
-      const desc = document.createElement("div");
-      desc.className = "desc";
-      desc.innerText = item.description;
+      if (mins < 1) return "now";
+      if (mins < 60) return `${mins}m`;
 
-      card.appendChild(source);
-      card.appendChild(t);
-      card.appendChild(desc);
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h`;
 
-      if (item.image) {
-        const img = document.createElement("img");
-        img.src = item.image;
-        card.appendChild(img);
+      const days = Math.floor(hrs / 24);
+      return `${days}d`;
+    }
+
+    async function loadJson(url) {
+      const res = await fetch(`${url}?v=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`${url} HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    async function loadSourcesConfig() {
+      try {
+        mediaSourcesConfig = await loadJson(SOURCES_URL);
+      } catch (err) {
+        console.warn("Could not load media_sources.json", err);
+        mediaSourcesConfig = { markets: [] };
+      }
+    }
+
+    function openSourcesModal(marketId) {
+      const modal = document.getElementById("sourcesModal");
+      const title = document.getElementById("sourcesModalTitle");
+      const body = document.getElementById("sourcesModalBody");
+
+      const market = mediaSourcesConfig?.markets?.find(m => m.id === marketId);
+
+      title.textContent = market ? `${market.title} Sources` : "Sources";
+
+      if (!market || !market.sources || market.sources.length === 0) {
+        body.innerHTML = `<p>No sources configured for this column.</p>`;
+      } else {
+        body.innerHTML = market.sources.map(src => `
+          <div class="source-row">
+            <div class="source-name">${escapeHtml(src.name || "Unnamed source")}</div>
+            <div class="source-type">${escapeHtml(src.type || "source")}</div>
+            ${src.url ? `<a class="source-url" href="${escapeHtml(src.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(src.url)}</a>` : ""}
+          </div>
+        `).join("");
       }
 
-      col.appendChild(card);
+      modal.classList.remove("hidden");
+    }
+
+    function closeSourcesModal() {
+      document.getElementById("sourcesModal").classList.add("hidden");
+    }
+
+    function renderCard(item) {
+      const rawTitle = cleanTitle(String(item.title || "").trim());
+      const rawDesc = String(item.description || item.text || "").trim();
+      const link = item.url || "#";
+
+      const title = escapeHtml(rawTitle);
+      const source = escapeHtml(item.source || "Unknown source");
+      const desc = escapeHtml(rawDesc);
+      const url = escapeHtml(link);
+      const img = item.image ? escapeHtml(item.image) : "";
+      const ago = escapeHtml(timeAgo(item.published_at));
+      const fullTime = escapeHtml(formatDateTime(item.published_at));
+
+      return `
+        <article class="card">
+          <div class="card-source">${source}</div>
+
+          ${rawTitle ? `<a class="card-title" href="${url}" target="_blank" rel="noopener noreferrer">${title}</a>` : ""}
+
+          ${img ? `<a href="${url}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${img}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'"></a>` : ""}
+
+          ${rawDesc && rawDesc !== rawTitle ? `<a class="card-desc" href="${url}" target="_blank" rel="noopener noreferrer">${desc}</a>` : ""}
+
+          <div class="card-footer">
+            <span>${ago}</span>
+            <span>${fullTime}</span>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderColumn(market) {
+      const items = market.items || [];
+
+      return `
+        <section class="column">
+          <div class="column-header">
+            <div class="column-title" title="${escapeHtml(market.title || market.id)}">${escapeHtml(market.title || market.id)}</div>
+          </div>
+
+          <div class="column-tabs">
+            <button class="tab active" type="button">Latest</button>
+            <button class="tab sources-tab" type="button" data-market-id="${escapeHtml(market.id)}">Sources</button>
+          </div>
+
+          <div class="items">
+            ${items.length ? items.map(renderCard).join("") : `<div class="empty">No data currently available.</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function renderDeck(deckData) {
+      const deck = document.getElementById("deck");
+
+      deck.innerHTML = (deckData.markets || [])
+        .filter(market => !hiddenColumns.has(market.id))
+        .map(renderColumn)
+        .join("");
+
+      document.getElementById("updated").textContent =
+        deckData.generated_at
+          ? `Updated ${formatDateTime(deckData.generated_at)}`
+          : "Updated";
+    }
+
+    async function init() {
+      await loadSourcesConfig();
+      const deckData = await loadJson(DATA_URL);
+      renderDeck(deckData);
+    }
+
+    document.addEventListener("click", (e) => {
+      const sourcesBtn = e.target.closest(".sources-tab");
+      if (sourcesBtn) {
+        openSourcesModal(sourcesBtn.dataset.marketId);
+      }
+
+      if (e.target.id === "closeSourcesModal" || e.target.id === "sourcesModal") {
+        closeSourcesModal();
+      }
     });
 
-    grid.appendChild(col);
-  });
-}
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSourcesModal();
+    });
 
-load();
-</script>
-
+    init().catch(err => {
+      console.error(err);
+      document.getElementById("deck").innerHTML =
+        `<div class="empty">Unable to load media deck data.</div>`;
+      document.getElementById("updated").textContent = "Load error";
+    });
+  </script>
 </body>
 </html>
