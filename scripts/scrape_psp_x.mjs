@@ -3,8 +3,6 @@ import { chromium } from "playwright";
 
 const OUT = "data/psp_x.json";
 const URL = "https://x.com/pastatepolice";
-
-// keep it small + fast for testing
 const MAX_POSTS = 15;
 
 function cleanText(text = "") {
@@ -22,47 +20,56 @@ async function run() {
   });
 
   console.log("Loading PSP X page...");
+
+  // 🚨 KEY CHANGE: use domcontentloaded instead of networkidle
   await page.goto(URL, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
     timeout: 60000
   });
 
-  // wait for posts to render
-  await page.waitForSelector("article", { timeout: 20000 });
+  // give it a few seconds to render
+  await page.waitForTimeout(5000);
 
-  const posts = await page.evaluate((MAX_POSTS) => {
-    const articles = [...document.querySelectorAll("article")].slice(0, MAX_POSTS);
+  let posts = [];
 
-    return articles.map((article) => {
-      const text = article.innerText || "";
+  try {
+    await page.waitForSelector("article", { timeout: 15000 });
 
-      const timeEl = article.querySelector("time");
-      const linkEl = timeEl?.closest("a");
+    posts = await page.evaluate((MAX_POSTS) => {
+      const articles = [...document.querySelectorAll("article")].slice(0, MAX_POSTS);
 
-      const images = [...article.querySelectorAll("img")]
-        .map((img) => img.src)
-        .filter(
-          (src) =>
-            src &&
-            !src.includes("profile_images") &&
-            !src.includes("emoji") &&
-            !src.includes("ext_tw_video_thumb")
-        );
+      return articles.map((article) => {
+        const text = article.innerText || "";
 
-      return {
-        source: "PA State Police (X)",
-        title: text.split("\n").filter(Boolean).slice(0, 2).join(" "),
-        text,
-        published_at: timeEl?.getAttribute("datetime") || new Date().toISOString(),
-        url: linkEl ? `https://x.com${linkEl.getAttribute("href")}` : URL,
-        image: images[0] || ""
-      };
-    });
-  }, MAX_POSTS);
+        const timeEl = article.querySelector("time");
+        const linkEl = timeEl?.closest("a");
+
+        const images = [...article.querySelectorAll("img")]
+          .map((img) => img.src)
+          .filter(
+            (src) =>
+              src &&
+              !src.includes("profile_images") &&
+              !src.includes("emoji")
+          );
+
+        return {
+          source: "PA State Police (X)",
+          title: text.split("\n").filter(Boolean).slice(0, 2).join(" "),
+          text,
+          published_at: timeEl?.getAttribute("datetime") || new Date().toISOString(),
+          url: linkEl ? `https://x.com${linkEl.getAttribute("href")}` : URL,
+          image: images[0] || ""
+        };
+      });
+    }, MAX_POSTS);
+
+  } catch (err) {
+    console.log("No articles found or page structure changed.");
+  }
 
   await browser.close();
 
-  // basic cleanup + dedupe
   const cleaned = posts
     .map((p) => ({
       ...p,
