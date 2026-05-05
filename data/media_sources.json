@@ -29,13 +29,37 @@
       { "name": "WNEP", "type": "rss", "url": "https://www.wnep.com/feeds/syndication/rss/news/local" },
       { "name": "PAhomepage", "type": "rss", "url": "https://www.pahomepage.com/feed/" }
     ]},
-    { "id": "nws", "title": "NWS Offices", "sources": [
-      { "name": "NWS Cleveland", "type": "rss", "url": "https://www.weather.gov/rss_page.php?site_name=cle" },
-      { "name": "NWS Pittsburgh", "type": "rss", "url": "https://www.weather.gov/rss_page.php?site_name=pbz" },
-      { "name": "NWS State College", "type": "rss", "url": "https://www.weather.gov/rss_page.php?site_name=ctp" },
-      { "name": "NWS Binghamton", "type": "rss", "url": "https://www.weather.gov/rss_page.php?site_name=bgm" },
-      { "name": "NWS Mount Holly", "type": "rss", "url": "https://www.weather.gov/rss_page.php?site_name=phi" }
-    ]},
+    {
+  "id": "nws",
+  "title": "NWS Offices",
+  "sources": [
+    {
+      "name": "NWS Cleveland",
+      "type": "nws-api",
+      "url": "https://api.weather.gov/alerts/active?office=CLE"
+    },
+    {
+      "name": "NWS Pittsburgh",
+      "type": "nws-api",
+      "url": "https://api.weather.gov/alerts/active?office=PBZ"
+    },
+    {
+      "name": "NWS State College",
+      "type": "nws-api",
+      "url": "https://api.weather.gov/alerts/active?office=CTP"
+    },
+    {
+      "name": "NWS Binghamton",
+      "type": "nws-api",
+      "url": "https://api.weather.gov/alerts/active?office=BGM"
+    },
+    {
+      "name": "NWS Mt Holly / Philadelphia",
+      "type": "nws-api",
+      "url": "https://api.weather.gov/alerts/active?office=PHI"
+    }
+  ]
+}
     { "id": "psp", "title": "PA State Police", "sources": [
       { "name": "PA State Police X Scrape", "type": "local-json", "url": "data/psp_x.json" }
     ]},
