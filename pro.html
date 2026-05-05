@@ -8,7 +8,6 @@
     :root {
       --bg: #000;
       --panel: #050505;
-      --panel2: #101419;
       --border: #263241;
       --text: #e6edf3;
       --muted: #8fa3b8;
@@ -172,16 +171,6 @@
       font-size: 13px;
     }
 
-    .error-note {
-      margin: 10px 12px;
-      padding: 8px;
-      border: 1px solid #5c2b2b;
-      background: #1a0808;
-      color: #ffb4b4;
-      border-radius: 8px;
-      font-size: 12px;
-    }
-
     .modal.hidden { display: none; }
 
     .modal {
@@ -284,7 +273,12 @@
   <script>
     const DATA_URL = "data/media_deck.json";
     const SOURCES_URL = "data/media_sources.json";
-    const PSP_X_URL = "data/psp_x.json";
+
+    const hiddenColumns = new Set([
+      "nws",
+      "philly_oem",
+      "pa511"
+    ]);
 
     let mediaSourcesConfig = null;
 
@@ -317,10 +311,13 @@
 
       const diff = Date.now() - d.getTime();
       const mins = Math.floor(diff / 60000);
+
       if (mins < 1) return "now";
       if (mins < 60) return `${mins}m`;
+
       const hrs = Math.floor(mins / 60);
       if (hrs < 24) return `${hrs}h`;
+
       const days = Math.floor(hrs / 24);
       return `${days}d`;
     }
@@ -338,50 +335,6 @@
         console.warn("Could not load media_sources.json", err);
         mediaSourcesConfig = { markets: [] };
       }
-    }
-
-    async function mergePspX(deckData) {
-      try {
-        const psp = await loadJson(PSP_X_URL);
-
-        const pspItems = (psp.items || []).map((item, idx) => ({
-          id: item.url || item.published_at || `psp-x-${idx}`,
-          source: item.source || "PA State Police (X)",
-          title: item.title || item.text || "PA State Police post",
-          description: item.text || "",
-          url: item.url || "https://x.com/pastatepolice",
-          image: item.image || "",
-          published_at: item.published_at || psp.generated_at || new Date().toISOString()
-        }));
-
-        let pspMarket = deckData.markets.find(m => m.id === "psp");
-
-        if (!pspMarket) {
-          pspMarket = {
-            id: "psp",
-            title: "PA State Police",
-            items: [],
-            errors: []
-          };
-          deckData.markets.push(pspMarket);
-        }
-
-        const seen = new Set();
-        pspMarket.items = [...pspItems, ...(pspMarket.items || [])]
-          .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
-          .filter(item => {
-            const key = item.url || item.title || item.id;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          })
-          .slice(0, 50);
-
-      } catch (err) {
-        console.warn("Could not merge PSP X data", err);
-      }
-
-      return deckData;
     }
 
     function openSourcesModal(marketId) {
@@ -437,7 +390,6 @@
 
     function renderColumn(market) {
       const items = market.items || [];
-      const errors = market.errors || [];
 
       return `
         <section class="column">
@@ -451,8 +403,6 @@
             <button class="tab sources-tab" type="button" data-market-id="${escapeHtml(market.id)}">Sources</button>
           </div>
 
-          ${errors.length ? `<div class="error-note">${escapeHtml(errors.length)} source error(s). Check Sources/config.</div>` : ""}
-
           <div class="items">
             ${items.length ? items.map(renderCard).join("") : `<div class="empty">No data currently available.</div>`}
           </div>
@@ -462,7 +412,11 @@
 
     function renderDeck(deckData) {
       const deck = document.getElementById("deck");
-      deck.innerHTML = (deckData.markets || []).map(renderColumn).join("");
+
+      deck.innerHTML = (deckData.markets || [])
+        .filter(market => !hiddenColumns.has(market.id))
+        .map(renderColumn)
+        .join("");
 
       document.getElementById("updated").textContent =
         deckData.generated_at
@@ -472,10 +426,7 @@
 
     async function init() {
       await loadSourcesConfig();
-
-      let deckData = await loadJson(DATA_URL);
-      deckData = await mergePspX(deckData);
-
+      const deckData = await loadJson(DATA_URL);
       renderDeck(deckData);
     }
 
@@ -501,139 +452,5 @@
       document.getElementById("updated").textContent = "Load error";
     });
   </script>
-</body>
-</html><!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PA Media Deck</title>
-  <style>
-    :root {
-      --bg: #000;
-      --panel: #080808;
-      --card: #101214;
-      --card2: #15181b;
-      --line: #2a2f35;
-      --text: #f2f2f2;
-      --muted: #9aa4ad;
-      --blue: #1d9bf0;
-      --yellow: #ffd166;
-      --red: #ff4d4d;
-      --green: #2ecc71;
-    }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; }
-    a { color: inherit; text-decoration: none; }
-    .topbar { height: 46px; display: flex; align-items: center; gap: 12px; padding: 0 14px; border-bottom: 1px solid var(--line); background: #050505; }
-    .brand { font-weight: 800; letter-spacing: .2px; white-space: nowrap; }
-    .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
-    .spacer { flex: 1; }
-    .btn { border: 1px solid var(--line); background: #111; color: var(--text); border-radius: 999px; padding: 7px 11px; font-size: 13px; cursor: pointer; }
-    .deck { height: calc(100vh - 46px); display: flex; overflow-x: auto; overflow-y: hidden; background: var(--bg); }
-    .column { width: 318px; min-width: 318px; height: 100%; border-right: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; }
-    .col-head { position: sticky; top: 0; z-index: 5; background: rgba(8,8,8,.96); border-bottom: 1px solid var(--line); padding: 10px 12px 0; }
-    .col-title-row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
-    .col-title { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .count { color: var(--muted); font-size: 12px; }
-    .tabs { display: flex; gap: 18px; margin-top: 7px; font-size: 13px; color: var(--muted); }
-    .tab.active { color: var(--text); border-bottom: 3px solid var(--blue); padding-bottom: 7px; font-weight: 700; }
-    .items { overflow-y: auto; flex: 1; }
-    .card { display: block; padding: 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
-    .card:hover { background: var(--card); }
-    .source-line { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; min-width: 0; }
-    .avatar { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 11px; background: var(--card2); border: 1px solid var(--line); flex: 0 0 auto; overflow: hidden; }
-    .source { font-weight: 700; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .age { color: var(--muted); font-size: 12px; white-space: nowrap; }
-    .title { font-weight: 750; font-size: 14px; line-height: 1.25; margin: 3px 0 7px; }
-    .desc { color: #cfd6dc; font-size: 13px; line-height: 1.28; margin: 0 0 8px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-    .media { margin-top: 8px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #050505; }
-    .media img { display: block; width: 100%; max-height: 175px; object-fit: cover; }
-    .foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; margin-top: 8px; }
-    .tag { border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; color: var(--muted); }
-    .empty, .error { padding: 18px 12px; color: var(--muted); font-size: 14px; }
-    .error { color: #ffb3b3; }
-    .stale { color: var(--yellow); }
-    @media (max-width: 700px) { .column { width: 88vw; min-width: 88vw; } .brand { max-width: 170px; overflow:hidden; text-overflow:ellipsis; } }
-  </style>
-</head>
-<body>
-  <div class="topbar">
-    <div class="brand">PA Media Deck</div>
-    <div class="meta" id="updated">Loading…</div>
-    <div class="spacer"></div>
-    <button class="btn" onclick="loadDeck(true)">Refresh</button>
-  </div>
-  <main class="deck" id="deck"></main>
-
-<script>
-const DATA_URL = '/data/media_deck.json';
-const AUTO_REFRESH_MS = 120000;
-
-function escapeHtml(s = '') { return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-function parseDate(v) { const d = new Date(v); return isNaN(d) ? null : d; }
-function fmtFull(v) {
-  const d = parseDate(v); if (!d) return '';
-  return d.toLocaleString([], { month:'2-digit', day:'2-digit', year:'2-digit', hour:'numeric', minute:'2-digit' });
-}
-function age(v) {
-  const d = parseDate(v); if (!d) return '';
-  const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
-  if (sec < 60) return `${sec}s`;
-  const min = Math.floor(sec / 60); if (min < 60) return `${min}m`;
-  const hr = Math.floor(min / 60); if (hr < 48) return `${hr}h`;
-  const days = Math.floor(hr / 24); return `${days}d`;
-}
-function initials(name='?') { return name.split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
-function imgTag(url, title) {
-  if (!url) return '';
-  return `<div class="media"><img loading="lazy" src="${escapeHtml(url)}" alt="${escapeHtml(title || 'media image')}" onerror="this.closest('.media').remove()"></div>`;
-}
-function itemCard(item) {
-  const href = item.url || '#';
-  const desc = item.description ? `<p class="desc">${escapeHtml(item.description)}</p>` : '';
-  const tag = item.type ? `<span class="tag">${escapeHtml(item.type)}</span>` : '<span></span>';
-  return `<a class="card" href="${escapeHtml(href)}" target="_blank" rel="noopener">
-    <div class="source-line">
-      <span class="avatar">${escapeHtml(initials(item.source))}</span>
-      <span class="source">${escapeHtml(item.source || 'Source')}</span>
-      <span class="age">· ${escapeHtml(age(item.published_at))}</span>
-    </div>
-    <div class="title">${escapeHtml(item.title || 'Untitled')}</div>
-    ${desc}
-    ${imgTag(item.image, item.title)}
-    <div class="foot"><span>${escapeHtml(fmtFull(item.published_at))}</span>${tag}</div>
-  </a>`;
-}
-function columnHtml(market) {
-  const items = Array.isArray(market.items) ? market.items : [];
-  return `<section class="column">
-    <div class="col-head">
-      <div class="col-title-row"><div class="col-title">${escapeHtml(market.title)}</div><div class="count">${items.length}</div></div>
-      <div class="tabs"><span class="tab active">Latest</span><span class="tab">Sources</span><span class="tab">Media</span></div>
-    </div>
-    <div class="items">${items.length ? items.map(itemCard).join('') : '<div class="empty">No recent items.</div>'}</div>
-  </section>`;
-}
-async function loadDeck(manual=false) {
-  const deck = document.getElementById('deck');
-  const updated = document.getElementById('updated');
-  try {
-    const res = await fetch(`${DATA_URL}?v=${Date.now()}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    deck.innerHTML = (data.markets || []).map(columnHtml).join('');
-    const stamp = fmtFull(data.generated_at);
-    updated.textContent = stamp ? `Data updated ${stamp}` : 'Data loaded';
-    const generated = parseDate(data.generated_at);
-    if (generated && Date.now() - generated.getTime() > 20 * 60 * 1000) updated.classList.add('stale'); else updated.classList.remove('stale');
-  } catch (err) {
-    if (!deck.innerHTML || manual) deck.innerHTML = `<div class="error">Could not load ${DATA_URL}: ${escapeHtml(err.message)}</div>`;
-    updated.textContent = 'Data load error';
-  }
-}
-loadDeck();
-setInterval(loadDeck, AUTO_REFRESH_MS);
-</script>
 </body>
 </html>
