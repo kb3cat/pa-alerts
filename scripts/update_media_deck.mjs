@@ -30,11 +30,7 @@ function cleanText(text = "") {
 }
 
 function hashItem(source, title, url, date) {
-  return crypto
-    .createHash("sha1")
-    .update(`${source}|${title}|${url}|${date}`)
-    .digest("hex")
-    .slice(0, 16);
+  return crypto.createHash("sha1").update(`${source}|${title}|${url}|${date}`).digest("hex").slice(0, 16);
 }
 
 function normalizeDate(value) {
@@ -61,25 +57,23 @@ function makeItem(sourceName, title, url, published, description = "", image = "
 async function fetchRss(source) {
   const feed = await parser.parseURL(source.url);
 
-  return (feed.items || [])
-    .map(item => {
-      const image =
-        item.enclosure?.url ||
-        item["media:content"]?.url ||
-        item["media:thumbnail"]?.url ||
-        "";
+  return (feed.items || []).map(item => {
+    const image =
+      item.enclosure?.url ||
+      item["media:content"]?.url ||
+      item["media:thumbnail"]?.url ||
+      "";
 
-      return makeItem(
-        source.name,
-        item.title,
-        item.link || item.guid || source.url,
-        item.isoDate || item.pubDate || item.created || item.updated,
-        item.contentSnippet || item.content || item.summary || "",
-        image,
-        "rss"
-      );
-    })
-    .filter(item => item.title && item.url);
+    return makeItem(
+      source.name,
+      item.title,
+      item.link || item.guid || source.url,
+      item.isoDate || item.pubDate || item.created || item.updated,
+      item.contentSnippet || item.content || item.summary || "",
+      image,
+      "rss"
+    );
+  });
 }
 
 async function fetchLocalJson(source) {
@@ -87,7 +81,7 @@ async function fetchLocalJson(source) {
   const data = JSON.parse(raw);
   const items = Array.isArray(data) ? data : (data.items || []);
 
-  return items.map((item, idx) =>
+  return items.map(item =>
     makeItem(
       item.source || source.name,
       item.title || item.text || `${source.name} item`,
@@ -107,11 +101,7 @@ async function scrapeSource(browser, source) {
   });
 
   try {
-    await page.goto(source.url, {
-      waitUntil: "domcontentloaded",
-      timeout: 45000
-    });
-
+    await page.goto(source.url, { waitUntil: "domcontentloaded", timeout: 45000 });
     await page.waitForTimeout(4500);
 
     const origin = new URL(source.url).origin;
@@ -123,17 +113,52 @@ async function scrapeSource(browser, source) {
       }
 
       function absUrl(href) {
-        try {
-          return new URL(href, origin).href;
-        } catch {
-          return "";
+        try { return new URL(href, origin).href; } catch { return ""; }
+      }
+
+      function isRealArticle(url, title) {
+        const u = url.toLowerCase();
+        const t = title.toLowerCase();
+
+        if (t.includes("sign in") || t.includes("newsletter") || t.includes("create account")) return false;
+        if (u.includes("/weather") || u.includes("/sports") || u.includes("/watch")) return false;
+        if (u.includes("/contact") || u.includes("/about") || u.includes("/privacy")) return false;
+        if (u.includes("/search") || u.includes("/category/") || u.includes("/features")) return false;
+
+        if (hostname.includes("wfmz.com")) {
+          return u.includes("/news/") && u.endsWith(".html");
         }
+
+        if (hostname.includes("erienewsnow.com")) {
+          return u.includes("/story/");
+        }
+
+        if (hostname.includes("local21news.com") || hostname.includes("wjactv.com")) {
+          return u.includes("/news/") && !u.endsWith("/news/local");
+        }
+
+        if (hostname.includes("fox29.com")) {
+          return u.includes("/news/");
+        }
+
+        if (hostname.includes("goerie.com")) {
+          return u.includes("/story/");
+        }
+
+        if (hostname.includes("altoonamirror.com")) {
+          return u.includes("/news/") && !u.endsWith("/news/");
+        }
+
+        if (hostname.includes("phila.gov")) {
+          return u.includes("/departments/oem/") || u.includes("/programs/");
+        }
+
+        return u.includes("/news/") || u.includes("/article/") || u.includes("/story/");
       }
 
       function bestImageFrom(el) {
         const scope = el.closest("article, .card, .story, .article, .tease, .content-item, .promo") || el;
         const img = scope.querySelector("img") || el.querySelector("img");
-
         if (!img) return "";
 
         const candidates = [
@@ -147,11 +172,7 @@ async function scrapeSource(browser, source) {
 
         const srcset = img.getAttribute("srcset") || img.getAttribute("data-srcset") || "";
         if (srcset) {
-          const best = srcset
-            .split(",")
-            .map(x => x.trim().split(" ")[0])
-            .filter(Boolean)
-            .pop();
+          const best = srcset.split(",").map(x => x.trim().split(" ")[0]).filter(Boolean).pop();
           if (best) candidates.unshift(best);
         }
 
@@ -165,85 +186,11 @@ async function scrapeSource(browser, source) {
             !url.includes("avatar") &&
             !url.includes("profile") &&
             !url.includes("placeholder")
-          ) {
-            return url;
-          }
+          ) return url;
         }
 
         return "";
       }
-
-      const junkExact = new Set([
-        "sign in",
-        "sign in or create account",
-        "subscribe",
-        "log in",
-        "newsletter sign up",
-        "newsletter",
-        "question of the day",
-        "contact information",
-        "hometown favorites",
-        "tv program schedule",
-        "tv apps and streaming",
-        "alerts & free apps",
-        "forecast and conditions",
-        "doppler max 5d storm spotter",
-        "share photos/videos",
-        "closing and delays",
-        "athlete of the week",
-        "giving you the business",
-        "letters to the editor",
-        "other commentaries",
-        "professional sports",
-        "pennsylvania sports",
-        "northern lehigh county",
-        "southern lehigh county",
-        "western lehigh county",
-        "eastern berks county",
-        "northern berks county",
-        "northampton county",
-        "armstrong army strong",
-        "crisis in the classroom"
-      ]);
-
-      const junkContains = [
-        "/weather",
-        "/sports",
-        "/watch",
-        "/features",
-        "/money",
-        "/community",
-        "/contests",
-        "/about",
-        "/contact",
-        "/privacy",
-        "/terms",
-        "/login",
-        "/signin",
-        "/sign-in",
-        "/subscribe",
-        "/newsletter",
-        "/account",
-        "/search",
-        "/category/weather",
-        "/category/sports",
-        "/calendar",
-        "/obituaries",
-        "/classifieds"
-      ];
-
-      const goodPathHints = [
-        "/news/",
-        "/article/",
-        "/story/",
-        "/local/",
-        "/2026/",
-        "/breaking",
-        "/crime",
-        "/traffic",
-        "/fire",
-        "/police"
-      ];
 
       const anchors = [...document.querySelectorAll("a[href]")];
 
@@ -261,10 +208,7 @@ async function scrapeSource(browser, source) {
         );
 
         const timeEl = article?.querySelector("time");
-        const published =
-          timeEl?.getAttribute("datetime") ||
-          timeEl?.innerText ||
-          "";
+        const published = timeEl?.getAttribute("datetime") || timeEl?.innerText || "";
 
         return {
           source: sourceName,
@@ -284,17 +228,7 @@ async function scrapeSource(browser, source) {
         .filter(item => item.url !== sourceUrl)
         .filter(item => item.title.length >= 22)
         .filter(item => item.title.length <= 180)
-        .filter(item => !junkExact.has(item.title.toLowerCase()))
-        .filter(item => !junkContains.some(j => item.url.toLowerCase().includes(j)))
-        .filter(item => goodPathHints.some(h => item.url.toLowerCase().includes(h)))
-        .filter(item => {
-          const lower = item.title.toLowerCase();
-          if (lower.includes("sign in")) return false;
-          if (lower.includes("create account")) return false;
-          if (lower.includes("newsletter")) return false;
-          if (lower.includes("weather app")) return false;
-          return true;
-        })
+        .filter(item => isRealArticle(item.url, item.title))
         .filter(item => {
           const key = item.url;
           if (seen.has(key)) return false;
@@ -302,23 +236,10 @@ async function scrapeSource(browser, source) {
           return true;
         })
         .slice(0, 25);
-    }, {
-      sourceName: source.name,
-      sourceUrl: source.url,
-      origin,
-      hostname
-    });
+    }, { sourceName: source.name, sourceUrl: source.url, origin, hostname });
 
     return items.map(item =>
-      makeItem(
-        source.name,
-        item.title,
-        item.url,
-        item.published_at || new Date().toISOString(),
-        item.description || "",
-        item.image || "",
-        "scrape"
-      )
+      makeItem(source.name, item.title, item.url, item.published_at || new Date().toISOString(), item.description || "", item.image || "", "scrape")
     );
   } finally {
     await page.close();
@@ -350,13 +271,9 @@ async function main() {
         if (!source.url || source.disabled) continue;
 
         try {
-          if (source.type === "rss") {
-            items.push(...await fetchRss(source));
-          } else if (source.type === "local-json") {
-            items.push(...await fetchLocalJson(source));
-          } else if (source.type === "scrape") {
-            items.push(...await scrapeSource(browser, source));
-          }
+          if (source.type === "rss") items.push(...await fetchRss(source));
+          else if (source.type === "local-json") items.push(...await fetchLocalJson(source));
+          else if (source.type === "scrape") items.push(...await scrapeSource(browser, source));
         } catch (err) {
           console.log(`${source.type || "source"} failed: ${source.name} — ${err.message}`);
         }
