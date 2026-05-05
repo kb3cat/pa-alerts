@@ -81,17 +81,21 @@ async function fetchLocalJson(source) {
   const data = JSON.parse(raw);
   const items = Array.isArray(data) ? data : (data.items || []);
 
-  return items.map(item =>
-    makeItem(
+  return items.map(item => {
+    const title = Object.prototype.hasOwnProperty.call(item, "title")
+      ? item.title
+      : (item.text || `${source.name} item`);
+
+    return makeItem(
       item.source || source.name,
-      item.title || item.text || `${source.name} item`,
+      title,
       item.url || item.link || source.url,
       item.published_at || item.pubDate || data.generated_at || new Date().toISOString(),
       item.description || item.text || "",
       item.image || "",
       "local-json"
-    )
-  );
+    );
+  });
 }
 
 async function scrapeSource(browser, source) {
