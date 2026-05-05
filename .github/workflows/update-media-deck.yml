@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: media-deck
+  cancel-in-progress: true
+
 jobs:
   update:
     runs-on: ubuntu-latest
@@ -33,7 +37,13 @@ jobs:
         run: npm run update:media-deck
 
       - name: Commit updated data
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update media deck data"
-          file_pattern: data/media_deck.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git pull --rebase origin main
+
+          git add data/media_deck.json data/psp_x.json
+          git commit -m "Update media deck data" || echo "No changes to commit"
+
+          git push origin main
