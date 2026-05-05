@@ -1,133 +1,90 @@
-import fs from "node:fs/promises";
 import { chromium } from "playwright";
+import fs from "fs";
 
-const OUT = "data/psp_x.json";
-const URL = "https://x.com/pastatepolice";
-const MAX_POSTS = 15;
+const URL = "https://nitter.net/PAStatePolice"; // lightweight X frontend
 
-function cleanText(text = "") {
-  return String(text)
+function cleanText(text) {
+  if (!text) return "";
+
+  return text
+    .replace(/\n+/g, " ")
+    .replace(/https?:\/\/\S+/g, "") // remove URLs
+    .replace(/WATCH LIVE.*$/i, "")
+    .replace(/Sign up.*$/i, "")
+    .replace(/Join.*$/i, "")
     .replace(/\s+/g, " ")
-    .replace(/^PA State Police\s*@PAStatePolice\s*/i, "")
-    .replace(/^PA State Police\s*/i, "")
     .trim();
 }
 
-function cleanTweetText(raw = "") {
-  let lines = String(raw)
-    .split("\n")
-    .map(l => l.trim())
-    .filter(Boolean);
+function isMepa(text) {
+  const lower = text.toLowerCase();
 
-  lines = lines.filter(l => {
-    const lower = l.toLowerCase();
-
-    if (lower === "pa state police") return false;
-    if (lower === "@pastatepolice") return false;
-    if (lower === "pa state police @pastatepolice") return false;
-    if (lower === "reposted") return false;
-    if (lower === "show more") return false;
-    if (/^\d+[smhd]$/.test(lower)) return false;
-    if (/^\d+(\.\d+)?[kKmM]?$/.test(lower)) return false;
-    if (["reply", "repost", "like", "view"].includes(lower)) return false;
-
-    return true;
-  });
-
-  return cleanText(lines.join(" "));
+  return (
+    lower.includes("missing endangered person advisory") ||
+    lower.includes("mepa")
+  );
 }
 
-async function run() {
-  const browser = await chromium.launch({ headless: true });
-
-  const page = await browser.newPage({
-    userAgent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"
+(async () => {
+  const browser = await chromium.launch({
+    headless: true
   });
+
+  const page = await browser.newPage();
 
   console.log("Loading PSP X page...");
+  await page.goto(URL, { waitUntil: "domcontentloaded" });
 
-  await page.goto(URL, {
-    waitUntil: "domcontentloaded",
-    timeout: 60000
-  });
+  const posts = await page.$$eval(".timeline-item", items =>
+    items.slice(0, 10).map(item => {
+      const text =
+        item.querySelector(".tweet-content")?.innerText || "";
 
-  await page.waitForTimeout(5000);
+      const link =
+        item.querySelector("a.tweet-link")?.href || "";
 
-  let posts = [];
+      const time =
+        item.querySelector("span.tweet-date a")?.title || "";
 
-  try {
-    await page.waitForSelector("article", { timeout: 15000 });
+      const img =
+        item.querySelector(".attachments img")?.src || "";
 
-    posts = await page.evaluate((MAX_POSTS) => {
-      const articles = [...document.querySelectorAll("article")].slice(0, MAX_POSTS);
-
-      return articles.map((article) => {
-        const rawText = article.innerText || "";
-
-        const timeEl = article.querySelector("time");
-        const linkEl = timeEl?.closest("a");
-
-        const images = [...article.querySelectorAll("img")]
-          .map((img) => img.src)
-          .filter(
-            (src) =>
-              src &&
-              !src.includes("profile_images") &&
-              !src.includes("emoji") &&
-              !src.includes("abs.twimg.com")
-          );
-
-        return {
-          source: "PA State Police",
-          rawText,
-          published_at: timeEl?.getAttribute("datetime") || new Date().toISOString(),
-          url: linkEl ? `https://x.com${linkEl.getAttribute("href")}` : "https://x.com/pastatepolice",
-          image: images[0] || ""
-        };
-      });
-    }, MAX_POSTS);
-  } catch {
-    console.log("No articles found or page structure changed.");
-  }
-
-  await browser.close();
+      return {
+        rawText: text,
+        url: link,
+        published_at: time,
+        image: img
+      };
+    })
+  );
 
   const cleaned = posts
-    .map((p) => {
-      const text = cleanTweetText(p.rawText);
+    .map(p => {
+      const text = cleanText(p.rawText);
+
+      if (!text) return null;
+
+      const mepa = isMepa(text);
+
       return {
         source: "PA State Police",
-        title: text.slice(0, 120),
+        title: mepa
+          ? "Missing Endangered Person Advisory (MEPA)"
+          : "",
         text,
         published_at: p.published_at,
         url: p.url,
         image: p.image
       };
     })
-    .filter((p) => p.text.length > 20)
-    .filter((p) => !p.text.toLowerCase().includes("watch live"));
+    .filter(Boolean);
 
-  await fs.mkdir("data", { recursive: true });
-
-  await fs.writeFile(
-    OUT,
-    JSON.stringify(
-      {
-        generated_at: new Date().toISOString(),
-        warning: "Experimental X scrape — may fail or return incomplete data.",
-        count: cleaned.length,
-        items: cleaned
-      },
-      null,
-      2
-    )
+  fs.writeFileSync(
+    "data/psp_x.json",
+    JSON.stringify(cleaned, null, 2)
   );
 
-  console.log(`Wrote ${OUT} with ${cleaned.length} posts`);
-}
+  console.log(`Wrote data/psp_x.json with ${cleaned.length} posts`);
 
-run().catch((err) => {
-  console.error("PSP X scrape failed:", err);
-  process.exit(1);
-});
+  await browser.close();
+})();
