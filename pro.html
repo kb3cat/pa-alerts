@@ -366,9 +366,10 @@
     }
 
     function renderCard(item) {
-      const title = escapeHtml(item.title || "Untitled");
+      const rawTitle = String(item.title || "").trim();
+      const title = escapeHtml(rawTitle);
       const source = escapeHtml(item.source || "Unknown source");
-      const desc = escapeHtml(item.description || "");
+      const desc = escapeHtml(item.description || item.text || "");
       const url = escapeHtml(item.url || "#");
       const img = item.image ? escapeHtml(item.image) : "";
       const ago = timeAgo(item.published_at);
@@ -377,7 +378,7 @@
       return `
         <article class="card">
           <div class="card-source">${source}</div>
-          <a class="card-title" href="${url}" target="_blank" rel="noopener">${title}</a>
+          ${rawTitle ? `<a class="card-title" href="${url}" target="_blank" rel="noopener">${title}</a>` : ""}
           ${img ? `<img class="card-image" src="${img}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ""}
           ${desc && desc !== title ? `<div class="card-desc">${desc}</div>` : ""}
           <div class="card-footer">
