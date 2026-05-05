@@ -6,13 +6,39 @@ const URL = "https://x.com/pastatepolice";
 const MAX_POSTS = 15;
 
 function cleanText(text = "") {
-  return text.replace(/\s+/g, " ").trim();
+  return String(text)
+    .replace(/\s+/g, " ")
+    .replace(/^PA State Police\s*@PAStatePolice\s*/i, "")
+    .replace(/^PA State Police\s*/i, "")
+    .trim();
+}
+
+function cleanTweetText(raw = "") {
+  let lines = String(raw)
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean);
+
+  lines = lines.filter(l => {
+    const lower = l.toLowerCase();
+
+    if (lower === "pa state police") return false;
+    if (lower === "@pastatepolice") return false;
+    if (lower === "pa state police @pastatepolice") return false;
+    if (lower === "reposted") return false;
+    if (lower === "show more") return false;
+    if (/^\d+[smhd]$/.test(lower)) return false;
+    if (/^\d+(\.\d+)?[kKmM]?$/.test(lower)) return false;
+    if (["reply", "repost", "like", "view"].includes(lower)) return false;
+
+    return true;
+  });
+
+  return cleanText(lines.join(" "));
 }
 
 async function run() {
-  const browser = await chromium.launch({
-    headless: true
-  });
+  const browser = await chromium.launch({ headless: true });
 
   const page = await browser.newPage({
     userAgent:
@@ -21,13 +47,11 @@ async function run() {
 
   console.log("Loading PSP X page...");
 
-  // 🚨 KEY CHANGE: use domcontentloaded instead of networkidle
   await page.goto(URL, {
     waitUntil: "domcontentloaded",
     timeout: 60000
   });
 
-  // give it a few seconds to render
   await page.waitForTimeout(5000);
 
   let posts = [];
@@ -39,7 +63,7 @@ async function run() {
       const articles = [...document.querySelectorAll("article")].slice(0, MAX_POSTS);
 
       return articles.map((article) => {
-        const text = article.innerText || "";
+        const rawText = article.innerText || "";
 
         const timeEl = article.querySelector("time");
         const linkEl = timeEl?.closest("a");
@@ -50,33 +74,39 @@ async function run() {
             (src) =>
               src &&
               !src.includes("profile_images") &&
-              !src.includes("emoji")
+              !src.includes("emoji") &&
+              !src.includes("abs.twimg.com")
           );
 
         return {
-          source: "PA State Police (X)",
-          title: text.split("\n").filter(Boolean).slice(0, 2).join(" "),
-          text,
+          source: "PA State Police",
+          rawText,
           published_at: timeEl?.getAttribute("datetime") || new Date().toISOString(),
-          url: linkEl ? `https://x.com${linkEl.getAttribute("href")}` : URL,
+          url: linkEl ? `https://x.com${linkEl.getAttribute("href")}` : "https://x.com/pastatepolice",
           image: images[0] || ""
         };
       });
     }, MAX_POSTS);
-
-  } catch (err) {
+  } catch {
     console.log("No articles found or page structure changed.");
   }
 
   await browser.close();
 
   const cleaned = posts
-    .map((p) => ({
-      ...p,
-      title: cleanText(p.title),
-      text: cleanText(p.text)
-    }))
-    .filter((p) => p.text.length > 20);
+    .map((p) => {
+      const text = cleanTweetText(p.rawText);
+      return {
+        source: "PA State Police",
+        title: text.slice(0, 120),
+        text,
+        published_at: p.published_at,
+        url: p.url,
+        image: p.image
+      };
+    })
+    .filter((p) => p.text.length > 20)
+    .filter((p) => !p.text.toLowerCase().includes("watch live"));
 
   await fs.mkdir("data", { recursive: true });
 
