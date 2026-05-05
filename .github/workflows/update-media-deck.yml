@@ -15,9 +15,18 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync with latest main
+        run: |
+          git fetch origin main
+          git checkout main
+          git pull --rebase origin main
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -41,9 +50,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git pull --rebase origin main
-
           git add data/media_deck.json data/psp_x.json
-          git commit -m "Update media deck data" || echo "No changes to commit"
 
-          git push origin main
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update media deck data"
+            git pull --rebase --autostash origin main
+            git push origin main
+          fi
