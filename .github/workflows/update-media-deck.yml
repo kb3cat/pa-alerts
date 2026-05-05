@@ -23,6 +23,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Scrape PSP X feed
+        run: node scripts/scrape_psp_x.mjs
+
       - name: Build media deck data
         run: npm run update:media-deck
 
