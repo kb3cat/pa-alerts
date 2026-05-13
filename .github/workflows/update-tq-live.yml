@@ -1,0 +1,56 @@
+name: Update TQ Live Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      event_ids:
+        description: "511PA event IDs, comma-separated"
+        required: true
+        default: "254168"
+
+  repository_dispatch:
+    types:
+      - update-tq-live
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-tq-live
+  cancel-in-progress: true
+
+jobs:
+  update-tq-live:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run TQ live updater
+        env:
+          TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
+          TQ_EVENT_IDS: ${{ github.event.inputs.event_ids || github.event.client_payload.event_ids || '254168' }}
+          TQ_SAMPLE_EVERY_MILES: "0.25"
+          TQ_MAX_SAMPLE_POINTS: "24"
+        run: node scripts/update_tq_live.mjs
+
+      - name: Commit updated TQ live data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add data/tq_live.json
+
+          if git diff --cached --quiet; then
+            echo "No TQ live data changes."
+            exit 0
+          fi
+
+          git commit -m "Update TQ live data"
+          git push
