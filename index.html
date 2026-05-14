@@ -2,241 +2,165 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PennAlerts — Index</title>
-
-  <style>
-    :root{
-      --bg:#0f0f10;
-      --panel:#171719;
-      --panel2:#1d1d1f;
-      --border:#2a2a2d;
-      --text:#e9e9ea;
-      --muted:#a7a7aa;
-
-      --accent:#00bfff;
-      --good:#29d36a;
-      --warn:#ffb000;
-      --bad:#ff2b2b;
-    }
-
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    .topbar{
-      background:#222;
-      border-bottom:2px solid var(--border);
-      padding:14px 16px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-    }
-
-    .titleWrap{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-
-    .title{
-      font-size:20px;
-      font-weight:700;
-      letter-spacing:0.3px;
-      line-height:1.1;
-    }
-
-    .subtitle{
-      color:var(--muted);
-      font-size:12px;
-    }
-
-    .statusPill{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:8px 10px;
-      border:1px solid var(--border);
-      background:var(--panel2);
-      border-radius:999px;
-      color:var(--muted);
-      font-size:12px;
-      white-space:nowrap;
-    }
-
-    .dot{
-      width:10px;
-      height:10px;
-      border-radius:50%;
-      background:var(--good);
-      box-shadow:0 0 0 2px rgba(41,211,106,0.15);
-    }
-
-    main{
-      padding:16px;
-      max-width:1100px;
-      margin:0 auto;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns: repeat( auto-fit, minmax(240px, 1fr) );
-      gap:12px;
-      margin-top:14px;
-    }
-
-    a.card{
-      display:block;
-      text-decoration:none;
-      color:inherit;
-      border:1px solid var(--border);
-      background:linear-gradient(180deg, var(--panel), var(--panel2));
-      border-radius:12px;
-      padding:14px;
-      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-      position:relative;
-      overflow:hidden;
-    }
-
-    a.card:hover{
-      transform: translateY(-2px);
-      border-color: rgba(0,191,255,0.45);
-      box-shadow: 0 10px 26px rgba(0,0,0,0.28);
-    }
-
-    .cardTop{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom:10px;
-    }
-
-    .cardTitle{
-      font-size:16px;
-      font-weight:700;
-    }
-
-    .tag{
-      font-size:11px;
-      color:var(--muted);
-      border:1px solid var(--border);
-      padding:4px 8px;
-      border-radius:999px;
-      background:rgba(255,255,255,0.03);
-      white-space:nowrap;
-    }
-
-    .thumb{
-      width:100%;
-      height:auto;
-      display:block;
-      border:1px solid var(--border);
-      border-radius:10px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-      margin: 0 0 10px 0;
-      background: rgba(0,0,0,0.15);
-    }
-
-    .cardDesc{
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.4;
-      margin:0;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KB3CAT | Operational Systems & Situational Awareness</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-  <header class="topbar">
-    <div class="titleWrap">
-      <div class="title">PennAlerts</div>
-      <div class="subtitle">Quick links to active boards</div>
+  <header class="site-header">
+    <div class="brand">
+      <div class="tower">⌁</div>
+      <div>
+        <div class="logo"><span>KB3</span><strong>CAT</strong></div>
+        <div class="tagline">Operational Systems &amp;<br />Situational Awareness</div>
+      </div>
     </div>
 
-    <div class="statusPill" title="Static index page">
-      <span class="dot"></span>
-      Index Ready
-    </div>
+    <nav>
+      <a href="/">Home</a>
+      <a href="#dashboards">Dashboards</a>
+      <a href="#projects">Projects</a>
+      <a href="#updates">Updates</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
   </header>
 
   <main>
-    <div class="grid">
-
-      <a class="card" href="alerts.html">
-        <div class="cardTop">
-          <div class="cardTitle">Alerts</div>
-          <div class="tag">alerts.html</div>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>REAL-TIME DATA.<br />OPERATIONAL INSIGHT.<br />PUBLIC SAFETY FOCUSED.</h1>
+        <p>Dashboards, tools, and infrastructure supporting emergency communications, situational awareness, and operational decision making.</p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#dashboards">View Live Dashboards</a>
+          <a class="btn secondary" href="#projects">View Projects</a>
         </div>
-        <img class="thumb" src="images/alerts.png" alt="Alerts preview" loading="lazy" />
-        <p class="cardDesc">
-          PA Watches and Warnings, with NWS Alert Map, a link for the Regional Weather Summary out of NWS State College, and Windy radar. Updated every 5 minutes.
-        </p>
-      </a>
+      </div>
+    </section>
 
-      <a class="card" href="advisories.html">
-        <div class="cardTop">
-          <div class="cardTitle">Advisories</div>
-          <div class="tag">advisories.html</div>
-        </div>
-        <img class="thumb" src="images/advisories.png" alt="Advisories preview" loading="lazy" />
-        <p class="cardDesc">
-          Same as the Alerts page, but includes Advisories as well. Updated every 5 minutes.
-        </p>
-      </a>
+    <section class="status-bar">
+      <strong>System Status</strong>
+      <span><i></i> All Systems Operational</span>
+      <span><i></i> GitHub Actions: Operational</span>
+      <span><i></i> Weather Station: Online</span>
+      <span><i></i> Media Monitor: Online</span>
+    </section>
 
-      <a class="card" href="hazards.html">
-        <div class="cardTop">
-          <div class="cardTitle">Hazards</div>
-          <div class="tag">hazards.html</div>
-        </div>
-        <img class="thumb" src="images/hazards.png" alt="Hazards preview" loading="lazy" />
-        <p class="cardDesc">
-          A one-page status board showing Alerts, Advisories, Alert Map, Radar, and list of all advisories. Updated every 5 minutes.
-        </p>
-      </a>
+    <section class="notice-ticker">
+      <span>Site update:</span>
+      <marquee behavior="scroll" direction="left" scrollamount="4">
+        KB3CAT.com is being rebuilt. Some sections are placeholders while dashboards, project pages, and update archives are brought online.
+      </marquee>
+    </section>
 
-      <a class="card" href="stormreports.html">
-        <div class="cardTop">
-          <div class="cardTitle">Storm Reports</div>
-          <div class="tag">stormreports.html</div>
-        </div>
-        <img class="thumb" src="images/stormreports.png" alt="Storm Reports preview" loading="lazy" />
-        <p class="cardDesc">
-          Storm reports from the last rotating 24 hours
-        </p>
-      </a>
-      
-      <a class="card" href="traffic.html">
-        <div class="cardTop">
-          <div class="cardTitle">Traffic</div>
-          <div class="tag">traffic.html</div>
-        </div>
-        <img class="thumb" src="images/traffic.png" alt="Traffic preview" loading="lazy" />
-        <p class="cardDesc">
-          Roadway status board which pulls data from 511pa.com and lists road closures, speed restrictions, and active and planned vehicle restrictions. Updated every 5 minutes.
-        </p>
-      </a>
+    <section id="dashboards" class="panel">
+      <div class="section-head">
+        <h2>Featured Dashboards</h2>
+        <a href="dashboards.html">View all dashboards →</a>
+      </div>
 
-            <a class="card" href="airports.html">
-        <div class="cardTop">
-          <div class="cardTitle">Airports</div>
-          <div class="tag">airports.html</div>
-        </div>
-        <img class="thumb" src="images/airports.png" alt="Airports preview" loading="lazy" />
-        <p class="cardDesc">
-          Current status of Pennsylvania Airports with METAR data. Updated every 5 minutes.
-        </p>
-      </a>
+      <div class="dashboard-grid">
+        <article class="card">
+          <img src="assets/images/traffic-board.jpg" alt="Traffic Board preview" />
+          <h3>Traffic Board</h3>
+          <p>Pennsylvania traffic conditions, incidents, closures, restrictions, and alerts.</p>
+          <a href="https://alerts.kb3cat.com/traffic.html">View Board →</a>
+        </article>
 
+        <article class="card">
+          <img src="assets/images/hazards-board.jpg" alt="Hazards Board preview" />
+          <h3>Hazards Board</h3>
+          <p>Active watches, warnings, radar, and hazards across the region.</p>
+          <a href="https://alerts.kb3cat.com/hazards.html">View Board →</a>
+        </article>
+
+        <article class="card">
+          <img src="assets/images/airports-board.jpg" alt="Airports Board preview" />
+          <h3>Airports Board</h3>
+          <p>Airport status, METARs, delays, and operational aviation information.</p>
+          <a href="https://alerts.kb3cat.com/airports.html">View Board →</a>
+        </article>
+
+        <article class="card">
+          <img src="assets/images/weather-board.jpg" alt="Weather Systems preview" />
+          <h3>Weather Systems</h3>
+          <p>Radar, satellite, lightning, alerts, and weather monitoring resources.</p>
+          <a href="https://alerts.kb3cat.com/">View Board →</a>
+        </article>
+
+        <article class="card">
+          <img src="assets/images/media-monitor.jpg" alt="Media Monitor preview" />
+          <h3>Media Monitor</h3>
+          <p>Monitor streaming services, feeds, media outlets, and source status in one place.</p>
+          <a href="media-monitor.html">View Board →</a>
+        </article>
+      </div>
+    </section>
+
+    <div class="two-column">
+      <section id="updates" class="panel">
+        <div class="section-head">
+          <h2>Operations Updates</h2>
+          <a href="updates.html">View all updates →</a>
+        </div>
+
+        <article class="update">
+          <time>May 14, 2026</time>
+          <h3>KB3CAT Homepage Rebuild Started</h3>
+          <p>Beginning work on a cleaner landing page for dashboards, projects, system updates, and operational tools.</p>
+        </article>
+
+        <article class="update">
+          <time>May 14, 2026</time>
+          <h3>Traffic Board Enhancements Planned</h3>
+          <p>Planning additional support for closure details, trapped queue information, and real-time situational awareness.</p>
+        </article>
+
+        <article class="update">
+          <time>May 13, 2026</time>
+          <h3>Cloudflare Access Pages Hardened</h3>
+          <p>Continuing improvements to protected access pages for home lab, weather, router, and remote systems.</p>
+        </article>
+      </section>
+
+      <section id="projects" class="panel">
+        <div class="section-head">
+          <h2>Projects &amp; Infrastructure</h2>
+          <a href="projects.html">View all projects →</a>
+        </div>
+
+        <div class="project-grid">
+          <a class="project" href="coming-soon.html"><strong>OpenWrt Network</strong><span>Home lab and infrastructure routing.</span></a>
+          <a class="project" href="coming-soon.html"><strong>AREDN Mesh</strong><span>Amateur radio emergency data networking.</span></a>
+          <a class="project" href="coming-soon.html"><strong>Weather Station</strong><span>Personal weather station and live feeds.</span></a>
+          <a class="project" href="coming-soon.html"><strong>SCIN Monitoring</strong><span>Radio monitoring and trunked system work.</span></a>
+          <a class="project" href="coming-soon.html"><strong>Automation &amp; Pipelines</strong><span>GitHub Actions and data processing.</span></a>
+          <a class="project" href="coming-soon.html"><strong>Cloud Infrastructure</strong><span>Cloudflare, tunnels, and remote access.</span></a>
+        </div>
+      </section>
+    </div>
+
+    <div class="two-column bottom">
+      <section id="about" class="panel">
+        <h2>About KB3CAT</h2>
+        <p>With over 20 years in public safety communications and emergency management, I build and operate systems that support situational awareness and operational decision making.</p>
+        <p>This site features real-time dashboards, communications projects, weather systems, and infrastructure work from my home lab environment.</p>
+        <a class="btn secondary" href="about.html">Learn More About Me</a>
+      </section>
+
+      <section id="contact" class="panel">
+        <h2>Contact</h2>
+        <p><strong>Email:</strong> kb3cat@kb3cat.com</p>
+        <p><strong>Radio Call Sign:</strong> KB3CAT</p>
+        <p><strong>Location:</strong> Pennsylvania, USA</p>
+        <a class="btn primary" href="contact.html">Get in Touch</a>
+      </section>
     </div>
   </main>
-  <script src="/footer.js"></script>
+
+  <footer>
+    <div class="logo"><span>KB3</span><strong>CAT</strong></div>
+    <p>© 2026 KB3CAT. All data is for informational and situational awareness purposes only.</p>
+  </footer>
 </body>
 </html>
