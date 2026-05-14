@@ -4,13 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       event_ids:
-        description: "511PA event IDs, comma-separated"
-        required: true
-        default: "254168"
+        description: "Optional 511PA event IDs, comma-separated. Leave blank to auto-discover from traffic data files."
+        required: false
+        default: ""
 
   repository_dispatch:
     types:
       - update-tq-live
+
+  # Beta schedule. Keep this modest while testing API usage.
+  schedule:
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: write
@@ -26,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -35,9 +41,11 @@ jobs:
       - name: Run TQ live updater
         env:
           TOMTOM_KEY: ${{ secrets.TOMTOM_KEY }}
-          TQ_EVENT_IDS: ${{ github.event.inputs.event_ids || github.event.client_payload.event_ids || '254168' }}
+          TQ_EVENT_IDS: ${{ github.event.inputs.event_ids || github.event.client_payload.event_ids || '' }}
+          TQ_INPUT_FILES: "data/major_route_closures.json,data/lane_restrictions.json"
           TQ_SAMPLE_EVERY_MILES: "0.25"
           TQ_MAX_SAMPLE_POINTS: "24"
+          TQ_MAX_EVENTS: "20"
         run: node scripts/update_tq_live.mjs
 
       - name: Commit updated TQ live data
