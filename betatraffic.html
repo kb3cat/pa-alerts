@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pennsylvania 511 Roadway Status Board</title>
+
+<style>
+:root{
+  --bg:#0f0f10;
+  --panel2:#1d1d1f;
+  --border:#2a2a2d;
+  --text:#e9e9ea;
+  --muted:#a7a7aa;
+  --orange:#ffb000;
+  --red:#ff2b2b;
+  --blue:#00bfff;
+  --yellow:#ffe600;
+  --green:#29d36a;
+  --purple:#c084fc;
+}
+
+body{ margin:0; background:var(--bg); color:var(--text); font-family: Arial, Helvetica, sans-serif; }
+
+/* HEADER */
+.topbar{
+  background:#222;
+  border-bottom:2px solid var(--border);
+  padding:12px 16px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+}
+.title{ font-size:22px; font-weight:700; }
+.subtitle{ color:var(--muted); font-size:13px; margin-top:2px; }
+.header-left{ display:flex; flex-direction:column; }
+
+/* Data updated status dot */
+.updated-dot{
+  display:inline-block;
+  width:8px;
+  height:8px;
+  border-radius:999px;
+  margin-right:7px;
+  background:#ff2b2b;
+  box-shadow:0 0 0 3px rgba(255,255,255,.05);
+  vertical-align:middle;
+}
+.updated-dot.ok{ background:#29d36a; }
+.updated-dot.attn{ background:#ffb000; }
+.updated-dot.err{ background:#ff2b2b; }
+.updated-text{ vertical-align:middle; }
+
+/* Header right cluster */
+.header-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+/* Toggle (next to pill) */
+.toggle{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  font-size:12px;
+  user-select:none;
+  white-space:nowrap;
+}
+.toggle input{
+  appearance:none;
+  width:38px;
+  height:20px;
+  border-radius:999px;
+  background: rgba(255,255,255,.18);
+  position:relative;
+  outline:none;
+  cursor:pointer;
+  border:1px solid rgba(255,255,255,.18);
+}
+.toggle input:before{
+  content:"";
+  position:absolute;
+  width:16px;
+  height:16px;
+  border-radius:999px;
+  top:1px;
+  left:1px;
+  background: rgba(255,255,255,.85);
+  transition: transform .18s ease;
+}
+.toggle input:checked{
+  background: rgba(41, 211, 106, .35);
+  border-color: rgba(41, 211, 106, .35);
+}
+.toggle input:checked:before{
+  transform: translateX(18px);
+}
+.toggle .lbl{
+  color: var(--muted);
+}
+.toggle input:checked + .lbl{
+  color: #c9ffcf;
+}
+
+/* ROWS */
+.grid{ padding:10px; }
+.row{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:6px;
+  margin-bottom:12px;
+  padding:10px 12px;
+}
+
+/* TITLES */
+.paneltitle{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-bottom:1px solid var(--border);
+  padding-bottom:8px;
+  margin-bottom:8px;
+}
+.paneltitle .name{ font-size:22px; font-weight:900; color:var(--orange); }
+
+.panel-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.section-toggle{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.05);
+  color: var(--text);
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.section-toggle:hover{
+  background: rgba(255,255,255,.09);
+}
+.section-toggle.closed{
+  color: #ffd7a8;
+  border-color: rgba(255,176,0,.28);
+}
+
+/* ITEMS */
+.items{ max-height:45vh; overflow:auto; }
+.items.is-collapsed{ display:none; }
+
+.items.wb-scroll{
+  height:34vh;
+  max-height:none;
+  overflow:auto;
+}
+
+/* ITEMS content */
+.item{
+  padding:10px;
+  margin:8px 0;
+  background:#141415;
+  border:1px solid #232326;
+  border-left:7px solid var(--border);
+  border-radius:6px;
+  font-size:15px;
+  line-height:1.25;
+  word-break:break-word;
+}
+
+/* Correct section colors */
+.row.closures .item{ border-left-color: var(--red); }
+.row.lane .item{ border-left-color: var(--orange); }
+.row.speed .item{ border-left-color: var(--yellow); }
+.row.vehicle:not(.planned) .item{ border-left-color: var(--blue); }
+.row.vehicle.planned .item{ border-left-color: var(--purple); }
+
+/* None state override */
+.item.none{
+  border-left-color: var(--green) !important;
+}
+
+/* Vehicle grouping headers */
+.grouphead{
+  padding:8px 10px;
+  margin:10px 0 6px;
+  border-radius:6px;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  color:var(--text);
+  font-weight:400;
+  font-size:15px;
+  letter-spacing:.02em;
+}
+.grouphead.tier1{ color:#a855f7; }
+.grouphead.tier2{ color:#f59e0b; }
+.grouphead.tier3{ color:#3b82f6; }
+.grouphead.tier4{ color:#ef4444; }
+.grouphead.tier5{ color:#ec4899; }
+.grouphead.rl45{ color:#3b82f6; }
+.grouphead.rl55{ color:#06b6d4; }
+
+/* FOOTER pill reused in header */
+.footer{
+  position:fixed;
+  bottom:8px;
+  right:12px;
+  color:var(--muted);
+  font-size:12px;
+  background:rgba(0,0,0,.25);
+  padding:6px 10px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:999px;
+}
+.header-updated{
+  position:static;
+  bottom:auto;
+  right:auto;
+  background:none;
+  border:none;
+  padding:0;
+  margin-top:4px;
+  border-radius:0;
+}
+
+/* Link under updated */
+.header-links{
+  margin-top:6px;
+  font-size:12px;
+}
+.header-links a{
+  color:#bfe7ff;
+  text-decoration:none;
+}
+.header-links a:hover{
+  text-decoration:underline;
+}
+
+/* Roadway icon next to route name */
+.road-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.road-img{
+  width:34px;
+  height:34px;
+  object-fit:contain;
+  flex-shrink:0;
+}
+
+/* Second-line alignment under roadway text */
+.subline{
+  margin-top:2px;
+}
+.subline.indent-under-icon{
+  padding-left:42px;
+}
+
+/* TQ Data beta */
+.item-rowline{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.item-rowline .road-row{
+  flex:1 1 auto;
+  min-width:0;
+}
+.tq-btn{
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:3px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,176,0,.45);
+  background:rgba(255,176,0,.14);
+  color:#ffd18a;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.tq-btn:hover{
+  background:rgba(255,176,0,.24);
+}
+.tq-btn.major{
+  border-color:rgba(255,43,43,.55);
+  background:rgba(255,43,43,.16);
+  color:#ffb2b2;
+}
+.tq-modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.62);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  padding:16px;
+}
+.tq-modal-backdrop.show{ display:flex; }
+.tq-modal{
+  width:min(680px, 96vw);
+  max-height:86vh;
+  overflow:auto;
+  background:#171719;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:12px;
+  box-shadow:0 18px 60px rgba(0,0,0,.55);
+}
+.tq-modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+}
+.tq-modal-title{
+  font-size:20px;
+  font-weight:900;
+  color:var(--orange);
+}
+.tq-close{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);
+  color:var(--text);
+  width:32px;
+  height:32px;
+  border-radius:999px;
+  cursor:pointer;
+  font-size:18px;
+}
+.tq-modal-body{
+  padding:14px 16px 18px;
+}
+.tq-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:10px;
+  margin:12px 0;
+}
+.tq-metric{
+  background:#101011;
+  border:1px solid #2a2a2d;
+  border-radius:10px;
+  padding:10px;
+}
+.tq-label{
+  color:var(--muted);
+  font-size:12px;
+  margin-bottom:5px;
+}
+.tq-value{
+  font-size:24px;
+  font-weight:900;
+}
+.tq-detail{
+  margin-top:10px;
+  color:#d8d8da;
+  font-size:14px;
+  line-height:1.35;
+}
+.tq-detail b{ color:#fff; }
+.tq-samples{
+  margin-top:12px;
+  border-top:1px solid var(--border);
+  padding-top:10px;
+  font-size:12px;
+  color:var(--muted);
+}
+.tq-sample{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  padding:4px 0;
+}
+.tq-sample span:last-child{
+  text-align:right;
+  color:#ddd;
+}
+@media (max-width: 700px){
+  .item-rowline{ align-items:flex-start; }
+  .tq-grid{ grid-template-columns:1fr; }
+  .tq-btn{ margin-top:4px; }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="header-left">
+    <div class="title">Pennsylvania 511 Roadway Status Board</div>
+    <div class="subtitle">Requested every 5 minutes via GitHub Actions; execution timing may vary.</div>
+    <div class="footer header-updated" id="updated" title="Loading…">
+      <span class="updated-dot err" id="updatedDot"></span>
+      <span class="updated-text" id="updatedText">Data Last Updated: —</span>
+    </div>
+
+    <div class="header-links">
+      <a href="https://www.511pa.com/map/page/vehiclerestriction" target="_blank" rel="noopener">
+        Open 511PA Map (Vehicle Restrictions; enable Major Closures in Layers)
+      </a>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <label class="toggle" title="When enabled, panels that overflow will auto-scroll (useful for wallboards).">
+      <input id="wallScrollToggle" type="checkbox" />
+      <span class="lbl">Wallboard Scroll</span>
+    </label>
+
+  </div>
+</div>
+
+<div class="grid">
+
+  <div class="row closures">
+    <div class="paneltitle">
+      <div class="name">Closures</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="closuresList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="closuresList"></div>
+  </div>
+
+  <div class="row lane">
+    <div class="paneltitle">
+      <div class="name">Lane Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="laneList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="laneList"></div>
+  </div>
+
+  <div class="row speed">
+    <div class="paneltitle">
+      <div class="name">Speed Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="speedList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="speedList"></div>
+  </div>
+
+  <div class="row vehicle">
+    <div class="paneltitle">
+      <div class="name">Active Vehicle Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="vehicleList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="vehicleList"></div>
+  </div>
+
+  <div class="row vehicle">
+    <div class="paneltitle">
+      <div class="name">Planned Vehicle Restrictions</div>
+      <div class="panel-actions">
+        <button class="section-toggle" type="button" data-target="plannedVehicleList">Close</button>
+      </div>
+    </div>
+    <div class="items" id="plannedVehicleList"></div>
+  </div>
+
+</div>
+
+
+<div class="tq-modal-backdrop" id="tqModalBackdrop" role="dialog" aria-modal="true" aria-labelledby="tqModalTitle">
+  <div class="tq-modal">
+    <div class="tq-modal-head">
+      <div class="tq-modal-title" id="tqModalTitle">TQ Data</div>
+      <button class="tq-close" type="button" onclick="closeTqModal()" aria-label="Close">×</button>
+    </div>
+    <div class="tq-modal-body" id="tqModalBody">
+      Loading…
+    </div>
+  </div>
+</div>
+
+<script>
+const REFRESH_MS = 60000;
+
+const CLOSURES_FILE = "major_route_closures.json";
+const RESTR_FILE = "restrictions.json";
+const LANE_FILE = "lane_restrictions.json";
+const TQ_LIVE_FILE = "tq_live.json";
+
+let TQ_LIVE = { events: [] };
+let TQ_BY_EVENT_ID = new Map();
+
+const LAST_RUN_FILE = "last_run.json";
+const STALE_MINUTES = 25;
+
+/* --- Wallboard scroll state --- */
+let WALL_SCROLL_ENABLED = false;
+const scrollers = new Map();
+
+/* Interval-based auto-scroll */
+function startAutoScroll(el){
+  if (!el) return;
+  stopAutoScroll(el);
+
+  const state = { timer: null, mode: "down", pauseUntil: 0 };
+  scrollers.set(el, state);
+
+  const downStepPx = 1;
+  const upStepPx = 18;
+  const tickMs = 40;
+
+  const topPauseMs = 1800;
+  const bottomPauseMs = 2200;
+
+  el.scrollTop = 0;
+  state.pauseUntil = Date.now() + topPauseMs;
+
+  state.timer = setInterval(() => {
+    if (!WALL_SCROLL_ENABLED) return;
+    if (!document.body.contains(el)) return;
+
+    const max = el.scrollHeight - el.clientHeight;
+    if (max <= 4) return;
+
+    const now = Date.now();
+    if (now < state.pauseUntil) return;
+
+    const st = scrollers.get(el);
+    if (!st) return;
+
+    if (st.mode === "down") {
+      el.scrollTop += downStepPx;
+
+      if (el.scrollTop >= max) {
+        el.scrollTop = max;
+        st.mode = "pause-bottom";
+        st.pauseUntil = now + bottomPauseMs;
+      }
+      return;
+    }
+
+    if (st.mode === "pause-bottom") {
+      st.mode = "up";
+      return;
+    }
+
+    if (st.mode === "up") {
+      el.scrollTop -= upStepPx;
+
+      if (el.scrollTop <= 0) {
+        el.scrollTop = 0;
+        st.mode = "down";
+        st.pauseUntil = Date.now() + topPauseMs;
+      }
+    }
+  }, tickMs);
+}
+
+function stopAutoScroll(el){
+  const s = scrollers.get(el);
+  if (s && s.timer) clearInterval(s.timer);
+  scrollers.delete(el);
+}
+
+function panelOverflows(el){
+  if (!el) return false;
+  return (el.scrollHeight - el.clientHeight) > 6;
+}
+
+function applyWallScroll(enabled){
+  WALL_SCROLL_ENABLED = !!enabled;
+
+  const panels = [
+    document.getElementById("closuresList"),
+    document.getElementById("laneList"),
+    document.getElementById("speedList"),
+    document.getElementById("vehicleList"),
+    document.getElementById("plannedVehicleList")
+  ].filter(Boolean);
+
+  panels.forEach(el => el.classList.remove("wb-scroll"));
+  for (const [el] of scrollers.entries()) stopAutoScroll(el);
+
+  if (!WALL_SCROLL_ENABLED) return;
+
+  const needScroll = panels.filter(el => !el.classList.contains("is-collapsed") && panelOverflows(el));
+  needScroll.forEach(el => el.classList.add("wb-scroll"));
+
+  setTimeout(() => {
+    needScroll.forEach(el => {
+      if (!el.classList.contains("is-collapsed") && panelOverflows(el)) startAutoScroll(el);
+    });
+  }, 50);
+}
+
+function candidatePaths(filename) {
+  const here = new URL(".", window.location.href);
+  const parts = location.pathname.split("/").filter(Boolean);
+  const repoBase = parts.length ? `/${parts[0]}/` : "/";
+
+  return [
+    new URL(`data/${filename}`, here).toString(),
+    new URL(`../data/${filename}`, here).toString(),
+    new URL(`${repoBase}data/${filename}`, window.location.origin).toString()
+  ];
+}
+
+async function fetchFirstWorkingJson(filename) {
+  let lastErr = null;
+
+  for (const p of candidatePaths(filename)) {
+    try {
+      const r = await fetch(p + (p.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache:"no-store" });
+      if (!r.ok) { lastErr = new Error(`${r.status} ${r.statusText}`); continue; }
+      const json = await r.json();
+      return { json, sourceUrl: p };
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw new Error(`JSON not found: ${filename}` + (lastErr ? ` (last error: ${lastErr})` : ""));
+}
+
+function minutesAgo(dt) {
+  return (Date.now() - dt.getTime()) / 60000;
+}
+
+function setUpdatedStatus(state, hover) {
+  const updated = document.getElementById("updated");
+  const dot = document.getElementById("updatedDot");
+  if (!dot) return;
+
+  dot.classList.remove("ok","attn","err");
+  if (state === "ok") dot.classList.add("ok");
+  else if (state === "attn") dot.classList.add("attn");
+  else dot.classList.add("err");
+
+  if (updated) updated.title = hover || "";
+}
+
+window.addEventListener("error", (e) => {
+  try { setUpdatedStatus("err", e?.message || "Unknown error"); } catch {}
+});
+window.addEventListener("unhandledrejection", (e) => {
+  try {
+    const r = e && e.reason;
+    setUpdatedStatus("err", r ? (r.stack || r.message || String(r)) : "Unhandled rejection");
+  } catch {}
+});
+
+function normalizeRows(rows) {
+  return (rows || [])
+    .map(r => Array.isArray(r) ? r.join(" | ") : String(r || ""))
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
+function cleanLine(s) {
+  let t = s;
+
+  t = t.replace(/^Row Details\s*\|\s*/i, "");
+  t = t.replace(/\bOther incident on\b\s*/i, "");
+
+  t = t.replace(/\s*\|\s*I-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*US-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*PA-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
+  t = t.replace(/\s*\|\s*View on map\s*$/i, "");
+
+  t = t.replace(/\s*\|\s*\|\s*/g, " | ");
+  t = t.replace(/\s{2,}/g, " ");
+  t = t.replace(/\s*\|\s*(I|US|PA)\s*[- ]?\s*\d{1,4}\s*$/gi, "");
+
+  return t.trim();
+}
+
+function isFakeHeaderRow(s) {
+  const t = s.trim().toLowerCase();
+  return t === "speed restrictions" || t === "vehicle restrictions" || t === "restrictions";
+}
+
+function getRoadImage(text){
+  const s = String(text || "").trim();
+
+  const parts = location.pathname.split("/").filter(Boolean);
+  const repoBase = parts.length ? `/${parts[0]}/` : "/";
+
+  const m =
+    s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/\binterstate\s*(\d{1,4})\b/i);
+
+  if (!m) return "";
+
+  let typ = "";
+  let num = "";
+
+  if (/interstate/i.test(m[0])) {
+    typ = "i";
+    num = String(parseInt(m[1], 10));
+  } else {
+    typ = String(m[1]).toLowerCase();
+    num = String(parseInt(m[2], 10));
+  }
+
+  if (!num || num === "NaN") return "";
+
+  const filename = `${typ}${num}small.png`;
+  return `data/icons/${filename}?v=${Date.now()}`;
+}
+
+function buildRoadRow(text){
+  const wrap = document.createElement("div");
+  wrap.className = "road-row";
+
+  const imgPath = getRoadImage(text);
+  if (imgPath) {
+    wrap.dataset.hasIcon = "1";
+
+    const img = document.createElement("img");
+    img.className = "road-img";
+    img.src = imgPath;
+    img.alt = "";
+    img.onerror = () => { img.style.display = "none"; };
+    wrap.appendChild(img);
+  }
+
+  const name = document.createElement("div");
+  name.textContent = text;
+  wrap.appendChild(name);
+
+  return wrap;
+}
+
+
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function extractEventIdFromItem(item){
+  if (!item) return "";
+  if (typeof item === "object") {
+    return String(item.id || item.eventId || item.event_id || item.alertId || item.alert_id || "").trim();
+  }
+  return "";
+}
+
+function eventIdFromText(text){
+  const s = String(text || "");
+  const m =
+    s.match(/\b(?:eventId|event_id|id|alertId|alert_id)\s*[:=#]\s*(\d{4,})\b/i) ||
+    s.match(/\bMajorRouteIncident-(\d{4,})\b/i);
+  return m ? m[1] : "";
+}
+
+function getTqForItem(item, text){
+  const direct = extractEventIdFromItem(item) || eventIdFromText(text);
+  if (direct && TQ_BY_EVENT_ID.has(String(direct))) return TQ_BY_EVENT_ID.get(String(direct));
+
+  // Fallback matching for older data without IDs. This is intentionally conservative.
+  const line = String(text || "").toLowerCase();
+  for (const q of TQ_BY_EVENT_ID.values()) {
+    const qRoute = String(q.route || "").toLowerCase();
+    if (qRoute && line.includes(qRoute)) return q;
+  }
+  return null;
+}
+
+function tqButtonClass(q){
+  const total = Number(q?.totalAffectedMiles || 0);
+  const tq = Number(q?.tqMiles || 0);
+  return (tq >= 1 || total >= 3) ? "tq-btn major" : "tq-btn";
+}
+
+function tqButtonLabel(q){
+  const tq = Number(q?.tqMiles || 0);
+  const back = Number(q?.backlogMiles || 0);
+  if (tq > 0) return `TQ ${tq.toFixed(1)} mi`;
+  if (back > 0) return `Backlog ${back.toFixed(1)} mi`;
+  return "TQ Data";
+}
+
+function openTqModal(eventId){
+  const q = TQ_BY_EVENT_ID.get(String(eventId));
+  const body = document.getElementById("tqModalBody");
+  const backdrop = document.getElementById("tqModalBackdrop");
+  if (!body || !backdrop) return;
+
+  if (!q) {
+    body.innerHTML = `<div class="tq-detail">No TQ data found for event ${escapeHtml(eventId)}.</div>`;
+    backdrop.classList.add("show");
+    return;
+  }
+
+  const samples = Array.isArray(q.samples) ? q.samples : [];
+  const sampleHtml = samples.slice(0, 12).map((s, idx) => {
+    const speed = s.currentSpeed == null ? "—" : `${s.currentSpeed} mph`;
+    const free = s.freeFlowSpeed == null ? "—" : `${s.freeFlowSpeed} mph`;
+    const state = escapeHtml(s.state || "unknown");
+    return `<div class="tq-sample"><span>#${idx + 1} ${state}</span><span>${speed} / free ${free}</span></div>`;
+  }).join("");
+
+  const updated = q.updated ? new Date(q.updated).toLocaleString() : "—";
+
+  body.innerHTML = `
+    <div class="tq-detail"><b>${escapeHtml(q.route || "Route")} ${escapeHtml(q.direction || "")}</b></div>
+    <div class="tq-detail">${escapeHtml(q.description || "")}</div>
+
+    <div class="tq-grid">
+      <div class="tq-metric">
+        <div class="tq-label">Trapped Queue</div>
+        <div class="tq-value">${Number(q.tqMiles || 0).toFixed(2)} mi</div>
+      </div>
+      <div class="tq-metric">
+        <div class="tq-label">Backlog</div>
+        <div class="tq-value">${Number(q.backlogMiles || 0).toFixed(2)} mi</div>
+      </div>
+      <div class="tq-metric">
+        <div class="tq-label">Total Affected</div>
+        <div class="tq-value">${Number(q.totalAffectedMiles || 0).toFixed(2)} mi</div>
+      </div>
+    </div>
+
+    <div class="tq-detail"><b>Confidence:</b> ${escapeHtml(q.confidence || "unknown")}</div>
+    <div class="tq-detail"><b>Source:</b> ${escapeHtml(q.source || "511PA + live traffic flow")}</div>
+    <div class="tq-detail"><b>Updated:</b> ${escapeHtml(updated)}</div>
+
+    <div class="tq-samples">
+      <b>Sampled flow points</b>
+      ${sampleHtml || `<div class="tq-detail">No samples available.</div>`}
+    </div>
+  `;
+
+  backdrop.classList.add("show");
+}
+
+function closeTqModal(){
+  const backdrop = document.getElementById("tqModalBackdrop");
+  if (backdrop) backdrop.classList.remove("show");
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeTqModal();
+});
+document.addEventListener("click", (e) => {
+  const backdrop = document.getElementById("tqModalBackdrop");
+  if (backdrop && e.target === backdrop) closeTqModal();
+});
+
+
+function renderList(elId, items, kind) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = `item ${kind || ""}`;
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+    return;
+  }
+
+  items.forEach(item => {
+    const text = (typeof item === "object" && item !== null)
+      ? String(item.formatted || item.description || item.title || item.text || "")
+      : String(item || "");
+
+    const div = document.createElement("div");
+    div.className = `item ${kind || ""}`;
+
+    const rowline = document.createElement("div");
+    rowline.className = "item-rowline";
+    rowline.appendChild(buildRoadRow(text));
+
+    const q = (elId === "closuresList" || elId === "laneList") ? getTqForItem(item, text) : null;
+    if (q && q.eventId) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = tqButtonClass(q);
+      btn.textContent = tqButtonLabel(q);
+      btn.onclick = (ev) => {
+        ev.stopPropagation();
+        openTqModal(q.eventId);
+      };
+      rowline.appendChild(btn);
+    }
+
+    div.appendChild(rowline);
+    el.appendChild(div);
+  });
+}
+
+function isSpeedRestriction(text) {
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  const hasSpeed = /\b(mph|speed)\b/i.test(text);
+  return hasSpeed && hasRoad;
+}
+
+function isVehicleOnlyRestriction(text){
+  const t = String(text || "");
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(t);
+  if (!hasRoad) return false;
+
+  const hasCmv =
+    /\bcommercial\s*vehicles?\b/i.test(t) ||
+    /\bcmv\b/i.test(t) ||
+    /\btruck(s)?\b/i.test(t);
+
+  const hasVehicleControl =
+    /\bright\s*lane\s*only\b/i.test(t) ||
+    /\bleft\s*lane\s*only\b/i.test(t) ||
+    /\bno\s+tractors\b/i.test(t) ||
+    /\bno\s+trailers\b/i.test(t) ||
+    /\bempty\s+trailers?\b/i.test(t) ||
+    /\bban(ned)?\b/i.test(t) ||
+    /\brestricted\b/i.test(t);
+
+  return hasCmv && hasVehicleControl;
+}
+
+function is45CmvRightLaneOnly(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  if (!hasRoad) return false;
+
+  const mph45 = /\b45\s*mph\b/i.test(text);
+  const rightLaneOnly = /\bright\s*lane\s*only\b/i.test(text) || /\brt\.?\s*lane\s*only\b/i.test(text);
+
+  const cmvRightLane =
+    /\bcommercial\s*vehicles?\s*right\s*lane\s*only\b/i.test(text) ||
+    /\bcmv\s*right\s*lane\s*only\b/i.test(text) ||
+    (/\bcommercial\s*vehicles?\b/i.test(text) && rightLaneOnly) ||
+    (/\bcmv\b/i.test(text) && rightLaneOnly);
+
+  return mph45 && rightLaneOnly && cmvRightLane;
+}
+
+function is55CmvRightLaneOnly(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  if (!hasRoad) return false;
+
+  const mph55 = /\b55\s*mph\b/i.test(text) || /\breduced to 55 miles per hour\b/i.test(text);
+  const rightLaneOnly = /\bright\s*lane\s*only\b/i.test(text) || /\brt\.?\s*lane\s*only\b/i.test(text);
+
+  const cmvRightLane =
+    /\bcommercial\s*vehicles?\s*right\s*lane\s*only\b/i.test(text) ||
+    /\bcmv\s*right\s*lane\s*only\b/i.test(text) ||
+    (/\bcommercial\s*vehicles?\b/i.test(text) && rightLaneOnly) ||
+    (/\bcmv\b/i.test(text) && rightLaneOnly);
+
+  return mph55 && rightLaneOnly && cmvRightLane;
+}
+
+function formatDataLastUpdated(dt) {
+  if (!dt) return "Data Last Updated: —";
+  return "Data Last Updated: " + dt.toLocaleString();
+}
+
+function extractTextLines(anyJson){
+  if (!anyJson) return [];
+
+  if (Array.isArray(anyJson)) return anyJson.map(x => String(x || "")).filter(Boolean);
+
+  if (Array.isArray(anyJson.items)) {
+    return anyJson.items
+      .map(it => it?.formatted || it?.description || it?.title || it?.message || it?.text || "")
+      .map(s => String(s || "").trim())
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(anyJson.rows)) {
+    return normalizeRows(anyJson.rows).map(cleanLine).filter(Boolean);
+  }
+
+  return [];
+}
+
+function routeKey(text){
+  const s = String(text || "");
+  const m =
+    s.match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/\binterstate\s*(\d{1,4})\b/i);
+
+  if (!m) return { grp: 9, num: 99999 };
+
+  if (/interstate/i.test(m[0])) {
+    const num = parseInt(m[1], 10);
+    return { grp: 1, num: isNaN(num) ? 99999 : num };
+  }
+
+  const type = String(m[1]).toUpperCase();
+  const num = parseInt(m[2], 10);
+  const grp = (type === "I") ? 1 : (type === "US") ? 2 : 3;
+  return { grp, num: isNaN(num) ? 99999 : num };
+}
+function sortByRoute(a,b){
+  const ka = routeKey(a), kb = routeKey(b);
+  if (ka.grp !== kb.grp) return ka.grp - kb.grp;
+  if (ka.num !== kb.num) return ka.num - kb.num;
+  return String(a).localeCompare(String(b));
+}
+
+function parseDtToEpoch(dtStr){
+  const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
+  if (!m) return null;
+
+  let mm = parseInt(m[1], 10);
+  let dd = parseInt(m[2], 10);
+  let yy = parseInt(m[3], 10);
+  let hh = parseInt(m[4], 10);
+  let min = parseInt(m[5], 10);
+  const ap = String(m[6] || "").toUpperCase();
+
+  if (String(yy).length === 2) yy = 2000 + yy;
+
+  if (ap === "AM") {
+    if (hh === 12) hh = 0;
+  } else if (ap === "PM") {
+    if (hh !== 12) hh += 12;
+  }
+
+  const d = new Date(yy, mm - 1, dd, hh, min, 0, 0);
+  const t = d.getTime();
+  return isNaN(t) ? null : t;
+}
+function extractDateTimes(text){
+  const t = String(text || "");
+  const re = /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b\s*,?\s*\d{1,2}:\d{2}\s*(AM|PM)\b/gi;
+  return t.match(re) || [];
+}
+function plannedStartEpoch(text){
+  const dts = extractDateTimes(text);
+  if (!dts.length) return Number.POSITIVE_INFINITY;
+  const ep = parseDtToEpoch(dts[0]);
+  return (ep == null) ? Number.POSITIVE_INFINITY : ep;
+}
+function sortPlannedByStartThenRoute(a,b){
+  const ta = plannedStartEpoch(a);
+  const tb = plannedStartEpoch(b);
+  if (ta !== tb) return ta - tb;
+  return sortByRoute(a,b);
+}
+
+function extractTierHeader(s){
+  const t = (s || "").trim();
+  const m = t.match(/^tier\s*([1-5])\s*[:\-]/i);
+  if (m) return Number(m[1]);
+  const m2 = t.match(/^tier\s*([1-5])\b/i);
+  if (m2 && t.length <= 60) return Number(m2[1]);
+  return null;
+}
+function applyTierContext(rows){
+  let currentTier = null;
+  const out = [];
+  for (const text of (rows || [])) {
+    const hdr = extractTierHeader(text);
+    if (hdr) { currentTier = hdr; continue; }
+    out.push({ text, tier: currentTier });
+  }
+  return out;
+}
+function getTierFromText(text){
+  const t = (text || "").toLowerCase();
+  const m = t.match(/\btier\s*([1-5])\b/);
+  if (m) return Number(m[1]);
+  if (t.includes("complete cmv restriction")) return 4;
+  if (t.includes("all passenger vehicles")) return 5;
+  return null;
+}
+function vehiclePanelCandidate(text){
+  const hasRoad = /(i-\d+|us-\d+|pa-\d+|turnpike|route|sr\s*\d+|exit|interstate\s*\d+)/i.test(text);
+  if (!hasRoad) return false;
+  return (
+    /\btier\s*[1-5]\b/i.test(text) ||
+    /\bcomplete cmv restriction\b/i.test(text) ||
+    /\ball passenger vehicles\b/i.test(text) ||
+    /\bcmv\b/i.test(text) ||
+    /\bcommercial\b/i.test(text) ||
+    /\btruck(s)?\b/i.test(text) ||
+    /\bpermit\b/i.test(text) ||
+    /\bno permit travel\b/i.test(text) ||
+    /\btrailer\b/i.test(text) ||
+    /\btowing\b/i.test(text) ||
+    /\bmotor coach|motorcoach|school bus|commercial bus|motorcycle\b/i.test(text) ||
+    /\bchains?\b/i.test(text) ||
+    /\batd\b/i.test(text)
+  );
+}
+
+function parseMmDdYyTimeLabel(dtStr, label){
+  const m = String(dtStr || "").match(/\b(\d{1,2})\/(\d{1,2})\/(\d{2,4})\b\s*,?\s*(\d{1,2}):(\d{2})\s*(AM|PM)\b/i);
+  if (!m) return null;
+
+  let mm = parseInt(m[1], 10);
+  let dd = parseInt(m[2], 10);
+  let yy = m[3];
+  let h = parseInt(m[4], 10);
+  let min = parseInt(m[5], 10);
+  const ap = String(m[6] || "").toUpperCase();
+
+  if (String(yy).length === 4) yy = String(yy).slice(-2);
+  yy = String(yy).padStart(2, "0");
+
+  if (ap === "AM") {
+    if (h === 12) h = 0;
+  } else if (ap === "PM") {
+    if (h !== 12) h += 12;
+  }
+
+  const MM = String(mm).padStart(2, "0");
+  const DD = String(dd).padStart(2, "0");
+  const HH = String(h).padStart(2, "0");
+  const MN = String(min).padStart(2, "0");
+
+  return `${label} ${MM}/${DD}/${yy} at ${HH}:${MN} hours.`;
+}
+function stripPipeRouteOnly(text){
+  return String(text || "").replace(/\s*\|\s*(I|US|PA)\s*[- ]?\s*\d{1,4}\s*\|\s*/gi, " | ").trim();
+}
+
+function cleanupPlannedVehicleText(fullText){
+  const raw = stripPipeRouteOnly(fullText);
+  const dts = extractDateTimes(raw);
+  const dt = dts.length ? dts[0] : null;
+
+  let main = raw;
+  if (dt) {
+    main = main.replace(dt, "").trim();
+    main = main.replace(/\s*\|\s*$/g, "").trim();
+    main = main.replace(/\s{2,}/g, " ");
+  }
+  main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
+
+  const line2 = dt ? parseMmDdYyTimeLabel(dt, "Starting on:") : null;
+  return { main, line2 };
+}
+
+function cleanupActiveVehicleText(fullText){
+  const raw = stripPipeRouteOnly(fullText);
+  const dts = extractDateTimes(raw);
+  const dt = dts.length ? dts[dts.length - 1] : null;
+
+  let main = raw;
+  if (dt) {
+    main = main.replace(dt, "").trim();
+    main = main.replace(/\s*\|\s*$/g, "").trim();
+    main = main.replace(/\s{2,}/g, " ");
+  }
+  main = main.replace(/\s*\|\s*\|\s*/g, " | ").trim();
+
+  const line2 = dt ? parseMmDdYyTimeLabel(dt, "Ending on:") : null;
+  return { main, line2 };
+}
+
+/* ---------- COMBINER ---------- */
+function normalizePointName(s){
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[–—]/g, "-")
+    .replace(/\boh\s*line\b/g, "oh line")
+    .replace(/\bohio\s+state\s+line\b/g, "oh line")
+    .replace(/\bohio\s+line\b/g, "oh line")
+    .replace(/\bstate\s+line\b/g, "state line")
+    .replace(/\bexit\s*:\s*/g, "exit: ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeRouteLabel(route){
+  const r = String(route || "").toUpperCase().replace(/\s+/g, "");
+  const m = r.match(/^(I|US|PA)-?(\d{1,4})$/i);
+  if (!m) return String(route || "").trim().toUpperCase();
+
+  const typ = m[1].toUpperCase();
+  const num = String(parseInt(m[2], 10));
+
+  if (!num || num === "NaN") return `${typ}-${m[2]}`;
+
+  return `${typ}-${num}`;
+}
+
+function normalizeDirLabel(dir){
+  const d = String(dir || "").trim().toUpperCase();
+  if (d === "EAST" || d === "EB") return "E";
+  if (d === "WEST" || d === "WB") return "W";
+  if (d === "NORTH" || d === "NB") return "N";
+  if (d === "SOUTH" || d === "SB") return "S";
+  return "";
+}
+
+function dirLetterToWord(dir){
+  if (dir === "E") return " East";
+  if (dir === "W") return " West";
+  if (dir === "N") return " North";
+  if (dir === "S") return " South";
+  return "";
+}
+
+function normalizeRestrictionRest(rest){
+  return String(rest || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+\./g, ".")
+    .trim()
+    .toLowerCase();
+}
+
+function parseRestrictionSegment(text){
+  const s = String(text || "").trim();
+
+  const m = s.match(/^(?<route>(?:I|US|PA)\s*-\s*\d{1,4}|(?:I|US|PA)\s*\d{1,4})\s*(?<dir>east|west|north|south|eb|wb|nb|sb)?\s+between\s+(?<start>.+?)\s+and\s+(?<end>.+?)\.\s+(?<rest>.+)$/i);
+  if (!m || !m.groups) return null;
+
+  const route = normalizeRouteLabel(m.groups.route || "");
+  const dir = normalizeDirLabel(m.groups.dir || "");
+  const start = String(m.groups.start || "").trim();
+  const end = String(m.groups.end || "").trim();
+  const rest = String(m.groups.rest || "").trim();
+
+  if (!route || !start || !end || !rest) return null;
+
+  return {
+    original: s,
+    route,
+    dir,
+    start,
+    end,
+    rest,
+    startKey: normalizePointName(start),
+    endKey: normalizePointName(end),
+    restKey: normalizeRestrictionRest(rest)
+  };
+}
+
+function combineContiguousRestrictions(items){
+  const parsed = [];
+  const leftovers = [];
+
+  for (const raw of (items || [])) {
+    const text = typeof raw === "string" ? raw : (raw?.text ?? String(raw ?? ""));
+    const seg = parseRestrictionSegment(text);
+    if (seg) parsed.push(seg);
+    else leftovers.push(text);
+  }
+
+  const grouped = new Map();
+
+  for (const seg of parsed) {
+    const key = `${seg.route}|${seg.dir}|${seg.restKey}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(seg);
+  }
+
+  const combined = [];
+
+  for (const segs of grouped.values()) {
+    const startMap = new Map();
+    const endMap = new Map();
+
+    for (const seg of segs) {
+      if (!startMap.has(seg.startKey)) startMap.set(seg.startKey, []);
+      startMap.get(seg.startKey).push(seg);
+
+      if (!endMap.has(seg.endKey)) endMap.set(seg.endKey, []);
+      endMap.get(seg.endKey).push(seg);
+    }
+
+    const used = new Set();
+
+    for (const seg of segs) {
+      if (used.has(seg.original)) continue;
+
+      let head = seg;
+
+      while (true) {
+        const prevCandidates = (endMap.get(head.startKey) || []).filter(x => !used.has(x.original) && x.original !== head.original);
+        if (prevCandidates.length !== 1) break;
+        const prev = prevCandidates[0];
+        if (prev.startKey === prev.endKey) break;
+        head = prev;
+      }
+
+      let tail = head;
+      used.add(tail.original);
+
+      while (true) {
+        const nextCandidates = (startMap.get(tail.endKey) || []).filter(x => !used.has(x.original) && x.original !== tail.original);
+        if (nextCandidates.length !== 1) break;
+        const next = nextCandidates[0];
+        if (next.startKey === next.endKey) break;
+        used.add(next.original);
+        tail = next;
+      }
+
+      combined.push(
+        `${head.route}${dirLetterToWord(head.dir)} between ${head.start} and ${tail.end}. ${head.rest}`
+      );
+    }
+  }
+
+  return [...combined, ...leftovers].sort(sortByRoute);
+}
+/* ---------- END COMBINER ---------- */
+
+function renderVehicleGrouped(elId, items){
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "item vehicle";
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+    return;
+  }
+
+  const buckets = new Map([
+    [1, []],[2, []],[3, []],[4, []],[5, []],
+    ["rl45", []],["rl55", []],["other", []]
+  ]);
+
+  for (const it of items) {
+    const text = it?.text ?? String(it ?? "");
+    const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
+
+    if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
+    if (is55CmvRightLaneOnly(text)) { buckets.get("rl55").push(text); continue; }
+    if (tier && buckets.has(tier)) buckets.get(tier).push(text);
+    else buckets.get("other").push(text);
+  }
+
+  for (const [k, arr] of buckets.entries()) arr.sort(sortByRoute);
+
+  const tierLabels = {
+    1:"Tier 1",
+    2:"Tier 2",
+    3:"Tier 3",
+    4:"Tier 4",
+    5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    rl55:"55 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
+  };
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl55",other:""};
+  const order = [1,2,3,4,5,"rl45","rl55","other"];
+
+  for (const key of order) {
+    const arr = buckets.get(key);
+    if (!arr || !arr.length) continue;
+
+    const head = document.createElement("div");
+    head.className = `grouphead ${headClass[key] || ""}`.trim();
+    head.textContent = `${tierLabels[key]}`;
+    el.appendChild(head);
+
+    for (const text of arr) {
+      const { main, line2 } = cleanupActiveVehicleText(text);
+
+      const div = document.createElement("div");
+      div.className = "item vehicle";
+
+      div.appendChild(buildRoadRow(main || text));
+
+      if (line2) {
+        const l2 = document.createElement("div");
+        l2.className = "subline";
+        div.appendChild(l2);
+        l2.textContent = line2;
+      }
+
+      el.appendChild(div);
+    }
+  }
+}
+
+function renderVehicleGroupedPlanned(elId, items){
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!items.length) {
+    const div = document.createElement("div");
+    div.className = "item vehicle";
+    div.style.borderLeftColor = "var(--green)";
+    div.textContent = "None currently reported";
+    el.appendChild(div);
+    return;
+  }
+
+  const buckets = new Map([
+    [1, []],[2, []],[3, []],[4, []],[5, []],
+    ["rl45", []],["rl55", []],["other", []]
+  ]);
+
+  for (const it of items) {
+    const text = it?.text ?? String(it ?? "");
+    const tier = (it && typeof it === "object" && "tier" in it && it.tier != null) ? it.tier : getTierFromText(text);
+
+    if (is45CmvRightLaneOnly(text)) { buckets.get("rl45").push(text); continue; }
+    if (is55CmvRightLaneOnly(text)) { buckets.get("rl55").push(text); continue; }
+    if (tier && buckets.has(tier)) buckets.get(tier).push(text);
+    else buckets.get("other").push(text);
+  }
+
+  for (const [k, arr] of buckets.entries()) arr.sort(sortPlannedByStartThenRoute);
+
+  const tierLabels = {
+    1:"Tier 1",
+    2:"Tier 2",
+    3:"Tier 3",
+    4:"Tier 4",
+    5:"Tier 5",
+    rl45:"45 MPH — CMV Right Lane Only",
+    rl55:"55 MPH — CMV Right Lane Only",
+    other:"Other / Unclassified vehicle restrictions"
+  };
+  const headClass = {1:"tier1",2:"tier2",3:"tier3",4:"tier4",5:"tier5",rl45:"rl45",rl55:"rl55",other:""};
+  const order = [1,2,3,4,5,"rl45","rl55","other"];
+
+  for (const key of order) {
+    const arr = buckets.get(key);
+    if (!arr || !arr.length) continue;
+
+    const head = document.createElement("div");
+    head.className = `grouphead ${headClass[key] || ""}`.trim();
+    head.textContent = `${tierLabels[key]}`;
+    el.appendChild(head);
+
+    for (const text of arr) {
+      const { main, line2 } = cleanupPlannedVehicleText(text);
+
+      const div = document.createElement("div");
+      div.className = "item vehicle";
+
+      const line1 = buildRoadRow(main || text);
+      div.appendChild(line1);
+
+      if (line2) {
+        const l2 = document.createElement("div");
+        l2.className = "subline";
+        if (line1?.dataset?.hasIcon === "1") l2.classList.add("indent-under-icon");
+        l2.textContent = line2;
+        div.appendChild(l2);
+      }
+
+      el.appendChild(div);
+    }
+  }
+}
+
+function closureDedupeKey(s){
+  return String(s || "")
+    .toLowerCase()
+    .replace(/\s+/g," ")
+    .replace(/\bestimated reopen:\s*tbd\b/g, "estimated reopen:tbd")
+    .replace(/\bestimated reopen:\s*/g, "estimated reopen:")
+    .replace(/[|]/g,"|")
+    .trim();
+}
+
+function hasEndTime(text){
+  const t = String(text || "").toLowerCase();
+  if (t.includes("end time")) return true;
+  if (t.includes("until")) return true;
+  if (t.includes("expires")) return true;
+  if (t.includes("expiration")) return true;
+  if (/\bends?\b/.test(t)) return true;
+  return extractDateTimes(text).length >= 2;
+}
+function isPlannedVehicleItem(it){
+  const text = (it?.text ?? String(it ?? ""));
+  const dts = extractDateTimes(text);
+  const hasStart = dts.length >= 1;
+  return hasStart && !hasEndTime(text);
+}
+
+/* Section toggle support */
+function setSectionCollapsed(contentEl, buttonEl, collapsed){
+  if (!contentEl || !buttonEl) return;
+
+  contentEl.classList.toggle("is-collapsed", collapsed);
+  buttonEl.classList.toggle("closed", collapsed);
+  buttonEl.textContent = collapsed ? "Open" : "Close";
+
+  localStorage.setItem(`sectionCollapsed:${contentEl.id}`, collapsed ? "1" : "0");
+}
+
+function initSectionToggles(){
+  const buttons = document.querySelectorAll(".section-toggle");
+
+  buttons.forEach(btn => {
+    const targetId = btn.dataset.target;
+    const contentEl = document.getElementById(targetId);
+    if (!contentEl) return;
+
+    const saved = localStorage.getItem(`sectionCollapsed:${targetId}`) === "1";
+    setSectionCollapsed(contentEl, btn, saved);
+
+    btn.addEventListener("click", () => {
+      const isCollapsed = contentEl.classList.contains("is-collapsed");
+      setSectionCollapsed(contentEl, btn, !isCollapsed);
+
+      if (WALL_SCROLL_ENABLED) {
+        setTimeout(() => applyWallScroll(true), 50);
+      }
+    });
+  });
+}
+
+async function loadBoard(){
+  try {
+    let lastRunDt = null;
+    let warnings = [];
+
+    try {
+      const lastRunRes = await fetchFirstWorkingJson(LAST_RUN_FILE);
+      const raw =
+        lastRunRes.json?.ran_at ||
+        lastRunRes.json?.updated ||
+        lastRunRes.json?.timestamp ||
+        null;
+
+      if (!raw) warnings.push(`data/${LAST_RUN_FILE} missing timestamp (expected ran_at/updated/timestamp).`);
+      else {
+        const parsed = new Date(raw);
+        if (isNaN(parsed.getTime())) warnings.push(`data/${LAST_RUN_FILE} timestamp invalid: ${raw}`);
+        else lastRunDt = parsed;
+      }
+    } catch {
+      warnings.push(`Could not load data/${LAST_RUN_FILE}.`);
+    }
+
+    const updatedText = document.getElementById("updatedText");
+    if (updatedText) {
+      updatedText.textContent = lastRunDt
+        ? formatDataLastUpdated(lastRunDt)
+        : "Data Last Updated: Unknown";
+    }
+
+    if (!lastRunDt) {
+      setUpdatedStatus("err",`Dashboard can't determine last run time.\nFix: ensure the workflow writes data/${LAST_RUN_FILE}.`);
+      return;
+    }
+
+    const ageMin = minutesAgo(lastRunDt);
+    if (ageMin > STALE_MINUTES) {
+      setUpdatedStatus("err",`Last successful run was ${ageMin.toFixed(1)} minutes ago.\nThreshold is ${STALE_MINUTES} minutes.\nFix: check GitHub Actions runs/logs.`);
+      return;
+    }
+
+    let closuresJson = null, restr = null, laneJson = null;
+
+    try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch { warnings.push(`Could not load data/${CLOSURES_FILE}.`); }
+    try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
+    try { laneJson = (await fetchFirstWorkingJson(LANE_FILE)).json; } catch { warnings.push(`Could not load data/${LANE_FILE}.`); }
+
+    try {
+      TQ_LIVE = (await fetchFirstWorkingJson(TQ_LIVE_FILE)).json;
+      TQ_BY_EVENT_ID = new Map((TQ_LIVE.events || []).filter(e => e && e.eventId && !e.error).map(e => [String(e.eventId), e]));
+    } catch {
+      TQ_LIVE = { events: [] };
+      TQ_BY_EVENT_ID = new Map();
+      warnings.push(`Could not load data/${TQ_LIVE_FILE}. TQ buttons will be hidden.`);
+    }
+
+    const closuresPrimaryRaw = Array.isArray(closuresJson?.items)
+      ? closuresJson.items.map(it => ({ ...it, formatted: cleanLine(it.formatted || it.description || it.title || "") })).filter(it => it.formatted)
+      : extractTextLines(closuresJson).map(s => ({ formatted: cleanLine(s) })).filter(it => it.formatted);
+
+    const seen = new Set();
+    const closuresMerged = [];
+    for (const it of closuresPrimaryRaw) {
+      const s = it.formatted || "";
+      const k = closureDedupeKey(s);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      closuresMerged.push(it);
+    }
+    closuresMerged.sort((a,b) => sortByRoute(a.formatted || "", b.formatted || ""));
+
+    const restrRows = normalizeRows(restr?.rows).map(cleanLine).filter(s => !isFakeHeaderRow(s));
+    const withTiers = applyTierContext(restrRows);
+
+    const speedRaw = withTiers
+      .map(r => r.text)
+      .filter(isSpeedRestriction)
+      .filter(s => !is45CmvRightLaneOnly(s))
+      .filter(s => !is55CmvRightLaneOnly(s))
+      .filter(s => !isVehicleOnlyRestriction(s));
+
+    const speed = combineContiguousRestrictions(speedRaw);
+
+    const laneRawObjects = (laneJson?.items || [])
+      .map(it => ({ ...it, formatted: cleanLine(it?.formatted || it?.description || "") }))
+      .filter(it => it.formatted);
+
+    // Keep objects here so the TQ button can match event IDs.
+    // Do not use the contiguous restriction combiner for beta TQ display rows.
+    const lane = laneRawObjects.sort((a,b) => sortByRoute(a.formatted || "", b.formatted || ""));
+
+    const vehicleAll = withTiers.filter(r =>
+      is45CmvRightLaneOnly(r.text) ||
+      is55CmvRightLaneOnly(r.text) ||
+      isVehicleOnlyRestriction(r.text) ||
+      (r.tier != null) ||
+      vehiclePanelCandidate(r.text)
+    );
+
+    const plannedVehicleRaw = vehicleAll.filter(isPlannedVehicleItem);
+    const activeVehicleRaw = vehicleAll.filter(r => !isPlannedVehicleItem(r));
+
+    const plannedVehicle = combineContiguousRestrictions(
+      plannedVehicleRaw.map(r => r.text || String(r))
+    ).map(t => ({ text: t, tier: getTierFromText(t) }));
+
+    const activeVehicle = combineContiguousRestrictions(
+      activeVehicleRaw.map(r => r.text || String(r))
+    ).map(t => ({ text: t, tier: getTierFromText(t) }));
+
+    renderList("closuresList", closuresMerged, "");
+    renderList("laneList", lane, "lane");
+    renderList("speedList", speed, "speed");
+    renderVehicleGrouped("vehicleList", activeVehicle);
+    renderVehicleGroupedPlanned("plannedVehicleList", plannedVehicle);
+
+    if (WALL_SCROLL_ENABLED) applyWallScroll(true);
+
+    if (warnings.length) {
+      setUpdatedStatus("attn",`Workflow ran ${ageMin.toFixed(1)} minutes ago, but something needs fixed:\n- ${warnings.join("\n- ")}`);
+    } else {
+      setUpdatedStatus("ok",`Workflow ran ${ageMin.toFixed(1)} minutes ago.\nData files loaded successfully.\nNo action needed.`);
+    }
+  } catch (e) {
+    setUpdatedStatus("err", e?.stack || e?.message || String(e));
+  }
+}
+
+(function initWallboardToggle(){
+  const toggle = document.getElementById("wallScrollToggle");
+  if (!toggle) return;
+
+  const saved = localStorage.getItem("wallboardScroll") === "1";
+  toggle.checked = saved;
+  applyWallScroll(saved);
+
+  toggle.addEventListener("change", (e) => {
+    const on = !!e.target.checked;
+    localStorage.setItem("wallboardScroll", on ? "1" : "0");
+    applyWallScroll(on);
+  });
+})();
+
+initSectionToggles();
+loadBoard();
+setInterval(loadBoard, REFRESH_MS);
+</script>
+<script src="/footer.js"></script>
+</body>
+</html>
