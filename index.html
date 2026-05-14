@@ -1,166 +1,376 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KB3CAT | Operational Systems & Situational Awareness</title>
-  <link rel="stylesheet" href="styles.css" />
+  <title>KB3CAT Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0b0b0b;
+      color: #fff;
+      margin: 0;
+      padding: 15px;
+    }
+
+    h1 { text-align: center; margin-bottom: 15px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    .title { font-size: 18px; font-weight: bold; }
+    .value { font-size: 28px; font-weight: bold; }
+
+    .summary { margin-top: 10px; font-size: 14px; }
+
+    .closure-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-top: 1px solid #333;
+    }
+
+    .route-icon {
+      width: 36px;
+      height: 24px;
+      object-fit: contain;
+    }
+
+    .section-title {
+      margin-top: 25px;
+      margin-bottom: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      text-align: center;
+      opacity: 0.85;
+    }
+
+    .link-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .link-card {
+      text-decoration: none;
+      color: #fff;
+      background: linear-gradient(180deg, #1a1a1a, #111);
+      border: 1px solid #2a2a2d;
+      border-radius: 12px;
+      padding: 14px;
+      transition: 0.15s;
+      overflow: hidden;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+    }
+
+    .link-card:hover {
+      transform: translateY(-2px);
+      border-color: #00bfff;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.28);
+    }
+
+    .link-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .link-title {
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .link-tag {
+      font-size: 11px;
+      color: #aaa;
+      border: 1px solid #2a2a2d;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.03);
+      white-space: nowrap;
+    }
+
+    .link-thumb {
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid #2a2a2d;
+      border-radius: 10px;
+      background: #0b0b0b;
+      margin-bottom: 10px;
+    }
+
+    .link-desc {
+      font-size: 12px;
+      color: #aaa;
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 13px;
+      opacity: 0.7;
+    }
+  </style>
 </head>
+
 <body>
-  <header class="site-header">
-    <div class="brand">
-      <div class="tower">⌁</div>
-      <div>
-        <div class="logo"><span>KB3</span><strong>CAT</strong></div>
-        <div class="tagline">Operational Systems &amp;<br />Situational Awareness</div>
-      </div>
+
+<h1>KB3CAT Dashboard</h1>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="title">Active Watches and Warnings</div>
+    <div class="value" id="alertsCount">--</div>
+    <div class="summary" id="alertsSummary"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">Major Route Closures</div>
+    <div class="value" id="closuresCount">--</div>
+    <div class="summary" id="closuresSummary"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">Last Update</div>
+    <div class="value" id="lastUpdated">--</div>
+  </div>
+
+</div>
+
+<div class="section-title">PennAlerts Boards</div>
+
+<div class="link-grid">
+
+  <a class="link-card" href="https://alerts.kb3cat.com/alerts.html">
+    <div class="link-card-top">
+      <div class="link-title">Weather Alerts</div>
+      <div class="link-tag">alerts.html</div>
     </div>
+    <img class="link-thumb" src="https://alerts.kb3cat.com/images/alerts.png" alt="Weather Alerts preview" loading="lazy">
+    <p class="link-desc">Active PA watches and warnings</p>
+  </a>
 
-    <nav>
-      <a href="/">Home</a>
-      <a href="#dashboards">Dashboards</a>
-      <a href="#projects">Projects</a>
-      <a href="#updates">Updates</a>
-      <a href="#about">About</a>
-      <a href="#contact">Contact</a>
-    </nav>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <h1>REAL-TIME DATA.<br />OPERATIONAL INSIGHT.<br />PUBLIC SAFETY FOCUSED.</h1>
-        <p>Dashboards, tools, and infrastructure supporting emergency communications, situational awareness, and operational decision making.</p>
-        <div class="hero-actions">
-          <a class="btn primary" href="#dashboards">View Live Dashboards</a>
-          <a class="btn secondary" href="#projects">View Projects</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="status-bar">
-      <strong>System Status</strong>
-      <span><i></i> All Systems Operational</span>
-      <span><i></i> GitHub Actions: Operational</span>
-      <span><i></i> Weather Station: Online</span>
-      <span><i></i> Media Monitor: Online</span>
-    </section>
-
-    <section class="notice-ticker">
-      <span>Site update:</span>
-      <marquee behavior="scroll" direction="left" scrollamount="4">
-        KB3CAT.com is being rebuilt. Some sections are placeholders while dashboards, project pages, and update archives are brought online.
-      </marquee>
-    </section>
-
-    <section id="dashboards" class="panel">
-      <div class="section-head">
-        <h2>Featured Dashboards</h2>
-        <a href="dashboards.html">View all dashboards →</a>
-      </div>
-
-      <div class="dashboard-grid">
-        <article class="card">
-          <img src="assets/images/traffic-board.jpg" alt="Traffic Board preview" />
-          <h3>Traffic Board</h3>
-          <p>Pennsylvania traffic conditions, incidents, closures, restrictions, and alerts.</p>
-          <a href="https://alerts.kb3cat.com/traffic.html">View Board →</a>
-        </article>
-
-        <article class="card">
-          <img src="assets/images/hazards-board.jpg" alt="Hazards Board preview" />
-          <h3>Hazards Board</h3>
-          <p>Active watches, warnings, radar, and hazards across the region.</p>
-          <a href="https://alerts.kb3cat.com/hazards.html">View Board →</a>
-        </article>
-
-        <article class="card">
-          <img src="assets/images/airports-board.jpg" alt="Airports Board preview" />
-          <h3>Airports Board</h3>
-          <p>Airport status, METARs, delays, and operational aviation information.</p>
-          <a href="https://alerts.kb3cat.com/airports.html">View Board →</a>
-        </article>
-
-        <article class="card">
-          <img src="assets/images/weather-board.jpg" alt="Weather Systems preview" />
-          <h3>Weather Systems</h3>
-          <p>Radar, satellite, lightning, alerts, and weather monitoring resources.</p>
-          <a href="https://alerts.kb3cat.com/">View Board →</a>
-        </article>
-
-        <article class="card">
-          <img src="assets/images/media-monitor.jpg" alt="Media Monitor preview" />
-          <h3>Media Monitor</h3>
-          <p>Monitor streaming services, feeds, media outlets, and source status in one place.</p>
-          <a href="media-monitor.html">View Board →</a>
-        </article>
-      </div>
-    </section>
-
-    <div class="two-column">
-      <section id="updates" class="panel">
-        <div class="section-head">
-          <h2>Operations Updates</h2>
-          <a href="updates.html">View all updates →</a>
-        </div>
-
-        <article class="update">
-          <time>May 14, 2026</time>
-          <h3>KB3CAT Homepage Rebuild Started</h3>
-          <p>Beginning work on a cleaner landing page for dashboards, projects, system updates, and operational tools.</p>
-        </article>
-
-        <article class="update">
-          <time>May 14, 2026</time>
-          <h3>Traffic Board Enhancements Planned</h3>
-          <p>Planning additional support for closure details, trapped queue information, and real-time situational awareness.</p>
-        </article>
-
-        <article class="update">
-          <time>May 13, 2026</time>
-          <h3>Cloudflare Access Pages Hardened</h3>
-          <p>Continuing improvements to protected access pages for home lab, weather, router, and remote systems.</p>
-        </article>
-      </section>
-
-      <section id="projects" class="panel">
-        <div class="section-head">
-          <h2>Projects &amp; Infrastructure</h2>
-          <a href="projects.html">View all projects →</a>
-        </div>
-
-        <div class="project-grid">
-          <a class="project" href="coming-soon.html"><strong>OpenWrt Network</strong><span>Home lab and infrastructure routing.</span></a>
-          <a class="project" href="coming-soon.html"><strong>AREDN Mesh</strong><span>Amateur radio emergency data networking.</span></a>
-          <a class="project" href="coming-soon.html"><strong>Weather Station</strong><span>Personal weather station and live feeds.</span></a>
-          <a class="project" href="coming-soon.html"><strong>SCIN Monitoring</strong><span>Radio monitoring and trunked system work.</span></a>
-          <a class="project" href="coming-soon.html"><strong>Automation &amp; Pipelines</strong><span>GitHub Actions and data processing.</span></a>
-          <a class="project" href="coming-soon.html"><strong>Cloud Infrastructure</strong><span>Cloudflare, tunnels, and remote access.</span></a>
-        </div>
-      </section>
+  <a class="link-card" href="https://alerts.kb3cat.com/advisories.html">
+    <div class="link-card-top">
+      <div class="link-title">Advisories</div>
+      <div class="link-tag">advisories.html</div>
     </div>
+    <img class="link-thumb" src="https://alerts.kb3cat.com/images/advisories.png" alt="Advisories preview" loading="lazy">
+    <p class="link-desc">Includes advisories + alerts</p>
+  </a>
 
-    <div class="two-column bottom">
-      <section id="about" class="panel">
-        <h2>About KB3CAT</h2>
-        <p>With over 20 years in public safety communications and emergency management, I build and operate systems that support situational awareness and operational decision making.</p>
-        <p>This site features real-time dashboards, communications projects, weather systems, and infrastructure work from my home lab environment.</p>
-        <a class="btn secondary" href="about.html">Learn More About Me</a>
-      </section>
-
-      <section id="contact" class="panel">
-        <h2>Contact</h2>
-        <p><strong>Email:</strong> kb3cat@kb3cat.com</p>
-        <p><strong>Radio Call Sign:</strong> KB3CAT</p>
-        <p><strong>Location:</strong> Pennsylvania, USA</p>
-        <a class="btn primary" href="contact.html">Get in Touch</a>
-      </section>
+  <a class="link-card" href="https://alerts.kb3cat.com/hazards.html">
+    <div class="link-card-top">
+      <div class="link-title">Hazards Board</div>
+      <div class="link-tag">hazards.html</div>
     </div>
-  </main>
+    <img class="link-thumb" src="https://alerts.kb3cat.com/images/hazards.png" alt="Hazards Board preview" loading="lazy">
+    <p class="link-desc">Combined alerts, radar, and summary</p>
+  </a>
 
-  <footer>
-    <div class="logo"><span>KB3</span><strong>CAT</strong></div>
-    <p>© 2026 KB3CAT. All data is for informational and situational awareness purposes only.</p>
-  </footer>
+  <a class="link-card" href="https://alerts.kb3cat.com/traffic.html">
+    <div class="link-card-top">
+      <div class="link-title">Traffic</div>
+      <div class="link-tag">traffic.html</div>
+    </div>
+    <img class="link-thumb" src="https://alerts.kb3cat.com/images/traffic.png" alt="Traffic preview" loading="lazy">
+    <p class="link-desc">511PA closures and restrictions</p>
+  </a>
+
+  <a class="link-card" href="https://alerts.kb3cat.com/stormreports.html">
+    <div class="link-card-top">
+      <div class="link-title">Storm Reports</div>
+      <div class="link-tag">stormreports.html</div>
+    </div>
+    <img class="link-thumb" src="https://alerts.kb3cat.com/images/stormreports.png" alt="Storm Reports preview" loading="lazy">
+    <p class="link-desc">Recent storm activity (24h)</p>
+  </a>
+
+  <a class="link-card" href="https://alerts.kb3cat.com/airports.html">
+    <div class="link-card-top">
+      <div class="link-title">Airports</div>
+      <div class="link-tag">airports.html</div>
+    </div>
+    <img class="link-thumb" src="https://alerts.kb3cat.com/images/airports.png" alt="Airports preview" loading="lazy">
+    <p class="link-desc">PA airport + METAR status</p>
+  </a>
+
+</div>
+
+<!-- ✅ UPDATED CONTACT BUTTON -->
+<div style="margin-top:20px; text-align:center;">
+
+  <a href="https://kb3cat.com/contact.html" style="
+       display:inline-block;
+       padding:12px 18px;
+       background:#00bfff;
+       color:#000;
+       font-weight:bold;
+       border-radius:8px;
+       text-decoration:none;
+       transition:0.15s;
+     " onmouseover="this.style.background='#33ccff'" onmouseout="this.style.background='#00bfff'">
+
+    Contact / Suggestions
+
+  </a>
+
+  <div style="margin-top:6px; font-size:12px; opacity:0.6;">
+    Send feedback or report issues
+  </div>
+
+</div>
+
+<div class="status" id="statusText">Loading...</div>
+
+<script>
+const TRAFFIC_BASE = "https://alerts.kb3cat.com/data/";
+const NWS_URL = "https://api.weather.gov/alerts/active?area=PA";
+
+/* ---------- ICON HANDLING ---------- */
+
+function getRouteIconCandidates(route) {
+  if (!route) return [];
+
+  const clean = route.toUpperCase().replace(/\s+/g, "");
+  const noDash = clean.replace("-", "").toLowerCase();
+  const withDash = clean.toLowerCase();
+
+  return [
+    `${TRAFFIC_BASE}icons/${noDash}small.png`,
+    `${TRAFFIC_BASE}icons/${withDash.replace("-", "")}small.png`,
+    `${TRAFFIC_BASE}icons/${noDash}.small.png`,
+    `${TRAFFIC_BASE}icons/${withDash}.small.png`
+  ];
+}
+
+function tryNextIcon(img) {
+  const list = JSON.parse(img.dataset.icons || "[]");
+  list.shift();
+
+  if (!list.length) {
+    img.style.display = "none";
+    return;
+  }
+
+  img.dataset.icons = JSON.stringify(list);
+  img.src = list[0] + "?v=" + Date.now();
+}
+
+/* ---------- WEATHER ---------- */
+
+function isValidAlert(p) {
+  const e = (p.event || "").toLowerCase();
+  return (
+    (e.includes("watch") || e.includes("warning") || e.includes("emergency")) &&
+    !e.includes("advisory")
+  );
+}
+
+function renderAlerts(data) {
+  const alerts = (data.features || [])
+    .map(f => f.properties)
+    .filter(isValidAlert);
+
+  const countEl = document.getElementById("alertsCount");
+  const summaryEl = document.getElementById("alertsSummary");
+
+  if (!alerts.length) {
+    countEl.textContent = "None";
+    summaryEl.innerHTML = "";
+    return;
+  }
+
+  countEl.textContent = alerts.length;
+
+  summaryEl.innerHTML = alerts.slice(0,5).map(a => `
+    <div><strong>${a.event}</strong><br>${a.areaDesc}</div>
+  `).join("");
+}
+
+/* ---------- TRAFFIC ---------- */
+
+function renderClosures(data) {
+  const closures = data.items || [];
+
+  const countEl = document.getElementById("closuresCount");
+  const summaryEl = document.getElementById("closuresSummary");
+
+  if (!closures.length) {
+    countEl.textContent = "None";
+    return;
+  }
+
+  countEl.textContent = closures.length;
+
+  summaryEl.innerHTML = closures.map(c => {
+    const icons = getRouteIconCandidates(c.route);
+
+    return `
+      <div class="closure-row">
+        <img class="route-icon"
+             src="${icons[0]}?v=${Date.now()}"
+             data-icons='${JSON.stringify(icons)}'
+             onerror="tryNextIcon(this)">
+        <div><strong>${c.route} ${c.direction} (${c.county})</strong></div>
+      </div>
+    `;
+  }).join("");
+}
+
+/* ---------- LOAD ---------- */
+
+async function loadDashboard() {
+
+  try {
+    const alerts = await fetch(NWS_URL).then(r => r.json());
+    renderAlerts(alerts);
+  } catch {
+    document.getElementById("alertsCount").textContent = "None";
+  }
+
+  try {
+    const closures = await fetch(TRAFFIC_BASE + "major_route_closures.json").then(r => r.json());
+    renderClosures(closures);
+  } catch {
+    document.getElementById("closuresCount").textContent = "None";
+  }
+
+  try {
+    const last = await fetch(TRAFFIC_BASE + "last_run.json").then(r => r.json());
+    document.getElementById("lastUpdated").textContent =
+      new Date(last.ran_at).toLocaleString();
+  } catch {
+    document.getElementById("lastUpdated").textContent = "--";
+  }
+
+  document.getElementById("statusText").textContent = "Live";
+}
+
+loadDashboard();
+setInterval(loadDashboard, 300000);
+</script>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" crossorigin="anonymous"></script>
+
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"bcc2369b13aa483b95f11c2006ef0157","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"bcc2369b13aa483b95f11c2006ef0157","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
