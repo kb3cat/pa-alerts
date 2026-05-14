@@ -168,7 +168,7 @@ function samplePath(points, everyMiles, maxPoints) {
 }
 
 async function fetch511Incident(id) {
-  const url = `https://www.511pa.com/${encodeURIComponent(id)}?lang=en-US`;
+  const url =  `https://www.511pa.com/map/data/MajorRouteIncident/${encodeURIComponent(id)}`;
 
   const r = await fetch(url, {
     headers: {
