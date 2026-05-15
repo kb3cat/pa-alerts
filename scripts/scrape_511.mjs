@@ -24,7 +24,29 @@ async function scrapeSimpleTable(browser, url, tableSelector = "table") {
     );
 
     const rows = await page.$$eval(`${tableSelector} tbody tr`, trs =>
-      trs.map(tr => Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim()))
+      trs.map(tr => {
+        const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+        const html = tr.innerHTML || "";
+        const rowText = tr.innerText || "";
+
+        let eventId = null;
+
+        const m =
+          html.match(/MajorRouteIncident-(\\d+)/i) ||
+          html.match(/\\/map\\/data\\/MajorRouteIncident\\/(\\d+)/i) ||
+          html.match(/eventid["']?\\s*[:=]\\s*["']?(\\d+)/i) ||
+          html.match(/data-event-id=["']?(\\d+)/i) ||
+          html.match(/data-id=["']?(\\d+)/i);
+
+        if (m) eventId = m[1];
+
+        return {
+          eventId,
+          html,
+          text: rowText,
+          cells
+        };
+      })
     );
 
     return { url, fetched_at: new Date().toISOString(), headers, rows };
@@ -47,6 +69,25 @@ function findHeader(headers, re) {
 
 function norm(s) {
   return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+function rowCells(row) {
+  return Array.isArray(row) ? row : (row?.cells || []);
+}
+
+function rowEventId(row) {
+  const direct = row?.eventId || row?.id || row?.event_id || row?.alertId || row?.alert_id;
+  if (direct) return String(direct).trim();
+
+  const haystack = `${row?.html || ""}\n${row?.text || ""}`;
+  const m =
+    haystack.match(/MajorRouteIncident-(\d+)/i) ||
+    haystack.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
+    haystack.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
+    haystack.match(/data-event-id=["']?(\d+)/i) ||
+    haystack.match(/data-id=["']?(\d+)/i);
+
+  return m ? m[1] : null;
 }
 
 function parseRoute(desc) {
@@ -263,9 +304,12 @@ function buildMajorRouteClosures(trafficTable) {
   const items = [];
 
   for (const r of rows) {
-    const type = norm(typeIdx != null ? r[typeIdx] : "");
-    const desc = norm(descIdx != null ? r[descIdx] : "");
-    const end  = norm(endIdx != null ? r[endIdx] : "");
+    const row = rowCells(r);
+    const eventId = rowEventId(r);
+
+    const type = norm(typeIdx != null ? row[typeIdx] : "");
+    const desc = norm(descIdx != null ? row[descIdx] : "");
+    const end  = norm(endIdx != null ? row[endIdx] : "");
 
     if (!desc) continue;
 
@@ -283,7 +327,7 @@ function buildMajorRouteClosures(trafficTable) {
     const dir = parseDirection(desc) || "DIRECTION";
     const between = parseBetweenExits(desc);
 
-    const countyFromCol = countyIdx != null ? norm(r[countyIdx]) : "";
+    const countyFromCol = countyIdx != null ? norm(row[countyIdx]) : "";
     const county = (countyFromCol && !/^unknown$/i.test(countyFromCol))
       ? countyFromCol.replace(/\s*county$/i, "").trim()
       : (parseCountyFromDesc(desc) || "Unknown");
@@ -301,6 +345,8 @@ function buildMajorRouteClosures(trafficTable) {
     const line = `${route} (${county} County) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
+      id: eventId,
+      eventId,
       route,
       direction: dir,
       between,
@@ -364,14 +410,17 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
   const items = [];
 
   for (const r of rows) {
-    const type = norm(typeIdx != null ? r[typeIdx] : "");
-    const roadway = norm(roadwayIdx != null ? r[roadwayIdx] : "");
-    const state = norm(stateIdx != null ? r[stateIdx] : "");
-    const county = norm(countyIdx != null ? r[countyIdx] : "");
-    const desc = norm(descIdx != null ? r[descIdx] : "");
-    const start = norm(startIdx != null ? r[startIdx] : "");
-    const end = norm(endIdx != null ? r[endIdx] : "");
-    const updated = norm(updatedIdx != null ? r[updatedIdx] : "");
+    const row = rowCells(r);
+    const eventId = rowEventId(r);
+
+    const type = norm(typeIdx != null ? row[typeIdx] : "");
+    const roadway = norm(roadwayIdx != null ? row[roadwayIdx] : "");
+    const state = norm(stateIdx != null ? row[stateIdx] : "");
+    const county = norm(countyIdx != null ? row[countyIdx] : "");
+    const desc = norm(descIdx != null ? row[descIdx] : "");
+    const start = norm(startIdx != null ? row[startIdx] : "");
+    const end = norm(endIdx != null ? row[endIdx] : "");
+    const updated = norm(updatedIdx != null ? row[updatedIdx] : "");
 
     if (!desc) continue;
 
@@ -392,6 +441,8 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
     const line = `${route} (${countyClean} County) | ${narrative} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
+      id: eventId,
+      eventId,
       type,
       roadway,
       state,
