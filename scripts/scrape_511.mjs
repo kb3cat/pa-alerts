@@ -25,26 +25,37 @@ async function scrapeSimpleTable(browser, url, tableSelector = "table") {
 
     const rows = await page.$$eval(`${tableSelector} tbody tr`, trs =>
       trs.map(tr => {
-        const cells = Array.from(tr.querySelectorAll("td")).map(td => td.innerText.trim());
+        const tds = Array.from(tr.querySelectorAll("td"));
+
+        const cells = tds.map(td => td.innerText.trim());
+
+        const links = tds.map(td => {
+          const a = td.querySelector("a");
+          return a ? (a.href || a.getAttribute("href") || "") : "";
+        });
+
         const html = tr.innerHTML || "";
         const rowText = tr.innerText || "";
-
-        let eventId = null;
+        const haystack = `${links.join(" ")} ${html} ${rowText}`;
 
         const m =
-          html.match(/MajorRouteIncident-(\d+)/i) ||
-          html.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
-          html.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
-          html.match(/data-event-id=["']?(\d+)/i) ||
-          html.match(/data-id=["']?(\d+)/i);
-
-        if (m) eventId = m[1];
+          haystack.match(/MajorRouteIncident[-/](\d+)/i) ||
+          haystack.match(/MajorRouteIncident-(\d+)/i) ||
+          haystack.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
+          haystack.match(/Closure[-/](\d+)/i) ||
+          haystack.match(/IncidentClosure[-/](\d+)/i) ||
+          haystack.match(/\/map\/data\/Closure\/(\d+)/i) ||
+          haystack.match(/\/map\/data\/IncidentClosure\/(\d+)/i) ||
+          haystack.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
+          haystack.match(/data-event-id=["']?(\d+)/i) ||
+          haystack.match(/data-id=["']?(\d+)/i);
 
         return {
-          eventId,
+          eventId: m ? m[1] : null,
+          cells,
+          links,
           html,
-          text: rowText,
-          cells
+          text: rowText
         };
       })
     );
@@ -79,10 +90,16 @@ function rowEventId(row) {
   const direct = row?.eventId || row?.id || row?.event_id || row?.alertId || row?.alert_id;
   if (direct) return String(direct).trim();
 
-  const haystack = `${row?.html || ""}\n${row?.text || ""}`;
+  const haystack = `${(row?.links || []).join(" ")} ${row?.html || ""} ${row?.text || ""}`;
+
   const m =
+    haystack.match(/MajorRouteIncident[-/](\d+)/i) ||
     haystack.match(/MajorRouteIncident-(\d+)/i) ||
     haystack.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
+    haystack.match(/Closure[-/](\d+)/i) ||
+    haystack.match(/IncidentClosure[-/](\d+)/i) ||
+    haystack.match(/\/map\/data\/Closure\/(\d+)/i) ||
+    haystack.match(/\/map\/data\/IncidentClosure\/(\d+)/i) ||
     haystack.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
     haystack.match(/data-event-id=["']?(\d+)/i) ||
     haystack.match(/data-id=["']?(\d+)/i);
@@ -132,7 +149,11 @@ function isConstructionRelated(desc) {
 }
 
 function isAllLanesClosedOrBlocked(desc) {
-  return /\ball lanes (closed|blocked)\b/i.test(desc);
+  return (
+    /\ball lanes (closed|blocked)\b/i.test(desc) ||
+    /\bblocking all lanes\b/i.test(desc) ||
+    /\ball lanes.*?block/i.test(desc)
+  );
 }
 
 function isAllLanesOpen(desc) {
