@@ -7,6 +7,7 @@ const TOMTOM_KEY = process.env.TOMTOM_KEY;
 const OUT_FILE = process.env.TQ_OUT_FILE || "data/tq_live.json";
 const SAMPLE_EVERY_MILES = Number(process.env.TQ_SAMPLE_EVERY_MILES || 0.25);
 const MAX_SAMPLE_POINTS = Number(process.env.TQ_MAX_SAMPLE_POINTS || 24);
+const DOWNSTREAM_SAMPLE_POINTS = Number(process.env.TQ_DOWNSTREAM_SAMPLE_POINTS || 6);
 const MAX_EVENTS = Number(process.env.TQ_MAX_EVENTS || 20);
 
 const INPUT_FILES = (process.env.TQ_INPUT_FILES || "data/major_route_closures.json,data/lane_restrictions.json")
@@ -164,6 +165,97 @@ function upstreamPath(points, incident, direction){
 
   // upstream should generally be opposite travel direction, i.e. lower dot.
   return beforeDot < afterDot ? before : after;
+}
+
+function downstreamPath(points, incident, direction){
+  if (points.length < 2) return points;
+
+  const idx = closestIndex(points, incident);
+  const before = points.slice(0, idx + 1).reverse();
+  const after = points.slice(idx);
+
+  const beforeEnd = before[before.length - 1] || before[0];
+  const afterEnd = after[after.length - 1] || after[0];
+
+  const beforeDot = dotFromIncident(incident, beforeEnd, direction);
+  const afterDot = dotFromIncident(incident, afterEnd, direction);
+
+  // downstream should generally follow travel direction, i.e. higher dot.
+  return beforeDot >= afterDot ? before : after;
+}
+
+function averageFlowStats(samples) {
+  const usable = (samples || []).filter(s =>
+    s &&
+    s.state !== "unknown" &&
+    Number.isFinite(Number(s.currentSpeed)) &&
+    Number.isFinite(Number(s.freeFlowSpeed)) &&
+    Number(s.freeFlowSpeed) > 0
+  );
+
+  if (!usable.length) {
+    return {
+      usableCount: 0,
+      avgSpeed: null,
+      avgFreeFlow: null,
+      avgRatio: null,
+      stoppedCount: 0,
+      slowCount: 0,
+      flowingCount: 0
+    };
+  }
+
+  const sumSpeed = usable.reduce((sum, s) => sum + Number(s.currentSpeed), 0);
+  const sumFree = usable.reduce((sum, s) => sum + Number(s.freeFlowSpeed), 0);
+  const avgSpeed = sumSpeed / usable.length;
+  const avgFreeFlow = sumFree / usable.length;
+  const avgRatio = avgFreeFlow > 0 ? avgSpeed / avgFreeFlow : null;
+
+  return {
+    usableCount: usable.length,
+    avgSpeed: Number(avgSpeed.toFixed(1)),
+    avgFreeFlow: Number(avgFreeFlow.toFixed(1)),
+    avgRatio: avgRatio == null ? null : Number(avgRatio.toFixed(2)),
+    stoppedCount: usable.filter(s => s.state === "stopped").length,
+    slowCount: usable.filter(s => s.state === "slow").length,
+    flowingCount: usable.filter(s => s.state === "flowing").length
+  };
+}
+
+function confidenceFromValidation(upstreamSamples, downstreamSamples, baseConfidence) {
+  const up = averageFlowStats(upstreamSamples);
+  const down = averageFlowStats(downstreamSamples);
+
+  let score = 0;
+
+  // Base confidence from provider confidence / usable sample count.
+  if (baseConfidence === "high") score += 3;
+  else if (baseConfidence === "medium") score += 2;
+  else score += 1;
+
+  // More upstream samples = more reliable distance estimate.
+  if (up.usableCount >= 8) score += 2;
+  else if (up.usableCount >= 4) score += 1;
+
+  // Consistent upstream slowdown/stoppage supports queue/backlog confidence.
+  const upImpaired = up.stoppedCount + up.slowCount;
+  if (up.usableCount && upImpaired / up.usableCount >= 0.75) score += 2;
+  else if (up.usableCount && upImpaired / up.usableCount >= 0.5) score += 1;
+
+  // Downstream validation: queue upstream with healthier downstream flow is more likely incident-related.
+  if (down.usableCount >= 2 && up.avgRatio != null && down.avgRatio != null) {
+    const ratioDelta = down.avgRatio - up.avgRatio;
+
+    if (down.avgRatio >= 0.75 && ratioDelta >= 0.20) score += 2;
+    else if (down.avgRatio >= 0.65 && ratioDelta >= 0.10) score += 1;
+
+    // If downstream is similarly slow, lower confidence a bit.
+    if (down.avgRatio < 0.65 && Math.abs(ratioDelta) < 0.10) score -= 1;
+  }
+
+  if (score >= 6) return "high";
+  if (score >= 3) return "medium";
+  return "low";
 }
 
 function interpolate(a,b,f){
@@ -371,8 +463,8 @@ async function analyzeIncident(discovered){
 
   const incidentPoint = {lat:incident.lat, lon:incident.lon};
 
-  // First live-flow call at the incident point.
-  // This gives us current speed AND, when 511PA lacks a usable polyline,
+  // First live-flow call at the incident pin.
+  // This gives current speed and, when 511PA lacks a usable polyline,
   // TomTom's own flow-segment geometry.
   let initialFlow = null;
   try {
@@ -392,7 +484,7 @@ async function analyzeIncident(discovered){
     ];
   }
 
-  // Important beta fallback:
+  // Beta fallback:
   // Some 511PA closure records only provide a pin. If so, use TomTom's returned
   // flow segment geometry so we can sample more than one point and calculate distance.
   if (geometry.length < 2 && initialFlow) {
@@ -438,13 +530,41 @@ async function analyzeIncident(discovered){
     }
   }
 
+  // Backend-only downstream/forward validation.
+  // We do not expose this in the UI; it only adjusts confidence.
+  const downstream = downstreamPath(geometry, incidentPoint, incident.direction);
+  let downstreamPoints = samplePath(downstream, SAMPLE_EVERY_MILES, DOWNSTREAM_SAMPLE_POINTS);
+  downstreamPoints = uniquePoints(downstreamPoints).filter(p =>
+    Math.abs(p.lat - incidentPoint.lat) >= 0.000001 ||
+    Math.abs(p.lon - incidentPoint.lon) >= 0.000001
+  );
+
+  const downstreamSamples = [];
+  for (const point of downstreamPoints) {
+    try {
+      const flow = await fetchTomTomFlow(point);
+      downstreamSamples.push({
+        point,
+        state: classifyFlow(flow),
+        currentSpeed: flow?.currentSpeed ?? null,
+        freeFlowSpeed: flow?.freeFlowSpeed ?? null,
+        confidence: flow?.confidence ?? null,
+        roadClosure: flow?.roadClosure ?? null
+      });
+    } catch (e) {
+      downstreamSamples.push({ point, state:"unknown", error:String(e?.message || e) });
+    }
+  }
+
   const summary = summarizeSamples(samples);
   const usable = samples.filter(s => s.state !== "unknown");
   const avgConfidence = usable.length ? usable.reduce((sum,s)=>sum+Number(s.confidence||0),0)/usable.length : 0;
 
-  let confidence = "low";
-  if (usable.length >= 4 && avgConfidence >= 0.8) confidence = "high";
-  else if (usable.length >= 3 && avgConfidence >= 0.5) confidence = "medium";
+  let baseConfidence = "low";
+  if (usable.length >= 4 && avgConfidence >= 0.8) baseConfidence = "high";
+  else if (usable.length >= 3 && avgConfidence >= 0.5) baseConfidence = "medium";
+
+  const confidence = confidenceFromValidation(samples, downstreamSamples, baseConfidence);
 
   return {
     eventId:incident.id,
@@ -466,6 +586,12 @@ async function analyzeIncident(discovered){
     sampleCount:samples.length,
     geometrySource,
     geometryMiles:Number(pathLengthMiles(geometry).toFixed(2)),
+
+    // Internal validation fields. The current beta UI does not display these.
+    downstreamValidation: {
+      sampleCount: downstreamSamples.length,
+      stats: averageFlowStats(downstreamSamples)
+    },
 
     confidence,
     source:`511PA event geometry + TomTom live traffic flow; geometry source: ${geometrySource}`,
