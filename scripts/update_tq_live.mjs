@@ -194,6 +194,66 @@ function samplePath(points, everyMiles, maxPoints){
   return samples;
 }
 
+function normalizeTomTomCoordinate(c) {
+  if (!c) return null;
+
+  // TomTom usually returns { latitude, longitude } in flowSegmentData.coordinates.coordinate[]
+  const lat = Number(c.latitude ?? c.lat);
+  const lon = Number(c.longitude ?? c.lon ?? c.lng);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon };
+}
+
+function tomTomGeometryFromFlow(flow) {
+  const coords =
+    flow?.coordinates?.coordinate ||
+    flow?.coordinates ||
+    flow?.shape ||
+    [];
+
+  if (!Array.isArray(coords)) return [];
+
+  return coords
+    .map(normalizeTomTomCoordinate)
+    .filter(Boolean);
+}
+
+function pathLengthMiles(points) {
+  if (!Array.isArray(points) || points.length < 2) return 0;
+
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    total += milesBetween(points[i - 1], points[i]);
+  }
+  return total;
+}
+
+function uniquePoints(points) {
+  const seen = new Set();
+  const out = [];
+
+  for (const p of points || []) {
+    const key = `${p.lat.toFixed(6)},${p.lon.toFixed(6)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+
+  return out;
+}
+
+function expandGeometryWithTomTomFlow(incidentPoint, direction, initialFlow) {
+  const tomtomGeom = tomTomGeometryFromFlow(initialFlow);
+
+  if (tomtomGeom.length < 2) return [];
+
+  const upstream = upstreamPath(tomtomGeom, incidentPoint, direction);
+  const sampled = samplePath(upstream, SAMPLE_EVERY_MILES, MAX_SAMPLE_POINTS);
+
+  return uniquePoints(sampled);
+}
+
 async function fetch511Incident(id){
   const url = `https://www.511pa.com/map/data/MajorRouteIncident/${encodeURIComponent(id)}`;
 
@@ -309,25 +369,60 @@ async function analyzeIncident(discovered){
   const raw = await fetch511Incident(id);
   const incident = normalizeIncident(raw,id);
 
+  const incidentPoint = {lat:incident.lat, lon:incident.lon};
+
+  // First live-flow call at the incident point.
+  // This gives us current speed AND, when 511PA lacks a usable polyline,
+  // TomTom's own flow-segment geometry.
+  let initialFlow = null;
+  try {
+    initialFlow = await fetchTomTomFlow(incidentPoint);
+  } catch (e) {
+    initialFlow = null;
+  }
+
+  let geometrySource = "511PA polyline";
   let geometry = decodePolyline(incident.polyline);
 
   if (geometry.length < 2 && incident.secondaryLat && incident.secondaryLon) {
+    geometrySource = "511PA primary/secondary points";
     geometry = [
       {lat:incident.lat, lon:incident.lon},
       {lat:incident.secondaryLat, lon:incident.secondaryLon}
     ];
   }
 
-  if (geometry.length < 2) geometry = [{lat:incident.lat, lon:incident.lon}];
+  // Important beta fallback:
+  // Some 511PA closure records only provide a pin. If so, use TomTom's returned
+  // flow segment geometry so we can sample more than one point and calculate distance.
+  if (geometry.length < 2 && initialFlow) {
+    const expanded = expandGeometryWithTomTomFlow(incidentPoint, incident.direction, initialFlow);
+    if (expanded.length >= 2) {
+      geometrySource = "TomTom flow segment geometry";
+      geometry = expanded;
+    }
+  }
 
-  const incidentPoint = {lat:incident.lat, lon:incident.lon};
+  if (geometry.length < 2) {
+    geometrySource = "single incident point only";
+    geometry = [incidentPoint];
+  }
+
   const upstream = upstreamPath(geometry, incidentPoint, incident.direction);
-  const points = samplePath(upstream, SAMPLE_EVERY_MILES, MAX_SAMPLE_POINTS);
+  let points = samplePath(upstream, SAMPLE_EVERY_MILES, MAX_SAMPLE_POINTS);
+
+  // Ensure the incident point is first. This also preserves the first TomTom result.
+  points = uniquePoints([incidentPoint, ...points]);
 
   const samples = [];
   for (const point of points) {
     try {
-      const flow = await fetchTomTomFlow(point);
+      const isIncidentPoint =
+        Math.abs(point.lat - incidentPoint.lat) < 0.000001 &&
+        Math.abs(point.lon - incidentPoint.lon) < 0.000001;
+
+      const flow = (isIncidentPoint && initialFlow) ? initialFlow : await fetchTomTomFlow(point);
+
       samples.push({
         point,
         state: classifyFlow(flow),
@@ -362,12 +457,18 @@ async function analyzeIncident(discovered){
     sourceText:discovered.sourceText || null,
     incidentPoint,
     secondaryPoint:incident.secondaryLat && incident.secondaryLon ? {lat:incident.secondaryLat, lon:incident.secondaryLon} : null,
+
     tqMiles:summary.tqMiles,
     backlogMiles:summary.backlogMiles,
     totalAffectedMiles:summary.totalAffectedMiles,
     sampledMiles:summary.sampledMiles,
+
+    sampleCount:samples.length,
+    geometrySource,
+    geometryMiles:Number(pathLengthMiles(geometry).toFixed(2)),
+
     confidence,
-    source:"511PA event geometry + TomTom live traffic flow",
+    source:`511PA event geometry + TomTom live traffic flow; geometry source: ${geometrySource}`,
     updated:nowIso(),
     samples
   };
