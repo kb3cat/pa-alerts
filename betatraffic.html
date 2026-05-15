@@ -1601,11 +1601,18 @@ async function loadBoard(){
     const seen = new Set();
     const closuresMerged = [];
     for (const it of closuresPrimaryRaw) {
-      const s = it.formatted || "";
-      const k = closureDedupeKey(s);
+      const normalized = {
+        ...it,
+        id: String(it.id || it.eventId || "").trim(),
+        eventId: String(it.eventId || it.id || "").trim(),
+        formatted: String(it.formatted || "").trim()
+      };
+
+      const k = closureDedupeKey(normalized.formatted);
       if (seen.has(k)) continue;
       seen.add(k);
-      closuresMerged.push(it);
+
+      closuresMerged.push(normalized);
     }
     closuresMerged.sort((a,b) => sortByRoute(a.formatted || "", b.formatted || ""));
 
