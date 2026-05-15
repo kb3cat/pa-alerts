@@ -32,11 +32,11 @@ async function scrapeSimpleTable(browser, url, tableSelector = "table") {
         let eventId = null;
 
         const m =
-          html.match(/MajorRouteIncident-(\\d+)/i) ||
-          html.match(/\\/map\\/data\\/MajorRouteIncident\\/(\\d+)/i) ||
-          html.match(/eventid["']?\\s*[:=]\\s*["']?(\\d+)/i) ||
-          html.match(/data-event-id=["']?(\\d+)/i) ||
-          html.match(/data-id=["']?(\\d+)/i);
+          html.match(/MajorRouteIncident-(\d+)/i) ||
+          html.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
+          html.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
+          html.match(/data-event-id=["']?(\d+)/i) ||
+          html.match(/data-id=["']?(\d+)/i);
 
         if (m) eventId = m[1];
 
