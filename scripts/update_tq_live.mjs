@@ -336,25 +336,44 @@ async function fetchTomTomFlow(point){
   return j.flowSegmentData || null;
 }
 
+function incidentLooksLikeInterstate(incident){
+  const text = `${incident.route || ""} ${incident.description || ""}`.toUpperCase();
+  return /\bI[-\s]?\d+\b/.test(text) || /\bINTERSTATE\b/.test(text);
+}
+
+function isLikelyBadFlowForRoute(flow, incident){
+  if (!flow) return true;
+
+  const current = Number(flow.currentSpeed);
+  const free = Number(flow.freeFlowSpeed);
+
+  if (!Number.isFinite(current) || !Number.isFinite(free) || free <= 0) return true;
+
+  if (incidentLooksLikeInterstate(incident) && free < 50) {
+    return true;
+  }
+
+  return false;
+}
+
 function classifyFlow(flow){
   if (!flow) return "unknown";
 
   const current = Number(flow.currentSpeed);
   const free = Number(flow.freeFlowSpeed);
-  const ratio = free > 0 ? current / free : null;
+
+  if (!Number.isFinite(current) || !Number.isFinite(free) || free <= 0) {
+    return "unknown";
+  }
+
+  const ratio = current / free;
 
   if (flow.roadClosure === true) return "stopped";
 
-  if (Number.isFinite(current) && current <= 10) return "stopped";
-  if (ratio !== null && ratio <= 0.22) return "stopped";
-
-  if (Number.isFinite(current) && current <= 25) return "severe";
-  if (ratio !== null && ratio <= 0.40) return "severe";
-
-  if (Number.isFinite(current) && current <= 40) return "slow";
-  if (ratio !== null && ratio <= 0.65) return "slow";
-
-  if (ratio !== null && ratio <= 0.80) return "moderate";
+  if (ratio <= 0.20) return "stopped";
+  if (ratio <= 0.40) return "severe";
+  if (ratio <= 0.65) return "slow";
+  if (ratio <= 0.85) return "moderate";
 
   return "flowing";
 }
@@ -386,7 +405,8 @@ function averageFlowStats(samples) {
       severeCount: 0,
       slowCount: 0,
       moderateCount: 0,
-      flowingCount: 0
+      flowingCount: 0,
+      badSnapCount: (samples || []).filter(s => s.badFlow === true).length
     };
   }
 
@@ -406,7 +426,8 @@ function averageFlowStats(samples) {
     severeCount: usable.filter(s => s.state === "severe").length,
     slowCount: usable.filter(s => s.state === "slow").length,
     moderateCount: usable.filter(s => s.state === "moderate").length,
-    flowingCount: usable.filter(s => s.state === "flowing").length
+    flowingCount: usable.filter(s => s.state === "flowing").length,
+    badSnapCount: (samples || []).filter(s => s.badFlow === true).length
   };
 }
 
@@ -491,6 +512,9 @@ function confidenceFromValidation(upstreamSamples, downstreamSamples, baseConfid
   if (baseConfidence === "high") score += 3;
   else if (baseConfidence === "medium") score += 2;
   else score += 1;
+
+  if (up.badSnapCount > 0 && up.usableCount === 0) score -= 2;
+  else if (up.badSnapCount > up.usableCount) score -= 1;
 
   if (up.usableCount >= 8) score += 2;
   else if (up.usableCount >= 4) score += 1;
@@ -580,6 +604,31 @@ function buildGeometry(incident, incidentPoint, initialFlow) {
   return { geometry, geometrySource };
 }
 
+function makeSample(point, flow, incident, error = null) {
+  if (error) {
+    return {
+      point,
+      state:"unknown",
+      badFlow:false,
+      error:String(error?.message || error)
+    };
+  }
+
+  const badFlow = isLikelyBadFlowForRoute(flow, incident);
+
+  return {
+    point,
+    state: badFlow ? "unknown" : classifyFlow(flow),
+    badFlow,
+    currentSpeed: flow?.currentSpeed ?? null,
+    freeFlowSpeed: flow?.freeFlowSpeed ?? null,
+    currentTravelTime: flow?.currentTravelTime ?? null,
+    freeFlowTravelTime: flow?.freeFlowTravelTime ?? null,
+    confidence: flow?.confidence ?? null,
+    roadClosure: flow?.roadClosure ?? null
+  };
+}
+
 async function analyzeIncident(discovered){
   const id = discovered.eventId || discovered;
   const raw = await fetch511Incident(id);
@@ -613,23 +662,9 @@ async function analyzeIncident(discovered){
         Math.abs(point.lon - incidentPoint.lon) < 0.000001;
 
       const flow = (isIncidentPoint && initialFlow) ? initialFlow : await fetchTomTomFlow(point);
-
-      samples.push({
-        point,
-        state: classifyFlow(flow),
-        currentSpeed: flow?.currentSpeed ?? null,
-        freeFlowSpeed: flow?.freeFlowSpeed ?? null,
-        currentTravelTime: flow?.currentTravelTime ?? null,
-        freeFlowTravelTime: flow?.freeFlowTravelTime ?? null,
-        confidence: flow?.confidence ?? null,
-        roadClosure: flow?.roadClosure ?? null
-      });
+      samples.push(makeSample(point, flow, incident));
     } catch (e) {
-      samples.push({
-        point,
-        state:"unknown",
-        error:String(e?.message || e)
-      });
+      samples.push(makeSample(point, null, incident, e));
     }
   }
 
@@ -647,21 +682,9 @@ async function analyzeIncident(discovered){
   for (const point of downstreamPoints) {
     try {
       const flow = await fetchTomTomFlow(point);
-
-      downstreamSamples.push({
-        point,
-        state: classifyFlow(flow),
-        currentSpeed: flow?.currentSpeed ?? null,
-        freeFlowSpeed: flow?.freeFlowSpeed ?? null,
-        confidence: flow?.confidence ?? null,
-        roadClosure: flow?.roadClosure ?? null
-      });
+      downstreamSamples.push(makeSample(point, flow, incident));
     } catch (e) {
-      downstreamSamples.push({
-        point,
-        state:"unknown",
-        error:String(e?.message || e)
-      });
+      downstreamSamples.push(makeSample(point, null, incident, e));
     }
   }
 
@@ -678,10 +701,13 @@ async function analyzeIncident(discovered){
   else if (usable.length >= 3 && avgConfidence >= 0.5) baseConfidence = "medium";
 
   const confidence = confidenceFromValidation(samples, downstreamSamples, baseConfidence, summary);
+  const upstreamStats = averageFlowStats(samples);
 
   let note = null;
 
-  if (!usable.length) {
+  if (!usable.length && upstreamStats.badSnapCount > 0) {
+    note = "TomTom returned flow samples, but they appear to be snapped to non-mainline geometry for this route; queue not calculated.";
+  } else if (!usable.length) {
     note = "No usable upstream TomTom flow samples found; do not treat as a confirmed 0.00 mi queue.";
   } else if (!summary.started) {
     note = "Upstream flow samples were found, but no sustained queue was detected.";
@@ -715,7 +741,7 @@ async function analyzeIncident(discovered){
     geometryMiles:Number(pathLengthMiles(geometry).toFixed(2)),
 
     upstreamValidation: {
-      stats: averageFlowStats(samples)
+      stats: upstreamStats
     },
 
     downstreamValidation: {
