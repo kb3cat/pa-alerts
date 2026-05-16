@@ -1,6 +1,6 @@
 {
   "name": "tq_live",
-  "fetched_at": "2026-05-16T06:15:08.175Z",
+  "fetched_at": "2026-05-16T06:36:03.747Z",
   "count": 2,
   "events": [
     {
@@ -29,45 +29,48 @@
       "geometryMiles": 6.58,
       "upstreamValidation": {
         "stats": {
-          "usableCount": 2,
-          "avgSpeed": 31,
-          "avgFreeFlow": 40,
-          "avgRatio": 0.78,
-          "stoppedCount": 2,
+          "usableCount": 0,
+          "avgSpeed": null,
+          "avgFreeFlow": null,
+          "avgRatio": null,
+          "stoppedCount": 0,
           "severeCount": 0,
           "slowCount": 0,
           "moderateCount": 0,
-          "flowingCount": 0
+          "flowingCount": 0,
+          "badSnapCount": 2
         }
       },
       "downstreamValidation": {
         "sampleCount": 6,
         "stats": {
-          "usableCount": 2,
-          "avgSpeed": 31,
-          "avgFreeFlow": 40,
-          "avgRatio": 0.78,
-          "stoppedCount": 2,
+          "usableCount": 0,
+          "avgSpeed": null,
+          "avgFreeFlow": null,
+          "avgRatio": null,
+          "stoppedCount": 0,
           "severeCount": 0,
           "slowCount": 0,
           "moderateCount": 0,
-          "flowingCount": 0
+          "flowingCount": 0,
+          "badSnapCount": 6
         }
       },
       "confidence": "low",
-      "note": "Directional upstream queue estimate using 511PA incident anchor and TomTom live flow.",
+      "note": "TomTom returned flow samples, but they appear to be snapped to non-mainline geometry for this route; queue not calculated.",
       "source": "511PA event anchor + directional upstream TomTom live traffic flow; geometry source: 511PA polyline",
-      "updated": "2026-05-16T06:15:07.556Z",
+      "updated": "2026-05-16T06:36:03.416Z",
       "samples": [
         {
           "point": {
             "lat": 40.5579663156524,
             "lon": -75.995569538396
           },
-          "state": "stopped",
-          "currentSpeed": 31,
+          "state": "unknown",
+          "badFlow": true,
+          "currentSpeed": 29,
           "freeFlowSpeed": 40,
-          "currentTravelTime": 112,
+          "currentTravelTime": 121,
           "freeFlowTravelTime": 87,
           "confidence": 0.765524,
           "roadClosure": true
@@ -77,10 +80,11 @@
             "lat": 40.55798,
             "lon": -75.99557
           },
-          "state": "stopped",
-          "currentSpeed": 31,
+          "state": "unknown",
+          "badFlow": true,
+          "currentSpeed": 29,
           "freeFlowSpeed": 40,
-          "currentTravelTime": 112,
+          "currentTravelTime": 121,
           "freeFlowTravelTime": 87,
           "confidence": 0.765524,
           "roadClosure": true
@@ -111,34 +115,36 @@
       "upstreamValidation": {
         "stats": {
           "usableCount": 8,
-          "avgSpeed": 55,
+          "avgSpeed": 53,
           "avgFreeFlow": 70,
-          "avgRatio": 0.79,
+          "avgRatio": 0.76,
           "stoppedCount": 0,
           "severeCount": 0,
           "slowCount": 0,
           "moderateCount": 8,
-          "flowingCount": 0
+          "flowingCount": 0,
+          "badSnapCount": 0
         }
       },
       "downstreamValidation": {
         "sampleCount": 1,
         "stats": {
           "usableCount": 1,
-          "avgSpeed": 55,
+          "avgSpeed": 53,
           "avgFreeFlow": 70,
-          "avgRatio": 0.79,
+          "avgRatio": 0.76,
           "stoppedCount": 0,
           "severeCount": 0,
           "slowCount": 0,
           "moderateCount": 1,
-          "flowingCount": 0
+          "flowingCount": 0,
+          "badSnapCount": 0
         }
       },
       "confidence": "medium",
       "note": "Upstream flow samples were found, but no sustained queue was detected.",
       "source": "511PA event anchor + directional upstream TomTom live traffic flow; geometry source: TomTom flow segment geometry",
-      "updated": "2026-05-16T06:15:08.175Z",
+      "updated": "2026-05-16T06:36:03.747Z",
       "samples": [
         {
           "point": {
@@ -146,9 +152,10 @@
             "lon": -76.0758858590397
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -159,9 +166,10 @@
             "lon": -76.07498338820297
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -172,9 +180,10 @@
             "lon": -76.07925466738632
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -185,9 +194,10 @@
             "lon": -76.08352560777983
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -198,9 +208,10 @@
             "lon": -76.08779646621608
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -211,9 +222,10 @@
             "lon": -76.09206724270203
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -224,9 +236,10 @@
             "lon": -76.09633793681967
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
@@ -237,9 +250,10 @@
             "lon": -76.10060797666763
           },
           "state": "moderate",
-          "currentSpeed": 55,
+          "badFlow": false,
+          "currentSpeed": 53,
           "freeFlowSpeed": 70,
-          "currentTravelTime": 427,
+          "currentTravelTime": 442,
           "freeFlowTravelTime": 336,
           "confidence": 1,
           "roadClosure": false
