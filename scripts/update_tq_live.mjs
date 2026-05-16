@@ -103,6 +103,80 @@ function milesBetween(a,b){
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1-x));
 }
 
+function bearingDeg(a,b){
+  const lat1 = a.lat * Math.PI/180;
+  const lat2 = b.lat * Math.PI/180;
+  const dLon = (b.lon - a.lon) * Math.PI/180;
+
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+
+  return (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
+}
+
+function angleDiff(a,b){
+  let d = Math.abs(a - b) % 360;
+  return d > 180 ? 360 - d : d;
+}
+
+function axialAngleDiff(a,b){
+  return Math.min(angleDiff(a,b), angleDiff(a,(b + 180) % 360));
+}
+
+function routeAxisBearing(direction){
+  const d = String(direction || "").toUpperCase();
+
+  if (d.startsWith("E") || d.startsWith("W")) return 90;
+  if (d.startsWith("N") || d.startsWith("S")) return 0;
+
+  return null;
+}
+
+function flowGeometryBearing(flow){
+  const geom = tomTomGeometryFromFlow(flow);
+  if (geom.length < 2) return null;
+
+  return bearingDeg(geom[0], geom[geom.length - 1]);
+}
+
+function offsetPoint(point, northMiles, eastMiles){
+  const latMiles = 69.0;
+  const lonMiles = 69.0 * Math.cos(point.lat * Math.PI/180);
+
+  return {
+    lat: point.lat + northMiles / latMiles,
+    lon: point.lon + eastMiles / lonMiles
+  };
+}
+
+function probePointsForDirection(point, direction){
+  const d = String(direction || "").toUpperCase();
+
+  if (d.startsWith("E") || d.startsWith("W")) {
+    return [
+      point,
+      offsetPoint(point, 0.02, 0),
+      offsetPoint(point, -0.02, 0),
+      offsetPoint(point, 0.04, 0),
+      offsetPoint(point, -0.04, 0)
+    ];
+  }
+
+  if (d.startsWith("N") || d.startsWith("S")) {
+    return [
+      point,
+      offsetPoint(point, 0, 0.02),
+      offsetPoint(point, 0, -0.02),
+      offsetPoint(point, 0, 0.04),
+      offsetPoint(point, 0, -0.04)
+    ];
+  }
+
+  return [point];
+}
+
 function decodePolyline(str){
   if (!str || typeof str !== "string") return [];
 
@@ -353,7 +427,98 @@ function isLikelyBadFlowForRoute(flow, incident){
     return true;
   }
 
+  const axis = routeAxisBearing(incident.direction);
+  const flowBearing = flowGeometryBearing(flow);
+
+  if (axis !== null && flowBearing !== null) {
+    const diff = axialAngleDiff(axis, flowBearing);
+
+    if (diff > 40) return true;
+  }
+
   return false;
+}
+
+function scoreTomTomFlow(flow, incident){
+  if (!flow) return -9999;
+
+  const current = Number(flow.currentSpeed);
+  const free = Number(flow.freeFlowSpeed);
+  const confidence = Number(flow.confidence ?? 0);
+
+  if (!Number.isFinite(current) || !Number.isFinite(free) || free <= 0) return -9999;
+
+  let score = 0;
+
+  if (incidentLooksLikeInterstate(incident)) {
+    if (free >= 60) score += 40;
+    else if (free >= 55) score += 25;
+    else if (free >= 50) score += 10;
+    else score -= 80;
+  }
+
+  const axis = routeAxisBearing(incident.direction);
+  const flowBearing = flowGeometryBearing(flow);
+
+  if (axis !== null && flowBearing !== null) {
+    const diff = axialAngleDiff(axis, flowBearing);
+
+    if (diff <= 15) score += 30;
+    else if (diff <= 30) score += 15;
+    else if (diff <= 40) score += 5;
+    else score -= 50;
+  }
+
+  const ratio = current / free;
+
+  if (flow.roadClosure === true) score += 30;
+  if (ratio <= 0.65) score += 10;
+  if (ratio <= 0.40) score += 10;
+
+  score += confidence * 10;
+
+  return score;
+}
+
+async function fetchBestTomTomFlow(point, incident){
+  const probes = probePointsForDirection(point, incident.direction);
+
+  let best = null;
+  let bestScore = -Infinity;
+  let attempts = [];
+
+  for (const probe of probes) {
+    try {
+      const flow = await fetchTomTomFlow(probe);
+      const score = scoreTomTomFlow(flow, incident);
+
+      attempts.push({
+        probe,
+        score,
+        currentSpeed: flow?.currentSpeed ?? null,
+        freeFlowSpeed: flow?.freeFlowSpeed ?? null,
+        confidence: flow?.confidence ?? null,
+        bearing: flowGeometryBearing(flow)
+      });
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = flow;
+      }
+    } catch (e) {
+      attempts.push({
+        probe,
+        score:-9999,
+        error:String(e?.message || e)
+      });
+    }
+  }
+
+  return {
+    flow: best,
+    score: bestScore,
+    attempts
+  };
 }
 
 function classifyFlow(flow){
@@ -604,7 +769,7 @@ function buildGeometry(incident, incidentPoint, initialFlow) {
   return { geometry, geometrySource };
 }
 
-function makeSample(point, flow, incident, error = null) {
+function makeSample(point, bestResult, incident, error = null) {
   if (error) {
     return {
       point,
@@ -614,18 +779,22 @@ function makeSample(point, flow, incident, error = null) {
     };
   }
 
+  const flow = bestResult?.flow || null;
   const badFlow = isLikelyBadFlowForRoute(flow, incident);
 
   return {
     point,
     state: badFlow ? "unknown" : classifyFlow(flow),
     badFlow,
+    tomtomScore: bestResult?.score ?? null,
     currentSpeed: flow?.currentSpeed ?? null,
     freeFlowSpeed: flow?.freeFlowSpeed ?? null,
     currentTravelTime: flow?.currentTravelTime ?? null,
     freeFlowTravelTime: flow?.freeFlowTravelTime ?? null,
     confidence: flow?.confidence ?? null,
-    roadClosure: flow?.roadClosure ?? null
+    roadClosure: flow?.roadClosure ?? null,
+    flowBearing: flowGeometryBearing(flow),
+    probeAttempts: bestResult?.attempts || []
   };
 }
 
@@ -636,13 +805,15 @@ async function analyzeIncident(discovered){
 
   const incidentPoint = {lat:incident.lat, lon:incident.lon};
 
-  let initialFlow = null;
+  let initialBest = null;
 
   try {
-    initialFlow = await fetchTomTomFlow(incidentPoint);
+    initialBest = await fetchBestTomTomFlow(incidentPoint, incident);
   } catch {
-    initialFlow = null;
+    initialBest = null;
   }
+
+  const initialFlow = initialBest?.flow || null;
 
   const built = buildGeometry(incident, incidentPoint, initialFlow);
   const geometry = built.geometry;
@@ -661,8 +832,11 @@ async function analyzeIncident(discovered){
         Math.abs(point.lat - incidentPoint.lat) < 0.000001 &&
         Math.abs(point.lon - incidentPoint.lon) < 0.000001;
 
-      const flow = (isIncidentPoint && initialFlow) ? initialFlow : await fetchTomTomFlow(point);
-      samples.push(makeSample(point, flow, incident));
+      const best = (isIncidentPoint && initialBest)
+        ? initialBest
+        : await fetchBestTomTomFlow(point, incident);
+
+      samples.push(makeSample(point, best, incident));
     } catch (e) {
       samples.push(makeSample(point, null, incident, e));
     }
@@ -681,8 +855,8 @@ async function analyzeIncident(discovered){
 
   for (const point of downstreamPoints) {
     try {
-      const flow = await fetchTomTomFlow(point);
-      downstreamSamples.push(makeSample(point, flow, incident));
+      const best = await fetchBestTomTomFlow(point, incident);
+      downstreamSamples.push(makeSample(point, best, incident));
     } catch (e) {
       downstreamSamples.push(makeSample(point, null, incident, e));
     }
@@ -751,7 +925,7 @@ async function analyzeIncident(discovered){
 
     confidence,
     note,
-    source:`511PA event anchor + directional upstream TomTom live traffic flow; geometry source: ${geometrySource}`,
+    source:`511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: ${geometrySource}`,
     updated:nowIso(),
     samples
   };
