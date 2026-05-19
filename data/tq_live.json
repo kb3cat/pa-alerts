@@ -1,29 +1,238 @@
 {
   "name": "tq_live",
-  "fetched_at": "2026-05-19T17:59:19.906Z",
-  "count": 2,
+  "fetched_at": "2026-05-19T19:51:53.109Z",
+  "count": 5,
   "events": [
     {
-      "eventId": "259847",
-      "route": "I-76",
-      "direction": "W",
+      "eventId": "259875",
+      "route": "PA-33",
+      "direction": "N",
       "type": "",
-      "description": "Disabled vehicle on I-76 westbound .2 miles west of Exit 346B: UNIVERSITY AVE.  There is a lane restriction.",
-      "isFullClosure": false,
-      "sourceFile": "data/lane_restrictions.json",
-      "sourceText": "I-76 (Philadelphia County) | Disabled vehicle on I-76 eastbound 1.1 miles east of Exit 346B: GREYS FERRY AVE/UNIVERSITY AVE. Estimated Reopen: 5/19/26 - 14:36",
+      "description": "Disabled vehicle on PA 33 northbound between Exit: PA 512 - BATH/WIND GAP and Exit: SAYLORSBURG.  All lanes closed.",
+      "isFullClosure": true,
+      "sourceFile": "data/major_route_closures.json",
+      "sourceText": "PA-33 (Northampton County) | Disabled vehicle on PA 33 northbound between Exit: PA 512 - BATH/WIND GAP and Exit: SAYLORSBURG. All lanes Closed. Estimated Reopen: 5/19/26 - 16:30",
       "incidentPoint": {
-        "lat": 39.9347968542817,
-        "lon": -75.1998450487348
+        "lat": 40.8313506882116,
+        "lon": -75.2987154892647
       },
-      "secondaryPoint": null,
+      "secondaryPoint": {
+        "lat": 40.896220408509,
+        "lon": -75.3117689680268
+      },
       "tqMiles": 0,
       "backlogMiles": 0,
       "totalAffectedMiles": 0,
-      "sampledMiles": 0.54,
-      "sampleCount": 4,
-      "geometrySource": "TomTom flow segment geometry",
-      "geometryMiles": 0.75,
+      "sampledMiles": 0,
+      "sampleCount": 2,
+      "geometrySource": "511PA polyline",
+      "geometryMiles": 5.37,
+      "upstreamValidation": {
+        "stats": {
+          "usableCount": 2,
+          "avgSpeed": 2,
+          "avgFreeFlow": 67,
+          "avgRatio": 0.03,
+          "stoppedCount": 2,
+          "severeCount": 0,
+          "slowCount": 0,
+          "moderateCount": 0,
+          "flowingCount": 0,
+          "badSnapCount": 0
+        }
+      },
+      "downstreamValidation": {
+        "sampleCount": 6,
+        "stats": {
+          "usableCount": 6,
+          "avgSpeed": 46,
+          "avgFreeFlow": 67.7,
+          "avgRatio": 0.68,
+          "stoppedCount": 2,
+          "severeCount": 0,
+          "slowCount": 0,
+          "moderateCount": 0,
+          "flowingCount": 4,
+          "badSnapCount": 0
+        }
+      },
+      "confidence": "medium",
+      "note": "Directional upstream queue estimate using 511PA incident anchor and TomTom live flow.",
+      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: 511PA polyline",
+      "updated": "2026-05-19T19:51:50.035Z",
+      "samples": [
+        {
+          "point": {
+            "lat": 40.8313506882116,
+            "lon": -75.2987154892647
+          },
+          "state": "stopped",
+          "badFlow": false,
+          "tomtomScore": 88.60663,
+          "currentSpeed": 2,
+          "freeFlowSpeed": 67,
+          "currentTravelTime": 5774,
+          "freeFlowTravelTime": 213,
+          "confidence": 0.860663,
+          "roadClosure": true,
+          "flowBearing": 347.9726397637811,
+          "probeAttempts": [
+            {
+              "probe": {
+                "lat": 40.8313506882116,
+                "lon": -75.2987154892647
+              },
+              "score": 88.60663,
+              "currentSpeed": 2,
+              "freeFlowSpeed": 67,
+              "confidence": 0.860663,
+              "bearing": 347.9726397637811
+            },
+            {
+              "probe": {
+                "lat": 40.8313506882116,
+                "lon": -75.2983324060742
+              },
+              "score": 59.80327,
+              "currentSpeed": 1,
+              "freeFlowSpeed": 24,
+              "confidence": 0.980327,
+              "bearing": 5.307846821578039
+            },
+            {
+              "probe": {
+                "lat": 40.8313506882116,
+                "lon": -75.2990985724552
+              },
+              "score": 40,
+              "currentSpeed": 68,
+              "freeFlowSpeed": 68,
+              "confidence": 1,
+              "bearing": 174.43829115373694
+            },
+            {
+              "probe": {
+                "lat": 40.8313506882116,
+                "lon": -75.2979493228837
+              },
+              "score": 59.80327,
+              "currentSpeed": 1,
+              "freeFlowSpeed": 24,
+              "confidence": 0.980327,
+              "bearing": 5.307846821578039
+            },
+            {
+              "probe": {
+                "lat": 40.8313506882116,
+                "lon": -75.29948165564569
+              },
+              "score": 40,
+              "currentSpeed": 68,
+              "freeFlowSpeed": 68,
+              "confidence": 1,
+              "bearing": 174.43829115373694
+            }
+          ]
+        },
+        {
+          "point": {
+            "lat": 40.83135,
+            "lon": -75.29871
+          },
+          "state": "stopped",
+          "badFlow": false,
+          "tomtomScore": 88.5264,
+          "currentSpeed": 2,
+          "freeFlowSpeed": 67,
+          "currentTravelTime": 5774,
+          "freeFlowTravelTime": 213,
+          "confidence": 0.85264,
+          "roadClosure": true,
+          "flowBearing": 347.9726397637811,
+          "probeAttempts": [
+            {
+              "probe": {
+                "lat": 40.83135,
+                "lon": -75.29871
+              },
+              "score": 88.5264,
+              "currentSpeed": 2,
+              "freeFlowSpeed": 67,
+              "confidence": 0.85264,
+              "bearing": 347.9726397637811
+            },
+            {
+              "probe": {
+                "lat": 40.83135,
+                "lon": -75.29832691681348
+              },
+              "score": 59.70575,
+              "currentSpeed": 1,
+              "freeFlowSpeed": 24,
+              "confidence": 0.970575,
+              "bearing": 5.307846821578039
+            },
+            {
+              "probe": {
+                "lat": 40.83135,
+                "lon": -75.29909308318652
+              },
+              "score": 40,
+              "currentSpeed": 68,
+              "freeFlowSpeed": 68,
+              "confidence": 1,
+              "bearing": 174.43829115373694
+            },
+            {
+              "probe": {
+                "lat": 40.83135,
+                "lon": -75.29794383362696
+              },
+              "score": 59.70575,
+              "currentSpeed": 1,
+              "freeFlowSpeed": 24,
+              "confidence": 0.970575,
+              "bearing": 5.307846821578039
+            },
+            {
+              "probe": {
+                "lat": 40.83135,
+                "lon": -75.29947616637304
+              },
+              "score": 40,
+              "currentSpeed": 68,
+              "freeFlowSpeed": 68,
+              "confidence": 1,
+              "bearing": 174.43829115373694
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "eventId": "259901",
+      "route": "I-95",
+      "direction": "S",
+      "type": "",
+      "description": "Disabled vehicle on I-95 southbound between .1 miles north of Exit 6: TO PA 320/TO PA 352 - PROVIDENCE AVE/EDGMONT AV and .5 miles south of Exit 6: TO PA 320/TO PA 352 - PROVIDENCE AVE/EDGMONT AV.  There is a lane restriction.",
+      "isFullClosure": false,
+      "sourceFile": "data/lane_restrictions.json",
+      "sourceText": "I-95 (Delaware County) | Disabled vehicle on I-95 southbound between .1 miles north of Exit 6: TO PA 320/TO PA 352 - PROVIDENCE AVE/EDGMONT AV and .5 miles south of Exit 6: TO PA 320/TO PA 352 - PROVIDENCE AVE/EDGMONT AV. Estimated Reopen: 5/19/26 - 16:13",
+      "incidentPoint": {
+        "lat": 39.8611436728459,
+        "lon": -75.3522087236633
+      },
+      "secondaryPoint": {
+        "lat": 39.857653053562,
+        "lon": -75.3594877854538
+      },
+      "tqMiles": 0,
+      "backlogMiles": 0,
+      "totalAffectedMiles": 0,
+      "sampledMiles": 0,
+      "sampleCount": 2,
+      "geometrySource": "511PA polyline",
+      "geometryMiles": 0.22,
       "upstreamValidation": {
         "stats": {
           "usableCount": 0,
@@ -35,7 +244,7 @@
           "slowCount": 0,
           "moderateCount": 0,
           "flowingCount": 0,
-          "badSnapCount": 4
+          "badSnapCount": 2
         }
       },
       "downstreamValidation": {
@@ -55,345 +264,390 @@
       },
       "confidence": "low",
       "note": "TomTom returned flow samples, but they appear to be snapped to non-mainline geometry for this route; queue not calculated.",
-      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: TomTom flow segment geometry",
-      "updated": "2026-05-19T17:59:14.440Z",
+      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: 511PA polyline",
+      "updated": "2026-05-19T19:51:50.611Z",
       "samples": [
         {
           "point": {
-            "lat": 39.9347968542817,
-            "lon": -75.1998450487348
+            "lat": 39.8611436728459,
+            "lon": -75.3522087236633
           },
           "state": "unknown",
           "badFlow": true,
-          "tomtomScore": -30,
-          "currentSpeed": 43,
-          "freeFlowSpeed": 52,
-          "currentTravelTime": 91,
-          "freeFlowTravelTime": 76,
+          "tomtomScore": 0,
+          "currentSpeed": 49,
+          "freeFlowSpeed": 64,
+          "currentTravelTime": 133,
+          "freeFlowTravelTime": 102,
           "confidence": 1,
           "roadClosure": false,
-          "flowBearing": 342.96313991089767,
+          "flowBearing": 238.12612093851328,
           "probeAttempts": [
             {
               "probe": {
-                "lat": 39.9347968542817,
-                "lon": -75.1998450487348
+                "lat": 39.8611436728459,
+                "lon": -75.3522087236633
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 49,
+              "freeFlowSpeed": 64,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 238.12612093851328
             },
             {
               "probe": {
-                "lat": 39.93508670935417,
-                "lon": -75.1998450487348
+                "lat": 39.8611436728459,
+                "lon": -75.35183111152537
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 62,
+              "freeFlowSpeed": 62,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 60.47127248656358
             },
             {
               "probe": {
-                "lat": 39.93450699920923,
-                "lon": -75.1998450487348
+                "lat": 39.8611436728459,
+                "lon": -75.35258633580122
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 49,
+              "freeFlowSpeed": 64,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 238.12612093851328
             },
             {
               "probe": {
-                "lat": 39.935376564426626,
-                "lon": -75.1998450487348
+                "lat": 39.8611436728459,
+                "lon": -75.35145349938745
               },
-              "score": -30,
-              "currentSpeed": 54,
-              "freeFlowSpeed": 54,
+              "score": 0,
+              "currentSpeed": 62,
+              "freeFlowSpeed": 62,
               "confidence": 1,
-              "bearing": 210.7488830754471
+              "bearing": 60.47127248656358
             },
             {
               "probe": {
-                "lat": 39.934217144136774,
-                "lon": -75.1998450487348
+                "lat": 39.8611436728459,
+                "lon": -75.35296394793914
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 49,
+              "freeFlowSpeed": 64,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 238.12612093851328
             }
           ]
         },
         {
           "point": {
-            "lat": 39.93532419577354,
-            "lon": -75.19976651649917
+            "lat": 39.86113,
+            "lon": -75.3522
           },
           "state": "unknown",
           "badFlow": true,
-          "tomtomScore": -30,
-          "currentSpeed": 43,
-          "freeFlowSpeed": 52,
-          "currentTravelTime": 91,
-          "freeFlowTravelTime": 76,
+          "tomtomScore": 0,
+          "currentSpeed": 49,
+          "freeFlowSpeed": 64,
+          "currentTravelTime": 133,
+          "freeFlowTravelTime": 102,
           "confidence": 1,
           "roadClosure": false,
-          "flowBearing": 342.96313991089767,
+          "flowBearing": 238.12612093851328,
           "probeAttempts": [
             {
               "probe": {
-                "lat": 39.93532419577354,
-                "lon": -75.19976651649917
+                "lat": 39.86113,
+                "lon": -75.3522
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 49,
+              "freeFlowSpeed": 64,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 238.12612093851328
             },
             {
               "probe": {
-                "lat": 39.935614050846006,
-                "lon": -75.19976651649917
+                "lat": 39.86113,
+                "lon": -75.35182238793732
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 62,
+              "freeFlowSpeed": 62,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 60.47127248656358
             },
             {
               "probe": {
-                "lat": 39.93503434070107,
-                "lon": -75.19976651649917
+                "lat": 39.86113,
+                "lon": -75.35257761206267
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 49,
+              "freeFlowSpeed": 64,
               "confidence": 1,
-              "bearing": 342.96313991089767
+              "bearing": 238.12612093851328
             },
             {
               "probe": {
-                "lat": 39.935903905918465,
-                "lon": -75.19976651649917
+                "lat": 39.86113,
+                "lon": -75.35144477587464
               },
-              "score": -30,
-              "currentSpeed": 54,
-              "freeFlowSpeed": 54,
+              "score": 0,
+              "currentSpeed": 62,
+              "freeFlowSpeed": 62,
               "confidence": 1,
-              "bearing": 210.7488830754471
+              "bearing": 60.47127248656358
             },
             {
               "probe": {
-                "lat": 39.93474448562861,
-                "lon": -75.19976651649917
+                "lat": 39.86113,
+                "lon": -75.35295522412535
               },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
+              "score": 0,
+              "currentSpeed": 49,
+              "freeFlowSpeed": 64,
               "confidence": 1,
-              "bearing": 342.96313991089767
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 39.9317174594626,
-            "lon": -75.19968544404735
-          },
-          "state": "unknown",
-          "badFlow": true,
-          "tomtomScore": -30,
-          "currentSpeed": 43,
-          "freeFlowSpeed": 52,
-          "currentTravelTime": 91,
-          "freeFlowTravelTime": 76,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 342.96313991089767,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 39.9317174594626,
-                "lon": -75.19968544404735
-              },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
-              "confidence": 1,
-              "bearing": 342.96313991089767
-            },
-            {
-              "probe": {
-                "lat": 39.93200731453506,
-                "lon": -75.19968544404735
-              },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
-              "confidence": 1,
-              "bearing": 342.96313991089767
-            },
-            {
-              "probe": {
-                "lat": 39.93142760439013,
-                "lon": -75.19968544404735
-              },
-              "score": -30,
-              "currentSpeed": 53,
-              "freeFlowSpeed": 53,
-              "confidence": 1,
-              "bearing": 150.35468513973603
-            },
-            {
-              "probe": {
-                "lat": 39.93229716960752,
-                "lon": -75.19968544404735
-              },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
-              "confidence": 1,
-              "bearing": 342.96313991089767
-            },
-            {
-              "probe": {
-                "lat": 39.93113774931767,
-                "lon": -75.19968544404735
-              },
-              "score": -30,
-              "currentSpeed": 53,
-              "freeFlowSpeed": 53,
-              "confidence": 1,
-              "bearing": 150.35468513973603
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 39.92886414555077,
-            "lon": -75.19678397115364
-          },
-          "state": "unknown",
-          "badFlow": true,
-          "tomtomScore": -15,
-          "currentSpeed": 55,
-          "freeFlowSpeed": 55,
-          "currentTravelTime": 54,
-          "freeFlowTravelTime": 54,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 149.99419532176114,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 39.92886414555077,
-                "lon": -75.19678397115364
-              },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
-              "confidence": 1,
-              "bearing": 342.96313991089767
-            },
-            {
-              "probe": {
-                "lat": 39.929154000623235,
-                "lon": -75.19678397115364
-              },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
-              "confidence": 1,
-              "bearing": 342.96313991089767
-            },
-            {
-              "probe": {
-                "lat": 39.9285742904783,
-                "lon": -75.19678397115364
-              },
-              "score": -15,
-              "currentSpeed": 55,
-              "freeFlowSpeed": 55,
-              "confidence": 1,
-              "bearing": 149.99419532176114
-            },
-            {
-              "probe": {
-                "lat": 39.929443855695695,
-                "lon": -75.19678397115364
-              },
-              "score": -30,
-              "currentSpeed": 43,
-              "freeFlowSpeed": 52,
-              "confidence": 1,
-              "bearing": 342.96313991089767
-            },
-            {
-              "probe": {
-                "lat": 39.92828443540584,
-                "lon": -75.19678397115364
-              },
-              "score": -15,
-              "currentSpeed": 55,
-              "freeFlowSpeed": 55,
-              "confidence": 1,
-              "bearing": 149.99419532176114
+              "bearing": 238.12612093851328
             }
           ]
         }
       ]
     },
     {
-      "eventId": "259846",
-      "route": "I-80",
+      "eventId": "259899",
+      "route": "I-76",
       "direction": "E",
       "type": "",
-      "description": "Multi vehicle crash on I-80 eastbound 5.3 miles west of Exit 111: PA 153 - CLEARFIELD.  There is a lane restriction.",
+      "description": "Multi vehicle crash on I-76 eastbound between Exit 341: MONTGOMERY DR/WEST RIVER DRIVE and Exit 342: US 13/30 WEST - GIRARD AVE/PHILA ZOO.  There is a lane restriction.",
       "isFullClosure": false,
       "sourceFile": "data/lane_restrictions.json",
-      "sourceText": "I-80 (Clearfield County) | Multi vehicle crash on I-80 eastbound 5.3 miles west of Exit 111: PA 153 - CLEARFIELD. Estimated Reopen: 5/19/26 - 15:05",
+      "sourceText": "I-76 (Philadelphia County) | Multi vehicle crash on I-76 eastbound between Exit 341: MONTGOMERY DR/WEST RIVER DRIVE and Exit 342: US 13/30 WEST - GIRARD AVE/PHILA ZOO. Estimated Reopen: 5/19/26 - 16:35",
       "incidentPoint": {
-        "lat": 41.1216764959064,
-        "lon": -78.6160460191737
+        "lat": 39.9882129910961,
+        "lon": -75.2072855384904
       },
-      "secondaryPoint": null,
+      "secondaryPoint": {
+        "lat": 39.9770539887933,
+        "lon": -75.1992314553107
+      },
       "tqMiles": 0,
-      "backlogMiles": 4.51,
-      "totalAffectedMiles": 4.51,
-      "sampledMiles": 4.51,
-      "sampleCount": 20,
-      "geometrySource": "TomTom flow segment geometry",
-      "geometryMiles": 4.75,
+      "backlogMiles": 0,
+      "totalAffectedMiles": 0,
+      "sampledMiles": 0,
+      "sampleCount": 2,
+      "geometrySource": "511PA polyline",
+      "geometryMiles": 0.97,
       "upstreamValidation": {
         "stats": {
-          "usableCount": 20,
-          "avgSpeed": 42,
-          "avgFreeFlow": 70,
-          "avgRatio": 0.6,
+          "usableCount": 0,
+          "avgSpeed": null,
+          "avgFreeFlow": null,
+          "avgRatio": null,
           "stoppedCount": 0,
           "severeCount": 0,
-          "slowCount": 20,
+          "slowCount": 0,
           "moderateCount": 0,
           "flowingCount": 0,
-          "badSnapCount": 0
+          "badSnapCount": 2
         }
       },
       "downstreamValidation": {
-        "sampleCount": 1,
+        "sampleCount": 4,
+        "stats": {
+          "usableCount": 2,
+          "avgSpeed": 28,
+          "avgFreeFlow": 58,
+          "avgRatio": 0.48,
+          "stoppedCount": 0,
+          "severeCount": 0,
+          "slowCount": 2,
+          "moderateCount": 0,
+          "flowingCount": 0,
+          "badSnapCount": 2
+        }
+      },
+      "confidence": "low",
+      "note": "TomTom returned flow samples, but they appear to be snapped to non-mainline geometry for this route; queue not calculated.",
+      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: 511PA polyline",
+      "updated": "2026-05-19T19:51:51.602Z",
+      "samples": [
+        {
+          "point": {
+            "lat": 39.9882129910961,
+            "lon": -75.2072855384904
+          },
+          "state": "unknown",
+          "badFlow": true,
+          "tomtomScore": 20,
+          "currentSpeed": 7,
+          "freeFlowSpeed": 62,
+          "currentTravelTime": 806,
+          "freeFlowTravelTime": 89,
+          "confidence": 1,
+          "roadClosure": false,
+          "flowBearing": 208.98809849876272,
+          "probeAttempts": [
+            {
+              "probe": {
+                "lat": 39.9882129910961,
+                "lon": -75.2072855384904
+              },
+              "score": 20,
+              "currentSpeed": 7,
+              "freeFlowSpeed": 62,
+              "confidence": 1,
+              "bearing": 208.98809849876272
+            },
+            {
+              "probe": {
+                "lat": 39.988502846168565,
+                "lon": -75.2072855384904
+              },
+              "score": 20,
+              "currentSpeed": 7,
+              "freeFlowSpeed": 62,
+              "confidence": 1,
+              "bearing": 208.98809849876272
+            },
+            {
+              "probe": {
+                "lat": 39.98792313602363,
+                "lon": -75.2072855384904
+              },
+              "score": -5,
+              "currentSpeed": 34,
+              "freeFlowSpeed": 57,
+              "confidence": 1,
+              "bearing": 350.582128158911
+            },
+            {
+              "probe": {
+                "lat": 39.988792701241024,
+                "lon": -75.2072855384904
+              },
+              "score": 20,
+              "currentSpeed": 7,
+              "freeFlowSpeed": 62,
+              "confidence": 1,
+              "bearing": 208.98809849876272
+            },
+            {
+              "probe": {
+                "lat": 39.98763328095117,
+                "lon": -75.2072855384904
+              },
+              "score": -5,
+              "currentSpeed": 34,
+              "freeFlowSpeed": 57,
+              "confidence": 1,
+              "bearing": 350.582128158911
+            }
+          ]
+        },
+        {
+          "point": {
+            "lat": 39.98822,
+            "lon": -75.20729
+          },
+          "state": "unknown",
+          "badFlow": true,
+          "tomtomScore": 20,
+          "currentSpeed": 7,
+          "freeFlowSpeed": 62,
+          "currentTravelTime": 806,
+          "freeFlowTravelTime": 89,
+          "confidence": 1,
+          "roadClosure": false,
+          "flowBearing": 208.98809849876272,
+          "probeAttempts": [
+            {
+              "probe": {
+                "lat": 39.98822,
+                "lon": -75.20729
+              },
+              "score": 20,
+              "currentSpeed": 7,
+              "freeFlowSpeed": 62,
+              "confidence": 1,
+              "bearing": 208.98809849876272
+            },
+            {
+              "probe": {
+                "lat": 39.988509855072465,
+                "lon": -75.20729
+              },
+              "score": 20,
+              "currentSpeed": 7,
+              "freeFlowSpeed": 62,
+              "confidence": 1,
+              "bearing": 208.98809849876272
+            },
+            {
+              "probe": {
+                "lat": 39.98793014492753,
+                "lon": -75.20729
+              },
+              "score": -5,
+              "currentSpeed": 34,
+              "freeFlowSpeed": 57,
+              "confidence": 1,
+              "bearing": 350.582128158911
+            },
+            {
+              "probe": {
+                "lat": 39.988799710144924,
+                "lon": -75.20729
+              },
+              "score": 20,
+              "currentSpeed": 7,
+              "freeFlowSpeed": 62,
+              "confidence": 1,
+              "bearing": 208.98809849876272
+            },
+            {
+              "probe": {
+                "lat": 39.98764028985507,
+                "lon": -75.20729
+              },
+              "score": -5,
+              "currentSpeed": 34,
+              "freeFlowSpeed": 57,
+              "confidence": 1,
+              "bearing": 350.582128158911
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "eventId": "259902",
+      "route": "US-30",
+      "direction": "E",
+      "type": "",
+      "description": "Crash on US 30 eastbound at Exit: PA 501/PA 272/US 222 SOUTH - LITITZ PIKE.  There is a lane restriction.",
+      "isFullClosure": false,
+      "sourceFile": "data/lane_restrictions.json",
+      "sourceText": "US-30 (Lancaster County) | Crash on US 30 eastbound at Exit: PA 501/PA 272/US 222 SOUTH - LITITZ PIKE. Estimated Reopen: 5/19/26 - 16:40",
+      "incidentPoint": {
+        "lat": 40.0697810879201,
+        "lon": -76.3136220883109
+      },
+      "secondaryPoint": null,
+      "tqMiles": 0,
+      "backlogMiles": 0,
+      "totalAffectedMiles": 0,
+      "sampledMiles": 0,
+      "sampleCount": 1,
+      "geometrySource": "single incident point only",
+      "geometryMiles": 0,
+      "upstreamValidation": {
         "stats": {
           "usableCount": 1,
-          "avgSpeed": 42,
-          "avgFreeFlow": 70,
-          "avgRatio": 0.6,
+          "avgSpeed": 39,
+          "avgFreeFlow": 63,
+          "avgRatio": 0.62,
           "stoppedCount": 0,
           "severeCount": 0,
           "slowCount": 1,
@@ -402,1468 +656,302 @@
           "badSnapCount": 0
         }
       },
-      "confidence": "high",
-      "note": "Directional upstream queue estimate using 511PA incident anchor and TomTom live flow.",
-      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: TomTom flow segment geometry",
-      "updated": "2026-05-19T17:59:19.906Z",
+      "downstreamValidation": {
+        "sampleCount": 0,
+        "stats": {
+          "usableCount": 0,
+          "avgSpeed": null,
+          "avgFreeFlow": null,
+          "avgRatio": null,
+          "stoppedCount": 0,
+          "severeCount": 0,
+          "slowCount": 0,
+          "moderateCount": 0,
+          "flowingCount": 0,
+          "badSnapCount": 0
+        }
+      },
+      "confidence": "low",
+      "note": "Upstream flow samples were found, but no sustained queue was detected.",
+      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: single incident point only",
+      "updated": "2026-05-19T19:51:51.854Z",
       "samples": [
         {
           "point": {
-            "lat": 41.1216764959064,
-            "lon": -78.6160460191737
+            "lat": 40.0697810879201,
+            "lon": -76.3136220883109
           },
           "state": "slow",
           "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
+          "tomtomScore": 50,
+          "currentSpeed": 39,
+          "freeFlowSpeed": 63,
+          "currentTravelTime": 91,
+          "freeFlowTravelTime": 57,
           "confidence": 1,
           "roadClosure": false,
-          "flowBearing": 100.71074794009206,
+          "flowBearing": 99.78629291976125,
           "probeAttempts": [
             {
               "probe": {
-                "lat": 41.1216764959064,
-                "lon": -78.6160460191737
+                "lat": 40.0697810879201,
+                "lon": -76.3136220883109
               },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
+              "score": 50,
+              "currentSpeed": 39,
+              "freeFlowSpeed": 63,
               "confidence": 1,
-              "bearing": 100.71074794009206
+              "bearing": 99.78629291976125
             },
             {
               "probe": {
-                "lat": 41.121966350978866,
-                "lon": -78.6160460191737
+                "lat": 40.070070942992565,
+                "lon": -76.3136220883109
               },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
+              "score": 25,
+              "currentSpeed": 40,
+              "freeFlowSpeed": 40,
               "confidence": 1,
-              "bearing": 278.1470350864711
+              "bearing": 291.94154457309594
             },
             {
               "probe": {
-                "lat": 41.12138664083393,
-                "lon": -78.6160460191737
+                "lat": 40.06949123284763,
+                "lon": -76.3136220883109
               },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
+              "score": 40,
+              "currentSpeed": 23,
+              "freeFlowSpeed": 30,
               "confidence": 1,
-              "bearing": 100.71074794009206
+              "bearing": 98.87055396592751
             },
             {
               "probe": {
-                "lat": 41.122256206051325,
-                "lon": -78.6160460191737
+                "lat": 40.070360798065025,
+                "lon": -76.3136220883109
               },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
+              "score": 40,
+              "currentSpeed": 24,
+              "freeFlowSpeed": 32,
               "confidence": 1,
-              "bearing": 278.1470350864711
+              "bearing": 279.615710135213
             },
             {
               "probe": {
-                "lat": 41.12109678576147,
-                "lon": -78.6160460191737
+                "lat": 40.06920137777517,
+                "lon": -76.3136220883109
               },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
+              "score": 40,
+              "currentSpeed": 23,
+              "freeFlowSpeed": 30,
               "confidence": 1,
-              "bearing": 100.71074794009206
+              "bearing": 98.87055396592751
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "eventId": "259885",
+      "route": "US-22",
+      "direction": "E",
+      "type": "",
+      "description": "Crash on US 22 eastbound between Exit: PA 191 - NAZARETH PIKE and Exit: PA 33 SOUTH/TO I-78.  There is a lane restriction.",
+      "isFullClosure": false,
+      "sourceFile": "data/lane_restrictions.json",
+      "sourceText": "US-22 (Northampton County) | Crash on US 22 eastbound between Exit: PA 191 - NAZARETH PIKE and Exit: PA 33 SOUTH/TO I-78. Estimated Reopen: 5/19/26 - 16:55",
+      "incidentPoint": {
+        "lat": 40.6788692036506,
+        "lon": -75.3389660584398
+      },
+      "secondaryPoint": {
+        "lat": 40.6832188293006,
+        "lon": -75.2943557932391
+      },
+      "tqMiles": 0,
+      "backlogMiles": 0,
+      "totalAffectedMiles": 0,
+      "sampledMiles": 0,
+      "sampleCount": 2,
+      "geometrySource": "511PA polyline",
+      "geometryMiles": 2.29,
+      "upstreamValidation": {
+        "stats": {
+          "usableCount": 1,
+          "avgSpeed": 8,
+          "avgFreeFlow": 66,
+          "avgRatio": 0.12,
+          "stoppedCount": 1,
+          "severeCount": 0,
+          "slowCount": 0,
+          "moderateCount": 0,
+          "flowingCount": 0,
+          "badSnapCount": 1
+        }
+      },
+      "downstreamValidation": {
+        "sampleCount": 6,
+        "stats": {
+          "usableCount": 6,
+          "avgSpeed": 25.5,
+          "avgFreeFlow": 63.5,
+          "avgRatio": 0.4,
+          "stoppedCount": 1,
+          "severeCount": 0,
+          "slowCount": 5,
+          "moderateCount": 0,
+          "flowingCount": 0,
+          "badSnapCount": 0
+        }
+      },
+      "confidence": "low",
+      "note": "Directional upstream queue estimate using 511PA incident anchor and TomTom live flow.",
+      "source": "511PA event anchor + directional upstream TomTom live traffic flow with mainline probe scoring; geometry source: 511PA polyline",
+      "updated": "2026-05-19T19:51:53.108Z",
+      "samples": [
+        {
+          "point": {
+            "lat": 40.6788692036506,
+            "lon": -75.3389660584398
+          },
+          "state": "unknown",
+          "badFlow": true,
+          "tomtomScore": -55,
+          "currentSpeed": 31,
+          "freeFlowSpeed": 31,
+          "currentTravelTime": 31,
+          "freeFlowTravelTime": 31,
+          "confidence": 1,
+          "roadClosure": false,
+          "flowBearing": 67.60922001589734,
+          "probeAttempts": [
+            {
+              "probe": {
+                "lat": 40.6788692036506,
+                "lon": -75.3389660584398
+              },
+              "score": -55,
+              "currentSpeed": 31,
+              "freeFlowSpeed": 31,
+              "confidence": 1,
+              "bearing": 67.60922001589734
+            },
+            {
+              "probe": {
+                "lat": 40.679159058723066,
+                "lon": -75.3389660584398
+              },
+              "score": -55,
+              "currentSpeed": 30,
+              "freeFlowSpeed": 30,
+              "confidence": 1,
+              "bearing": 119.05350687613497
+            },
+            {
+              "probe": {
+                "lat": 40.67857934857813,
+                "lon": -75.3389660584398
+              },
+              "score": -55,
+              "currentSpeed": 31,
+              "freeFlowSpeed": 31,
+              "confidence": 1,
+              "bearing": 67.60922001589734
+            },
+            {
+              "probe": {
+                "lat": 40.679448913795525,
+                "lon": -75.3389660584398
+              },
+              "score": -55,
+              "currentSpeed": 30,
+              "freeFlowSpeed": 30,
+              "confidence": 1,
+              "bearing": 119.05350687613497
+            },
+            {
+              "probe": {
+                "lat": 40.67828949350567,
+                "lon": -75.3389660584398
+              },
+              "score": -55,
+              "currentSpeed": 31,
+              "freeFlowSpeed": 31,
+              "confidence": 1,
+              "bearing": 67.60922001589734
             }
           ]
         },
         {
           "point": {
-            "lat": 41.12166258588997,
-            "lon": -78.61626109541773
+            "lat": 40.67888,
+            "lon": -75.33897
           },
-          "state": "slow",
+          "state": "stopped",
           "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
+          "tomtomScore": 85,
+          "currentSpeed": 8,
+          "freeFlowSpeed": 66,
+          "currentTravelTime": 1070,
+          "freeFlowTravelTime": 131,
           "confidence": 1,
           "roadClosure": false,
-          "flowBearing": 100.71074794009206,
+          "flowBearing": 65.66502048729035,
           "probeAttempts": [
             {
               "probe": {
-                "lat": 41.12166258588997,
-                "lon": -78.61626109541773
+                "lat": 40.67888,
+                "lon": -75.33897
               },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
+              "score": 85,
+              "currentSpeed": 8,
+              "freeFlowSpeed": 66,
               "confidence": 1,
-              "bearing": 100.71074794009206
+              "bearing": 65.66502048729035
             },
             {
               "probe": {
-                "lat": 41.12195244096244,
-                "lon": -78.61626109541773
+                "lat": 40.679169855072466,
+                "lon": -75.33897
               },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
+              "score": -55,
+              "currentSpeed": 30,
+              "freeFlowSpeed": 30,
               "confidence": 1,
-              "bearing": 278.1470350864711
+              "bearing": 119.05350687613497
             },
             {
               "probe": {
-                "lat": 41.121372730817505,
-                "lon": -78.61626109541773
+                "lat": 40.67859014492753,
+                "lon": -75.33897
               },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
+              "score": -55,
+              "currentSpeed": 31,
+              "freeFlowSpeed": 31,
               "confidence": 1,
-              "bearing": 100.71074794009206
+              "bearing": 67.60922001589734
             },
             {
               "probe": {
-                "lat": 41.1222422960349,
-                "lon": -78.61626109541773
+                "lat": 40.679459710144926,
+                "lon": -75.33897
               },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
+              "score": -55,
+              "currentSpeed": 30,
+              "freeFlowSpeed": 30,
               "confidence": 1,
-              "bearing": 278.1470350864711
+              "bearing": 119.05350687613497
             },
             {
               "probe": {
-                "lat": 41.121082875745046,
-                "lon": -78.61626109541773
+                "lat": 40.67830028985507,
+                "lon": -75.33897
               },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
+              "score": -55,
+              "currentSpeed": 31,
+              "freeFlowSpeed": 31,
               "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12108735239343,
-            "lon": -78.62100314510012
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12108735239343,
-                "lon": -78.62100314510012
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.1213772074659,
-                "lon": -78.62100314510012
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120797497320964,
-                "lon": -78.62100314510012
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12166706253836,
-                "lon": -78.62100314510012
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120507642248505,
-                "lon": -78.62100314510012
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12051177478171,
-            "lon": -78.62574507962043
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12051177478171,
-                "lon": -78.62574507962043
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12080162985418,
-                "lon": -78.62574507962043
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120221919709245,
-                "lon": -78.62574507962043
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12109148492664,
-                "lon": -78.62574507962043
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.119932064636785,
-                "lon": -78.62574507962043
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.11996719700149,
-            "lon": -78.63049340785645
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.11996719700149,
-                "lon": -78.63049340785645
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12025705207396,
-                "lon": -78.63049340785645
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.11967734192903,
-                "lon": -78.63049340785645
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12054690714642,
-                "lon": -78.63049340785645
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.11938748685657,
-                "lon": -78.63049340785645
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.120002578707606,
-            "lon": -78.63529618592378
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.120002578707606,
-                "lon": -78.63529618592378
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12029243378007,
-                "lon": -78.63529618592378
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.11971272363514,
-                "lon": -78.63529618592378
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12058228885253,
-                "lon": -78.63529618592378
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.11942286856268,
-                "lon": -78.63529618592378
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.1203176700766,
-            "lon": -78.6400809869916
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.1203176700766,
-                "lon": -78.6400809869916
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12060752514907,
-                "lon": -78.6400809869916
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120027815004136,
-                "lon": -78.6400809869916
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12089738022153,
-                "lon": -78.6400809869916
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.119737959931676,
-                "lon": -78.6400809869916
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.120634316587925,
-            "lon": -78.64486563017174
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.120634316587925,
-                "lon": -78.64486563017174
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12092417166039,
-                "lon": -78.64486563017174
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12034446151546,
-                "lon": -78.64486563017174
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12121402673285,
-                "lon": -78.64486563017174
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120054606443,
-                "lon": -78.64486563017174
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12094508816254,
-            "lon": -78.64965097257165
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12094508816254,
-                "lon": -78.64965097257165
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12123494323501,
-                "lon": -78.64965097257165
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120655233090076,
-                "lon": -78.64965097257165
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12152479830747,
-                "lon": -78.64965097257165
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12036537801762,
-                "lon": -78.64965097257165
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.121173289983794,
-            "lon": -78.65444452091718
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.121173289983794,
-                "lon": -78.65444452091718
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12146314505626,
-                "lon": -78.65444452091718
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12088343491133,
-                "lon": -78.65444452091718
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12175300012872,
-                "lon": -78.65444452091718
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12059357983887,
-                "lon": -78.65444452091718
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12131464268703,
-            "lon": -78.65924398119611
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12131464268703,
-                "lon": -78.65924398119611
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.1216044977595,
-                "lon": -78.65924398119611
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.121024787614566,
-                "lon": -78.65924398119611
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12189435283196,
-                "lon": -78.65924398119611
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.120734932542106,
-                "lon": -78.65924398119611
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12145496442483,
-            "lon": -78.66404350507773
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12145496442483,
-                "lon": -78.66404350507773
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.121744819497295,
-                "lon": -78.66404350507773
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12116510935236,
-                "lon": -78.66404350507773
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.122034674569754,
-                "lon": -78.66404350507773
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.1208752542799,
-                "lon": -78.66404350507773
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12159094850399,
-            "lon": -78.66884325905241
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12159094850399,
-                "lon": -78.66884325905241
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12188080357646,
-                "lon": -78.66884325905241
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.121301093431526,
-                "lon": -78.66884325905241
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12217065864892,
-                "lon": -78.66884325905241
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12101123835907,
-                "lon": -78.66884325905241
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12173616805405,
-            "lon": -78.6736425465826
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12173616805405,
-                "lon": -78.6736425465826
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.122026023126516,
-                "lon": -78.6736425465826
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12144631298158,
-                "lon": -78.6736425465826
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.122315878198975,
-                "lon": -78.6736425465826
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12115645790912,
-                "lon": -78.6736425465826
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12188332990593,
-            "lon": -78.67844165793227
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12188332990593,
-                "lon": -78.67844165793227
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.122173184978394,
-                "lon": -78.67844165793227
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12159347483346,
-                "lon": -78.67844165793227
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12246304005085,
-                "lon": -78.67844165793227
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.121303619761,
-                "lon": -78.67844165793227
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.122500017256534,
-            "lon": -78.68317427127919
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.122500017256534,
-                "lon": -78.68317427127919
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.122789872329,
-                "lon": -78.68317427127919
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12221016218407,
-                "lon": -78.68317427127919
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12307972740146,
-                "lon": -78.68317427127919
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12192030711161,
-                "lon": -78.68317427127919
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12371250654501,
-            "lon": -78.68769982004042
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12371250654501,
-                "lon": -78.68769982004042
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12400236161748,
-                "lon": -78.68769982004042
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.123422651472545,
-                "lon": -78.68769982004042
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12429221668994,
-                "lon": -78.68769982004042
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.123132796400085,
-                "lon": -78.68769982004042
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12496833892433,
-            "lon": -78.6922045773234
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12496833892433,
-                "lon": -78.6922045773234
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.1252581939968,
-                "lon": -78.6922045773234
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.124678483851866,
-                "lon": -78.6922045773234
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12554804906926,
-                "lon": -78.6922045773234
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.12438862877941,
-                "lon": -78.6922045773234
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12621921977503,
-            "lon": -78.69671184792836
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12621921977503,
-                "lon": -78.69671184792836
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.1265090748475,
-                "lon": -78.69671184792836
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.125929364702564,
-                "lon": -78.69671184792836
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12679892991996,
-                "lon": -78.69671184792836
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.125639509630105,
-                "lon": -78.69671184792836
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            }
-          ]
-        },
-        {
-          "point": {
-            "lat": 41.12746850021468,
-            "lon": -78.70121998659944
-          },
-          "state": "slow",
-          "badFlow": false,
-          "tomtomScore": 90,
-          "currentSpeed": 42,
-          "freeFlowSpeed": 70,
-          "currentTravelTime": 849,
-          "freeFlowTravelTime": 508,
-          "confidence": 1,
-          "roadClosure": false,
-          "flowBearing": 100.71074794009206,
-          "probeAttempts": [
-            {
-              "probe": {
-                "lat": 41.12746850021468,
-                "lon": -78.70121998659944
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12775835528715,
-                "lon": -78.70121998659944
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.127178645142216,
-                "lon": -78.70121998659944
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
-            },
-            {
-              "probe": {
-                "lat": 41.12804821035961,
-                "lon": -78.70121998659944
-              },
-              "score": 80,
-              "currentSpeed": 73,
-              "freeFlowSpeed": 73,
-              "confidence": 1,
-              "bearing": 278.1470350864711
-            },
-            {
-              "probe": {
-                "lat": 41.126888790069756,
-                "lon": -78.70121998659944
-              },
-              "score": 90,
-              "currentSpeed": 42,
-              "freeFlowSpeed": 70,
-              "confidence": 1,
-              "bearing": 100.71074794009206
+              "bearing": 67.60922001589734
             }
           ]
         }
