@@ -369,6 +369,7 @@ function buildMajorRouteClosures(trafficTable) {
       /\b(?:closure|incident)\s*-?\s*major route\b/i.test(type) ||
       /\b(?:closure|incident)\s*-?\s*major route\b/i.test(desc);
     if (!isClosureOrIncident) continue;
+    if (/^\s*special\s+event\b/i.test(type)) continue;
 
     if (isConstructionRelated(desc)) continue;
     if (isAllLanesOpen(desc)) continue;
@@ -483,6 +484,7 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
     if (!desc) continue;
 
     if (!/major route/i.test(type)) continue;
+    if (/^\s*special\s+event\b/i.test(type)) continue;
     if (!isLaneRestriction(desc)) continue;
 
     const isIncidentMajorRoute =
