@@ -148,8 +148,9 @@ function isConstructionRelated(desc) {
   return /(roadwork|construction|work zone|lane closure for work|paving|bridge|maintenance|utility work|shoulder work)/i.test(desc);
 }
 
-function isAllLanesClosedOrBlocked(desc) {
+function isRoadClosed(desc) {
   return (
+    /\bclosed\b/i.test(desc) ||
     /\ball lanes (closed|blocked)\b/i.test(desc) ||
     /\bblocking all lanes\b/i.test(desc) ||
     /\ball lanes.*?block/i.test(desc)
@@ -342,7 +343,7 @@ function buildMajorRouteClosures(trafficTable) {
 
     if (isConstructionRelated(desc)) continue;
     if (isAllLanesOpen(desc)) continue;
-    if (!isAllLanesClosedOrBlocked(desc)) continue;
+    if (!isRoadClosed(desc)) continue;
 
     const route = parseRoute(desc) || "ROUTE";
     const dir = parseDirection(desc) || "DIRECTION";
