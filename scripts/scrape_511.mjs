@@ -161,6 +161,20 @@ function isAllLanesOpen(desc) {
   return /\ball lanes open\b/i.test(desc);
 }
 
+function isLaneRestriction(desc) {
+  const s = String(desc || "");
+
+  if (isRoadClosed(s)) return false;
+  if (/\ball lanes?\s+(closed|blocked|restricted)\b/i.test(s)) return false;
+  if (/\bblocking all lanes\b/i.test(s)) return false;
+
+  return (
+    /\bthere is a lane restriction\b/i.test(s) ||
+    /\b(?:the\s+)?(?:left|right|center|centre|middle|inside|outside|travel|passing|express|local|one|two|three|four|\d+)\s+lanes?\s+(?:is|are|remain|remains|will be|has been|have been)?\s*(?:blocked|restricted|closed)\b/i.test(s) ||
+    /\blanes?\s+(?:is|are|remain|remains|will be|has been|have been)?\s*(?:blocked|restricted)\b/i.test(s)
+  );
+}
+
 function parseCountyFromDesc(desc) {
   const parts = String(desc || "")
     .split("|")
@@ -199,6 +213,7 @@ function extractNarrativeFromDesc(desc) {
     const t = p.trim();
 
     if (/^closure\b/i.test(t)) return false;
+    if (/^incident\b/i.test(t)) return false;
     if (/^restriction\b/i.test(t)) return false;
     if (/^event\b/i.test(t)) return false;
     if (/^major route$/i.test(t)) return false;
@@ -338,8 +353,10 @@ function buildMajorRouteClosures(trafficTable) {
     const isMajorRoute = /major route/i.test(type) || /major route/i.test(desc);
     if (!isMajorRoute) continue;
 
-    const isClosure = /\bclosure\b/i.test(type) || /\bclosure\b/i.test(desc);
-    if (!isClosure) continue;
+    const isClosureOrIncident =
+      /\b(?:closure|incident)\s*-?\s*major route\b/i.test(type) ||
+      /\b(?:closure|incident)\s*-?\s*major route\b/i.test(desc);
+    if (!isClosureOrIncident) continue;
 
     if (isConstructionRelated(desc)) continue;
     if (isAllLanesOpen(desc)) continue;
@@ -447,7 +464,7 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
     if (!desc) continue;
 
     if (!/major route/i.test(type)) continue;
-    if (!/\bthere is a lane restriction\b/i.test(desc)) continue;
+    if (!isLaneRestriction(desc)) continue;
 
     const route = parseRoute(roadway || desc) || "ROUTE";
     const direction = parseDirection(desc) || parseDirection(roadway) || "";
