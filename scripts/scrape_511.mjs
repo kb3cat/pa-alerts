@@ -397,11 +397,7 @@ function buildMajorRouteClosures(trafficTable) {
       ? ` between ${between.from} and ${between.to}.`
       : "";
 
-    const countyLabel = isIncidentMajorRoute
-      ? `PTC - ${county} County`
-      : `${county} County`;
-
-    const line = `${route} (${countyLabel}) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
+    const line = `${route} (${county} County) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
       id: eventId,
@@ -505,10 +501,7 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
     if (narrative && !/[.!?]$/.test(narrative)) narrative += ".";
 
     const reopenFmt = parseReopenToMMDDYY_HHMM(end);
-    const countyLabel = isIncidentMajorRoute
-      ? `PTC - ${countyClean} County`
-      : `${countyClean} County`;
-    const line = `${route} (${countyLabel}) | ${narrative} Estimated Reopen: ${reopenFmt}`;
+    const line = `${route} (${countyClean} County) | ${narrative} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
       id: eventId,
