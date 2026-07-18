@@ -252,6 +252,14 @@ function parseReopenToMMDDYY_HHMM(endRaw) {
   return `${mo}/${da}/${yy} - ${hh2}:${mm}`;
 }
 
+function removeExpectDelays(s) {
+  return norm(
+    String(s || "")
+      .replace(/(?:,\s*|\.\s*)?\bexpect delays\b\.?/gi, "")
+      .replace(/\s+([,.!?])/g, "$1")
+  );
+}
+
 function normalizeNarrativeText(s) {
   let t = String(s || "")
     .replace(/\bMulti\s+vehicle\b/gi, "Multi-vehicle")
@@ -353,6 +361,10 @@ function buildMajorRouteClosures(trafficTable) {
     const isMajorRoute = /major route/i.test(type) || /major route/i.test(desc);
     if (!isMajorRoute) continue;
 
+    const isIncidentMajorRoute =
+      /\bincident\s*-?\s*major route\b/i.test(type) ||
+      /\bincident\s*-?\s*major route\b/i.test(desc);
+
     const isClosureOrIncident =
       /\b(?:closure|incident)\s*-?\s*major route\b/i.test(type) ||
       /\b(?:closure|incident)\s*-?\s*major route\b/i.test(desc);
@@ -373,6 +385,9 @@ function buildMajorRouteClosures(trafficTable) {
 
     let narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
     narrative = applyMileMarkerCleanup(narrative, desc);
+    if (isIncidentMajorRoute) {
+      narrative = normalizeNarrativeText(removeExpectDelays(narrative));
+    }
 
     const reopenFmt = parseReopenToMMDDYY_HHMM(end);
 
@@ -381,7 +396,11 @@ function buildMajorRouteClosures(trafficTable) {
       ? ` between ${between.from} and ${between.to}.`
       : "";
 
-    const line = `${route} (${county} County) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
+    const countyLabel = isIncidentMajorRoute
+      ? `PTC - ${county} County`
+      : `${county} County`;
+
+    const line = `${route} (${countyLabel}) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
       id: eventId,
@@ -466,6 +485,10 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
     if (!/major route/i.test(type)) continue;
     if (!isLaneRestriction(desc)) continue;
 
+    const isIncidentMajorRoute =
+      /\bincident\s*-?\s*major route\b/i.test(type) ||
+      /\bincident\s*-?\s*major route\b/i.test(desc);
+
     const route = parseRoute(roadway || desc) || "ROUTE";
     const direction = parseDirection(desc) || parseDirection(roadway) || "";
     const countyClean = county
@@ -474,10 +497,16 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
 
     let narrative = desc.replace(/\s*There is a lane restriction\.?\s*$/i, "").trim();
     narrative = applyMileMarkerCleanup(narrative, desc);
+    if (isIncidentMajorRoute) {
+      narrative = removeExpectDelays(narrative);
+    }
     if (narrative && !/[.!?]$/.test(narrative)) narrative += ".";
 
     const reopenFmt = parseReopenToMMDDYY_HHMM(end);
-    const line = `${route} (${countyClean} County) | ${narrative} Estimated Reopen: ${reopenFmt}`;
+    const countyLabel = isIncidentMajorRoute
+      ? `PTC - ${countyClean} County`
+      : `${countyClean} County`;
+    const line = `${route} (${countyLabel}) | ${narrative} Estimated Reopen: ${reopenFmt}`;
 
     items.push({
       id: eventId,
