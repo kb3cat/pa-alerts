@@ -1290,9 +1290,10 @@ async function loadBoard(){
     try { laneJson = (await fetchFirstWorkingJson(LANE_FILE)).json; } catch { warnings.push(`Could not load data/${LANE_FILE}.`); }
 
     const closuresPrimaryRaw = extractTextLines(closuresJson)
-  .map(cleanLine)
-  .filter(Boolean)
-  .filter(s => !/\bSPECIAL EVENT\b/i.test(s));
+      .map(cleanLine)
+      .filter(Boolean)
+      .filter(s => !/\bSPECIAL EVENT\b/i.test(s))
+      .filter(s => !/\bshoulder closed\b/i.test(s));
     const seen = new Set();
     const closuresMerged = [];
     for (const s of closuresPrimaryRaw) {
