@@ -535,6 +535,14 @@ function cleanLine(s) {
   t = t.replace(/\bExit Ramp Closed\s*,\s*/gi, "");
   t = t.replace(/\bExit Ramp Closed\.?\s*/gi, "");
 
+  // Remove shoulder information
+t = t.replace(/\bRight Shoulder Blocked\.?\s*/gi, "");
+t = t.replace(/\bLeft Shoulder Blocked\.?\s*/gi, "");
+t = t.replace(/\bShoulder Blocked\.?\s*/gi, "");
+t = t.replace(/\bRight Shoulder Closed\.?\s*/gi, "");
+t = t.replace(/\bLeft Shoulder Closed\.?\s*/gi, "");
+t = t.replace(/\bShoulder Closed\.?\s*/gi, "");
+
   // Remove trailing metadata
   t = t.replace(/\s*\|\s*I-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
   t = t.replace(/\s*\|\s*US-\d+\s*\|\s*ACTIVE\s*\|\s*View on map\s*$/i, "");
