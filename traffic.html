@@ -1308,9 +1308,14 @@ async function loadBoard(){
       .map(cleanLine)
       .filter(Boolean)
       .filter(s => !/\bSPECIAL EVENT\b/i.test(s))
-      .filter(s => !/\b(?:exit|entrance)?\s*ramp\b/i.test(s))
-      .filter(s => !/\bexit\s+\d+[A-Z]?\b/i.test(s))
-      .filter(s => !/\bshoulder\b/i.test(s));
+      .filter(s =>
+        /\ball lanes blocked\b/i.test(s) ||
+        (
+          !/\b(?:exit|entry|entrance)?\s*ramp\b/i.test(s) &&
+          !/\bexit\s+\d+[A-Z]?\b/i.test(s) &&
+          !/\bshoulder\b/i.test(s)
+        )
+      );
     const seen = new Set();
     const closuresMerged = [];
     for (const s of closuresPrimaryRaw) {
@@ -1400,5 +1405,3 @@ setInterval(loadBoard, REFRESH_MS);
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"bcc2369b13aa483b95f11c2006ef0157","r":1}' crossorigin="anonymous"></script>
 </body>
 </html>
-
-
