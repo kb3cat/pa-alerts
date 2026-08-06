@@ -1,11 +1,10 @@
-import { chromium } from "playwright";
-import fs from "fs";
+import { chromium } from “playwright”; import fs from “fs”;
 
-async function scrapeSimpleTable(browser, url, tableSelector = "table") {
-  const page = await browser.newPage();
+async function scrapeSimpleTable(browser, url, tableSelector = “table”)
+{ const page = await browser.newPage();
 
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+try { await page.goto(url, { waitUntil: “domcontentloaded”, timeout:
+45000 });
 
     for (const sel of [
       'button:has-text("Done")',
@@ -61,156 +60,113 @@ async function scrapeSimpleTable(browser, url, tableSelector = "table") {
     );
 
     return { url, fetched_at: new Date().toISOString(), headers, rows };
-  } finally {
-    await page.close();
-  }
+
+} finally { await page.close(); } }
+
+/* ———- HELPERS ———- */
+
+function idx(headers, name) { const i = headers.findIndex(h =>
+h.trim().toLowerCase() === name.trim().toLowerCase()); return i >= 0 ? i
+: null; }
+
+function findHeader(headers, re) { const i = headers.findIndex(h =>
+re.test(String(h || ““))); return i >= 0 ? i : null; }
+
+function norm(s) { return String(s || ““).replace(/+/g,” “).trim(); }
+
+function rowCells(row) { return Array.isArray(row) ? row : (row?.cells
+|| []); }
+
+function rowEventId(row) { const direct = row?.eventId || row?.id ||
+row?.event_id || row?.alertId || row?.alert_id; if (direct) return
+String(direct).trim();
+
+const haystack =
+${(row?.links || []).join(" ")} ${row?.html || ""} ${row?.text || ""};
+
+const m = haystack.match(/MajorRouteIncident-//i) ||
+haystack.match(/MajorRouteIncident-()/i) ||
+haystack.match(//map/data/MajorRouteIncident/()/i) ||
+haystack.match(/Closure-//i) || haystack.match(/IncidentClosure-//i) ||
+haystack.match(//map/data/Closure/()/i) ||
+haystack.match(//map/data/IncidentClosure/()/i) ||
+haystack.match(/eventid[“’]??()/i) ||
+haystack.match(/data-event-id=[“’]?()/i) ||
+haystack.match(/data-id=[“’]?()/i);
+
+return m ? m[1] : null; }
+
+function parseRoute(desc) { const m = String(desc ||
+““).match(/I|US|PA)?()i); if (!m) return null; return
+${m[1].toUpperCase()}-${m[2]}; }
+
+function parseDirection(desc) { const m1 = String(desc ||
+““).match(/NB|SB|EB|WB)i); if (m1) return m1[1].toUpperCase();
+
+const m2 = String(desc || ““).match(/NORTH|SOUTH|EAST|WEST)(BOUND)?i);
+if (!m2) return null; return m2[1].toUpperCase(); }
+
+function parseBetweenExits(desc) { const d = String(desc || ““);
+
+const mA =
+d.match(/between+Exit+([A-Z]?):([^]+?)+(?:and|to)+Exit+([A-Z]?):([^]+?)(?:.|$)/i);
+if (mA) { return { from: Exit ${mA[1]}: ${norm(mA[2])}, to:
+Exit ${mA[3]}: ${norm(mA[4])} }; }
+
+const mB =
+d.match(/between+Exit:?([^()]+?)(([A-Z]?))(?:and|to)([^()]+?)(([A-Z]?))/i);
+if (mB) { return { from: ${norm(mB[1])} (${mB[2]}), to:
+${norm(mB[3])} (${mB[4]}) }; }
+
+return null; }
+
+function isConstructionRelated(desc) { return
+/(roadwork|construction|work zone|lane closure for
+work|paving|bridge|maintenance|utility work|shoulder work)/i.test(desc);
 }
 
-/* ---------- HELPERS ---------- */
+function isRoadClosed(desc) { return ( /i.test(desc) || /lanes
+(closed|blocked)i.test(desc) || /all lanesi.test(desc) ||
+/lanes.*?block/i.test(desc) ); }
 
-function idx(headers, name) {
-  const i = headers.findIndex(h => h.trim().toLowerCase() === name.trim().toLowerCase());
-  return i >= 0 ? i : null;
-}
+function isAllLanesOpen(desc) { return /lanes openi.test(desc); }
 
-function findHeader(headers, re) {
-  const i = headers.findIndex(h => re.test(String(h || "")));
-  return i >= 0 ? i : null;
-}
+function isLaneRestriction(desc) { const s = String(desc || ““);
 
-function norm(s) {
-  return String(s || "").replace(/\s+/g, " ").trim();
-}
+if (isRoadClosed(s)) return false; if
+(/lanes?+(closed|blocked|restricted)i.test(s)) return false; if (/all
+lanesi.test(s)) return false;
 
-function rowCells(row) {
-  return Array.isArray(row) ? row : (row?.cells || []);
-}
+return ( /is a lane restrictioni.test(s) ||
+/?:the+)?(?:left|right|center|centre|middle|inside|outside|travel|passing|express|local|one|two|three|four|)+lanes?(?:([^)]*))?+(?:is|are|remain|remains|will
+be|has been|have been)?(?:blocked|restricted|closed)i.test(s) ||
+/?+(?:is|are|remain|remains|will be|has been|have
+been)?(?:blocked|restricted)i.test(s) ); }
 
-function rowEventId(row) {
-  const direct = row?.eventId || row?.id || row?.event_id || row?.alertId || row?.alert_id;
-  if (direct) return String(direct).trim();
+function parseCountyFromDesc(desc) { const parts = String(desc || ““)
+.split(”|“) .map(s => s.trim()) .filter(Boolean);
 
-  const haystack = `${(row?.links || []).join(" ")} ${row?.html || ""} ${row?.text || ""}`;
+for (let i = 0; i < parts.length - 1; i++) { if
+(/^pennsylvania$/i.test(parts[i])) {
+      return parts[i + 1].replace(/\s*county$/i, ““).trim(); } }
 
-  const m =
-    haystack.match(/MajorRouteIncident[-/](\d+)/i) ||
-    haystack.match(/MajorRouteIncident-(\d+)/i) ||
-    haystack.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
-    haystack.match(/Closure[-/](\d+)/i) ||
-    haystack.match(/IncidentClosure[-/](\d+)/i) ||
-    haystack.match(/\/map\/data\/Closure\/(\d+)/i) ||
-    haystack.match(/\/map\/data\/IncidentClosure\/(\d+)/i) ||
-    haystack.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
-    haystack.match(/data-event-id=["']?(\d+)/i) ||
-    haystack.match(/data-id=["']?(\d+)/i);
+const m = String(desc || ““).match(/[A-Za-z .’-]+)+Countyi); if (m)
+return m[1].trim();
 
-  return m ? m[1] : null;
-}
+return null; }
 
-function parseRoute(desc) {
-  const m = String(desc || "").match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,3})\b/i);
-  if (!m) return null;
-  return `${m[1].toUpperCase()}-${m[2]}`;
-}
+function extractNarrativeFromDesc(desc) { const raw = String(desc ||
+““); if (!raw.includes(”|“)) return norm(raw);
 
-function parseDirection(desc) {
-  const m1 = String(desc || "").match(/\b(NB|SB|EB|WB)\b/i);
-  if (m1) return m1[1].toUpperCase();
+const parts = raw .split(“|”) .map(s => s.trim()) .filter(Boolean);
 
-  const m2 = String(desc || "").match(/\b(NORTH|SOUTH|EAST|WEST)(BOUND)?\b/i);
-  if (!m2) return null;
-  return m2[1].toUpperCase();
-}
+const nonTime = parts.filter( p => !/^//,:(AM|PM)$/i.test(p) );
 
-function parseBetweenExits(desc) {
-  const d = String(desc || "");
+const paIdx = nonTime.findIndex(p => /^pennsylvania$/i.test(p)); const
+countyToken = (paIdx >= 0 && nonTime[paIdx + 1]) ? nonTime[paIdx + 1] :
+null;
 
-  const mA = d.match(/between\s+Exit\s+(\d+[A-Z]?)\s*:\s*([^]+?)\s+(?:and|to)\s+Exit\s+(\d+[A-Z]?)\s*:\s*([^]+?)(?:\.|$)/i);
-  if (mA) {
-    return {
-      from: `Exit ${mA[1]}: ${norm(mA[2])}`,
-      to: `Exit ${mA[3]}: ${norm(mA[4])}`
-    };
-  }
-
-  const mB = d.match(/between\s+Exit\s*:?\s*([^()]+?)\s*\((\d+[A-Z]?)\)\s*(?:and|to)\s*([^()]+?)\s*\((\d+[A-Z]?)\)/i);
-  if (mB) {
-    return {
-      from: `${norm(mB[1])} (${mB[2]})`,
-      to: `${norm(mB[3])} (${mB[4]})`
-    };
-  }
-
-  return null;
-}
-
-function isConstructionRelated(desc) {
-  return /(roadwork|construction|work zone|lane closure for work|paving|bridge|maintenance|utility work|shoulder work)/i.test(desc);
-}
-
-function isRoadClosed(desc) {
-  return (
-    /\bclosed\b/i.test(desc) ||
-    /\ball lanes (closed|blocked)\b/i.test(desc) ||
-    /\bblocking all lanes\b/i.test(desc) ||
-    /\ball lanes.*?block/i.test(desc)
-  );
-}
-
-function isAllLanesOpen(desc) {
-  return /\ball lanes open\b/i.test(desc);
-}
-
-function isLaneRestriction(desc) {
-  const s = String(desc || "");
-
-  if (isRoadClosed(s)) return false;
-  if (/\ball lanes?\s+(closed|blocked|restricted)\b/i.test(s)) return false;
-  if (/\bblocking all lanes\b/i.test(s)) return false;
-
-  return (
-    /\bthere is a lane restriction\b/i.test(s) ||
-    /\b(?:the\s+)?(?:left|right|center|centre|middle|inside|outside|travel|passing|express|local|one|two|three|four|\d+)\s+lanes?\s+(?:is|are|remain|remains|will be|has been|have been)?\s*(?:blocked|restricted|closed)\b/i.test(s) ||
-    /\blanes?\s+(?:is|are|remain|remains|will be|has been|have been)?\s*(?:blocked|restricted)\b/i.test(s)
-  );
-}
-
-function parseCountyFromDesc(desc) {
-  const parts = String(desc || "")
-    .split("|")
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (/^pennsylvania$/i.test(parts[i])) {
-      return parts[i + 1].replace(/\s*county$/i, "").trim();
-    }
-  }
-
-  const m = String(desc || "").match(/\b([A-Za-z .'-]+)\s+County\b/i);
-  if (m) return m[1].trim();
-
-  return null;
-}
-
-function extractNarrativeFromDesc(desc) {
-  const raw = String(desc || "");
-  if (!raw.includes("|")) return norm(raw);
-
-  const parts = raw
-    .split("|")
-    .map(s => s.trim())
-    .filter(Boolean);
-
-  const nonTime = parts.filter(
-    p => !/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*,\s*\d{1,2}:\d{2}\s*(AM|PM)$/i.test(p)
-  );
-
-  const paIdx = nonTime.findIndex(p => /^pennsylvania$/i.test(p));
-  const countyToken = (paIdx >= 0 && nonTime[paIdx + 1]) ? nonTime[paIdx + 1] : null;
-
-  const cleaned = nonTime.filter(p => {
-    const t = p.trim();
+const cleaned = nonTime.filter(p => { const t = p.trim();
 
     if (/^closure\b/i.test(t)) return false;
     if (/^incident\b/i.test(t)) return false;
@@ -222,90 +178,59 @@ function extractNarrativeFromDesc(desc) {
     if (parseRoute(t)) return false;
 
     return true;
-  });
 
-  return norm(cleaned[0] || raw);
-}
+});
 
-function parseReopenToMMDDYY_HHMM(endRaw) {
-  const s = norm(endRaw);
-  if (!s) return "TBD";
+return norm(cleaned[0] || raw); }
 
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*,\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!m) return "TBD";
+function parseReopenToMMDDYY_HHMM(endRaw) { const s = norm(endRaw); if
+(!s) return “TBD”;
 
-  const mo = String(parseInt(m[1], 10));
-  const da = String(parseInt(m[2], 10));
-  const yy = String(m[3]).slice(-2);
+const m = s.match(/^()/()/(),():()(AM|PM)$/i); if (!m) return “TBD”;
 
-  let hh = parseInt(m[4], 10);
-  const mm = String(m[5]).padStart(2, "0");
-  const ap = m[6].toUpperCase();
+const mo = String(parseInt(m[1], 10)); const da = String(parseInt(m[2],
+10)); const yy = String(m[3]).slice(-2);
 
-  if (ap === "AM") {
-    if (hh === 12) hh = 0;
-  } else {
-    if (hh !== 12) hh += 12;
-  }
+let hh = parseInt(m[4], 10); const mm = String(m[5]).padStart(2, “0”);
+const ap = m[6].toUpperCase();
 
-  const hh2 = String(hh).padStart(2, "0");
-  return `${mo}/${da}/${yy} - ${hh2}:${mm}`;
-}
+if (ap === “AM”) { if (hh === 12) hh = 0; } else { if (hh !== 12) hh +=
+12; }
 
-function removeExpectDelays(s) {
-  return norm(
-    String(s || "")
-      .replace(/(?:,\s*|\.\s*)?\bexpect delays\b\.?/gi, "")
-      .replace(/\s+([,.!?])/g, "$1")
-  );
-}
+const hh2 = String(hh).padStart(2, “0”); return
+${mo}/${da}/${yy} - ${hh2}:${mm}; }
 
-function normalizeNarrativeText(s) {
-  let t = String(s || "")
-    .replace(/\bMulti\s+vehicle\b/gi, "Multi-vehicle")
-    .replace(/\ball lanes (closed|blocked)\b/gi, (m, w) => `All lanes ${w[0].toUpperCase()}${w.slice(1).toLowerCase()}`);
+function removeExpectDelays(s) { return norm( String(s || ““)
+.replace(/(?:,|.)?delays/gi,”“) .replace(/+([,.!?])/g,”$1”) ); }
 
-  if (t && !/[.!?]$/.test(t)) t += ".";
-  return t;
-}
+function normalizeNarrativeText(s) { let t = String(s || ““)
+.replace(/+vehiclegi,”Multi-vehicle”) .replace(/lanes
+(closed|blocked)gi, (m, w) =>
+All lanes ${w[0].toUpperCase()}${w.slice(1).toLowerCase()});
 
-function extractMileMarker(text) {
-  const s = String(text || "");
+if (t && !/[.!?]$/.test(t)) t += “.”; return t; }
 
-  const range = s.match(/Mile Post:\s*([\d.]+)\s*-\s*Mile Post:\s*([\d.]+)/i);
-  if (range) {
-    return {
-      type: "range",
-      start: range[1],
-      end: range[2]
-    };
-  }
+function extractMileMarker(text) { const s = String(text || ““);
 
-  const single = s.match(/Mile Post:\s*([\d.]+)/i);
-  if (single) {
-    return {
-      type: "single",
-      value: single[1]
-    };
-  }
+const range = s.match(/Mile Post:([]+)-Mile Post:([]+)/i); if (range) {
+return { type: “range”, start: range[1], end: range[2] }; }
 
-  return null;
-}
+const single = s.match(/Mile Post:([]+)/i); if (single) { return { type:
+“single”, value: single[1] }; }
 
-function applyMileMarkerCleanup(narrative, sourceText) {
-  const mm = extractMileMarker(sourceText);
-  if (!mm) return narrative;
+return null; }
 
-  const hasRestArea = /rest area/i.test(narrative);
-  const hasMilesFromExit = /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b/i.test(narrative);
+function applyMileMarkerCleanup(narrative, sourceText) { const mm =
+extractMileMarker(sourceText); if (!mm) return narrative;
 
-  if (!hasRestArea && !hasMilesFromExit) return narrative;
+const hasRestArea = /rest area/i.test(narrative); const hasMilesFromExit
+= /(.)?miles?+(east|west|north|south)+of+exiti.test(narrative);
 
-  if (mm.type === "range") {
-    let updated = narrative.replace(
-      /between.*?rest area.*?and.*?rest area/i,
-      `between Mile Marker ${mm.start} and ${mm.end}`
-    );
+if (!hasRestArea && !hasMilesFromExit) return narrative;
+
+if (mm.type === “range”) { let updated = narrative.replace(
+/between.?rest area.?and.*?rest area/i,
+between Mile Marker ${mm.start} and ${mm.end} );
 
     updated = updated.replace(
       /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b.*?\band\b\s*\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b.*?(?=\.|$)/i,
@@ -313,13 +238,11 @@ function applyMileMarkerCleanup(narrative, sourceText) {
     );
 
     return updated;
-  }
 
-  if (mm.type === "single") {
-    let updated = narrative.replace(
-      /between.*?rest area.*?and.*?rest area/i,
-      `near Mile Marker ${mm.value}`
-    );
+}
+
+if (mm.type === “single”) { let updated = narrative.replace(
+/between.?rest area.?and.*?rest area/i, near Mile Marker ${mm.value} );
 
     updated = updated.replace(
       /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b[^.]*/i,
@@ -327,30 +250,27 @@ function applyMileMarkerCleanup(narrative, sourceText) {
     );
 
     return updated;
-  }
 
-  return narrative;
 }
 
-/* ---------- MAJOR ROUTE CLOSURES ---------- */
+return narrative; }
 
-function buildMajorRouteClosures(trafficTable) {
-  const headers = trafficTable.headers || [];
-  const rows = trafficTable.rows || [];
+/* ———- MAJOR ROUTE CLOSURES ———- */
 
-  const typeIdx = idx(headers, "Type") ?? findHeader(headers, /type/i);
-  const descIdx = idx(headers, "Description") ?? findHeader(headers, /description/i);
-  const endIdx  = idx(headers, "Anticipated End Time") ?? findHeader(headers, /(anticipated|end)/i);
-  const countyIdx =
-    idx(headers, "County") ??
-    idx(headers, "County Name") ??
-    findHeader(headers, /\bcounty\b/i);
+function buildMajorRouteClosures(trafficTable) { const headers =
+trafficTable.headers || []; const rows = trafficTable.rows || [];
 
-  const items = [];
+const typeIdx = idx(headers, “Type”) ?? findHeader(headers, /type/i);
+const descIdx = idx(headers, “Description”) ?? findHeader(headers,
+/description/i); const endIdx = idx(headers, “Anticipated End Time”) ??
+findHeader(headers, /(anticipated|end)/i); const countyIdx =
+idx(headers, “County”) ?? idx(headers, “County Name”) ??
+findHeader(headers, /i);
 
-  for (const r of rows) {
-    const row = rowCells(r);
-    const eventId = rowEventId(r);
+const items = [];
+
+for (const r of rows) { const row = rowCells(r); const eventId =
+rowEventId(r);
 
     const type = norm(typeIdx != null ? row[typeIdx] : "");
     const desc = norm(descIdx != null ? row[descIdx] : "");
@@ -410,63 +330,44 @@ function buildMajorRouteClosures(trafficTable) {
       description: desc,
       formatted: line
     });
-  }
 
-  return {
-    name: "major_route_closures",
-    fetched_at: trafficTable.fetched_at,
-    source_url: trafficTable.url,
-    count: items.length,
-    items
-  };
 }
 
-/* ---------- LANE RESTRICTIONS ---------- */
+return { name: “major_route_closures”, fetched_at:
+trafficTable.fetched_at, source_url: trafficTable.url, count:
+items.length, items }; }
 
-function buildLaneRestrictionsFromTraffic(trafficTable) {
-  const headers = trafficTable.headers || [];
-  const rows = trafficTable.rows || [];
+/* ———- LANE RESTRICTIONS ———- */
 
-  const typeIdx =
-    idx(headers, "Type") ??
-    findHeader(headers, /type/i);
+function buildLaneRestrictionsFromTraffic(trafficTable) { const headers
+= trafficTable.headers || []; const rows = trafficTable.rows || [];
 
-  const roadwayIdx =
-    idx(headers, "Roadway") ??
-    findHeader(headers, /roadway/i);
+const typeIdx = idx(headers, “Type”) ?? findHeader(headers, /type/i);
 
-  const stateIdx =
-    idx(headers, "State") ??
-    findHeader(headers, /\bstate\b/i);
+const roadwayIdx = idx(headers, “Roadway”) ?? findHeader(headers,
+/roadway/i);
 
-  const countyIdx =
-    idx(headers, "County") ??
-    idx(headers, "County Name") ??
-    findHeader(headers, /\bcounty\b/i);
+const stateIdx = idx(headers, “State”) ?? findHeader(headers, /i);
 
-  const descIdx =
-    idx(headers, "Description") ??
-    findHeader(headers, /description/i);
+const countyIdx = idx(headers, “County”) ?? idx(headers, “County Name”)
+?? findHeader(headers, /i);
 
-  const startIdx =
-    idx(headers, "Start Time") ??
-    idx(headers, "Reported Time") ??
-    findHeader(headers, /start time|reported/i);
+const descIdx = idx(headers, “Description”) ?? findHeader(headers,
+/description/i);
 
-  const endIdx =
-    idx(headers, "Anticipated End Time") ??
-    idx(headers, "End Time") ??
-    findHeader(headers, /anticipated end|end time|\bend\b/i);
+const startIdx = idx(headers, “Start Time”) ?? idx(headers, “Reported
+Time”) ?? findHeader(headers, /start time|reported/i);
 
-  const updatedIdx =
-    idx(headers, "Last Updated") ??
-    findHeader(headers, /last updated|updated/i);
+const endIdx = idx(headers, “Anticipated End Time”) ?? idx(headers, “End
+Time”) ?? findHeader(headers, /anticipated end|end time|i);
 
-  const items = [];
+const updatedIdx = idx(headers, “Last Updated”) ?? findHeader(headers,
+/last updated|updated/i);
 
-  for (const r of rows) {
-    const row = rowCells(r);
-    const eventId = rowEventId(r);
+const items = [];
+
+for (const r of rows) { const row = rowCells(r); const eventId =
+rowEventId(r);
 
     const type = norm(typeIdx != null ? row[typeIdx] : "");
     const roadway = norm(roadwayIdx != null ? row[roadwayIdx] : "");
@@ -494,6 +395,7 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
       : (parseCountyFromDesc(desc) || "Unknown");
 
     let narrative = desc.replace(/\s*There is a lane restriction\.?\s*$/i, "").trim();
+    narrative = narrative.replace(/\s*\(of\s+\d+\s+lanes?\)/gi, "");
     narrative = applyMileMarkerCleanup(narrative, desc);
     if (isIncidentMajorRoute) {
       narrative = removeExpectDelays(narrative);
@@ -518,62 +420,42 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
       last_updated: updated,
       formatted: line
     });
-  }
 
-  return {
-    name: "lane_restrictions",
-    fetched_at: trafficTable.fetched_at,
-    source_url: trafficTable.url,
-    count: items.length,
-    items
-  };
 }
 
-/* ---------- MAIN ---------- */
+return { name: “lane_restrictions”, fetched_at: trafficTable.fetched_at,
+source_url: trafficTable.url, count: items.length, items }; }
 
-async function main() {
-  const outputs = [
-    {
-      name: "road_conditions",
-      url: "https://www.511pa.com/list/roadcondition"
-    },
-    {
-      name: "travel_delays",
-      url: "https://www.511pa.com/list/events/traffic?start=0&length=250&order%5Bi%5D=8&order%5Bdir%5D=desc"
-    },
-    {
-      name: "restrictions",
-      url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc"
-    }
-  ];
+/* ———- MAIN ———- */
 
-  if (!fs.existsSync("data")) fs.mkdirSync("data");
+async function main() { const outputs = [ { name: “road_conditions”,
+url: “https://www.511pa.com/list/roadcondition” }, { name:
+“travel_delays”, url:
+“https://www.511pa.com/list/events/traffic?start=0&length=250&order%5Bi%5D=8&order%5Bdir%5D=desc”
+}, { name: “restrictions”, url:
+“https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc”
+} ];
 
-  const browser = await chromium.launch();
-  const resultsByName = {};
+if (!fs.existsSync(“data”)) fs.mkdirSync(“data”);
 
-  try {
-    for (const o of outputs) {
-      console.log(`Scraping ${o.name}...`);
-      const data = await scrapeSimpleTable(browser, o.url, "table");
-      resultsByName[o.name] = data;
-      fs.writeFileSync(`data/${o.name}.json`, JSON.stringify(data, null, 2));
-      console.log(`Wrote data/${o.name}.json (${data.rows.length} rows)`);
-    }
-  } finally {
-    await browser.close();
-  }
+const browser = await chromium.launch(); const resultsByName = {};
 
-  const major = buildMajorRouteClosures(resultsByName.travel_delays);
-  fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(major, null, 2));
-  console.log(`Wrote data/major_route_closures.json (${major.count} items)`);
+try { for (const o of outputs) { console.log(Scraping ${o.name}...);
+const data = await scrapeSimpleTable(browser, o.url, “table”);
+resultsByName[o.name] = data; fs.writeFileSync(data/${o.name}.json,
+JSON.stringify(data, null, 2));
+console.log(Wrote data/${o.name}.json (${data.rows.length} rows)); } }
+finally { await browser.close(); }
 
-  const lane = buildLaneRestrictionsFromTraffic(resultsByName.travel_delays);
-  fs.writeFileSync(`data/lane_restrictions.json`, JSON.stringify(lane, null, 2));
-  console.log(`Wrote data/lane_restrictions.json (${lane.count} items)`);
-}
+const major = buildMajorRouteClosures(resultsByName.travel_delays);
+fs.writeFileSync(data/major_route_closures.json, JSON.stringify(major,
+null, 2));
+console.log(Wrote data/major_route_closures.json (${major.count} items));
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+const lane =
+buildLaneRestrictionsFromTraffic(resultsByName.travel_delays);
+fs.writeFileSync(data/lane_restrictions.json, JSON.stringify(lane, null,
+2));
+console.log(Wrote data/lane_restrictions.json (${lane.count} items)); }
+
+main().catch(err => { console.error(err); process.exit(1); });
