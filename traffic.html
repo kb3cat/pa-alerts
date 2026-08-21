@@ -1308,14 +1308,7 @@ async function loadBoard(){
       .map(cleanLine)
       .filter(Boolean)
       .filter(s => !/\bSPECIAL EVENT\b/i.test(s))
-      .filter(s =>
-        /\ball lanes blocked\b/i.test(s) ||
-        (
-          !/\b(?:exit|entry|entrance)?\s*ramp\b/i.test(s) &&
-          !/\bexit\s+\d+[A-Z]?\b/i.test(s) &&
-          !/\bshoulder\b/i.test(s)
-        )
-      );
+      .filter(s => !/\bshoulder\b/i.test(s));
     const seen = new Set();
     const closuresMerged = [];
     for (const s of closuresPrimaryRaw) {
