@@ -989,7 +989,8 @@ const speed = combineContiguousRestrictions(speedRaw);
 const laneRaw = (laneJson?.items || [])
 .map(it => it?.formatted || it?.description || "")
 .map(cleanLine)
-.filter(Boolean);
+.filter(Boolean)
+.filter(s => !/\bshoulder\b/i.test(s));
 const lane = combineContiguousRestrictions(laneRaw);
 const vehicleAll = withTiers.filter(r =>
 is45CmvRightLaneOnly(r.text) ||
