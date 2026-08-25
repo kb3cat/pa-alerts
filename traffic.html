@@ -963,10 +963,10 @@ try { closuresJson = (await fetchFirstWorkingJson(CLOSURES_FILE)).json; } catch 
 try { restr = (await fetchFirstWorkingJson(RESTR_FILE)).json; } catch { warnings.push(`Could not load data/${RESTR_FILE}.`); }
 try { laneJson = (await fetchFirstWorkingJson(LANE_FILE)).json; } catch { warnings.push(`Could not load data/${LANE_FILE}.`); }
 const closuresPrimaryRaw = extractTextLines(closuresJson)
+.filter(s => !/\bshoulder\b/i.test(String(s || "")))
 .map(cleanLine)
 .filter(Boolean)
 .filter(s => !/\bSPECIAL EVENT\b/i.test(s))
-.filter(s => !/\bshoulder\b/i.test(s))
 .filter(is511CoreRoute);
 const seen = new Set();
 const closuresMerged = [];
@@ -988,9 +988,9 @@ const speedRaw = withTiers
 const speed = combineContiguousRestrictions(speedRaw);
 const laneRaw = (laneJson?.items || [])
 .map(it => it?.formatted || it?.description || "")
+.filter(s => !/\bshoulder\b/i.test(String(s || "")))
 .map(cleanLine)
-.filter(Boolean)
-.filter(s => !/\bshoulder\b/i.test(s));
+.filter(Boolean);
 const lane = combineContiguousRestrictions(laneRaw);
 const vehicleAll = withTiers.filter(r =>
 is45CmvRightLaneOnly(r.text) ||
