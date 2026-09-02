@@ -525,12 +525,15 @@ function normalizeRows(rows) {
       }
 
       if (r && typeof r === "object") {
-        if (r.text) {
-          return String(r.text);
+        if (Array.isArray(r.cells)) {
+          if (r.cells.length > 1 && String(r.cells[0] || "").trim().toLowerCase() === "row details") {
+            return String(r.cells[1] || "");
+          }
+          return r.cells.join(" | ");
         }
 
-        if (Array.isArray(r.cells)) {
-          return r.cells.join(" | ");
+        if (r.text) {
+          return String(r.text);
         }
       }
 
