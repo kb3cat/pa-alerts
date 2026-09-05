@@ -332,6 +332,105 @@ function applyMileMarkerCleanup(narrative, sourceText) {
   return narrative;
 }
 
+
+/* ---------- 511PA CORE ROADWAY NETWORK ----------
+   Filter "Major Route" events against PennDOT's actual Core Network
+   before writing major_route_closures.json.
+
+   NOTE: PennDOT defines some routes only by specific segments. The public
+   511 table does not expose PennDOT segment/offset IDs, so US-6 is handled
+   conservatively: only Lackawanna County events that look like limited-
+   access events are accepted. This rejects ordinary at-grade US-6 events
+   such as OLD LACKAWANNA TR / OLD STATE RD.
+*/
+
+const CORE_ROUTE_COUNTIES = {
+  "I-70":new Set(["Washington","Westmoreland","Somerset","Bedford","Fulton"]),
+  "I-76":null, "I-78":new Set(["Lebanon","Berks","Lehigh","Northampton"]),
+  "I-79":null, "I-80":null, "I-81":null,
+  "I-83":new Set(["York","Cumberland","Dauphin"]),
+  "I-84":new Set(["Lackawanna","Wayne","Pike"]), "I-86":new Set(["Erie"]),
+  "I-90":new Set(["Erie"]), "I-95":new Set(["Delaware","Philadelphia","Bucks"]),
+  "I-99":new Set(["Bedford","Blair","Centre"]), "I-176":new Set(["Berks"]),
+  "I-180":new Set(["Lycoming","Northumberland"]), "I-276":new Set(["Montgomery","Bucks"]),
+  "I-279":new Set(["Allegheny"]), "I-283":new Set(["Dauphin"]),
+  "I-376":new Set(["Mercer","Lawrence","Beaver","Allegheny"]),
+  "I-380":new Set(["Monroe","Lackawanna"]), "I-476":null,
+  "I-579":new Set(["Allegheny"]), "I-676":new Set(["Philadelphia"]),
+  "US-1":new Set(["Chester","Delaware","Philadelphia","Bucks"]),
+  "US-6":new Set(["Lackawanna"]),
+  "US-11":new Set(["Cumberland","Perry","Juniata","Snyder","Union"]),
+  "US-15":null, "US-19":new Set(["Allegheny"]), "US-22":null,
+  "US-30":new Set(["York","Lancaster","Chester"]),
+  "US-40":new Set(["Washington","Fayette"]), "US-119":new Set(["Fayette","Westmoreland"]),
+  "US-202":new Set(["Delaware","Chester","Montgomery"]), "US-209":new Set(["Monroe"]),
+  "US-219":new Set(["Somerset","Cambria"]), "US-220":new Set(["Clinton","Lycoming"]),
+  "US-222":new Set(["Lancaster","Berks"]), "US-322":null,
+  "US-422":new Set(["Berks","Montgomery"]),
+  "PA-28":new Set(["Allegheny","Butler","Armstrong"]),
+  "PA-33":new Set(["Northampton","Monroe"]), "PA-43":new Set(["Washington","Fayette"]),
+  "PA-60":new Set(["Allegheny"]), "PA-66":new Set(["Westmoreland"]),
+  "PA-100":new Set(["Chester"]), "PA-147":new Set(["Northumberland"]),
+  "PA-283":new Set(["Dauphin","Lancaster"]),
+  "PA-309":new Set(["Philadelphia","Montgomery","Bucks","Lehigh","Schuylkill","Luzerne"]),
+  "PA-576":new Set(["Washington","Allegheny"]), "PA-581":new Set(["Cumberland"])
+};
+
+function normalizeCountyName(county) {
+  return norm(county).replace(/\s*county$/i, "").trim();
+}
+
+function looksLikeLimitedAccessEvent(text) {
+  const s = String(text || "");
+  return /\bexit\s+\d+[A-Z]?\b/i.test(s) ||
+         /\bmile\s*(?:post|marker)\b/i.test(s) ||
+         /\binterchange\b/i.test(s) ||
+         /\brest\s+area\b/i.test(s);
+}
+
+function evaluate511CoreEvent(route, county, sourceText) {
+  const r = String(route || "").toUpperCase();
+  const c = normalizeCountyName(county);
+
+  if (!Object.prototype.hasOwnProperty.call(CORE_ROUTE_COUNTIES, r)) {
+    return {
+      accepted: false,
+      reason: `Route ${r || "UNKNOWN"} is not on the configured 511PA Core Network list`
+    };
+  }
+
+  const allowedCounties = CORE_ROUTE_COUNTIES[r];
+  if (allowedCounties && !allowedCounties.has(c)) {
+    return {
+      accepted: false,
+      reason: `${r} is Core only in configured county/segment areas; ${c || "Unknown"} County is not included`
+    };
+  }
+
+  // PennDOT Core PDF: US-6 = I-81/I-84 Interchange -> End of Limited Access.
+  if (r === "US-6") {
+    if (c !== "Lackawanna") {
+      return {
+        accepted: false,
+        reason: `US-6 Core segment is limited to Lackawanna County's limited-access section`
+      };
+    }
+
+    if (!looksLikeLimitedAccessEvent(sourceText)) {
+      return {
+        accepted: false,
+        reason: `US-6 event does not look like it is on the I-81/I-84 -> End of Limited Access Core segment`
+      };
+    }
+  }
+
+  return { accepted: true, reason: "Accepted as 511PA Core Network event" };
+}
+
+function is511CoreEvent(route, county, sourceText) {
+  return evaluate511CoreEvent(route, county, sourceText).accepted;
+}
+
 /* ---------- MAJOR ROUTE CLOSURES ---------- */
 
 function buildMajorRouteClosures(trafficTable) {
@@ -347,6 +446,7 @@ function buildMajorRouteClosures(trafficTable) {
     findHeader(headers, /\bcounty\b/i);
 
   const items = [];
+  const rejected = [];
 
   for (const r of rows) {
     const row = rowCells(r);
@@ -384,6 +484,24 @@ function buildMajorRouteClosures(trafficTable) {
       ? countyFromCol.replace(/\s*county$/i, "").trim()
       : (parseCountyFromDesc(desc) || "Unknown");
 
+    // Final inclusion test against the 511PA Core Roadway Network.
+    // Keep a diagnostic record of anything rejected here so we can review
+    // false positives/false negatives without losing the source event.
+    const coreDecision = evaluate511CoreEvent(route, county, desc);
+    if (!coreDecision.accepted) {
+      rejected.push({
+        id: eventId,
+        eventId,
+        type,
+        route,
+        county,
+        reason: coreDecision.reason,
+        anticipated_end_time: end ? end : "",
+        description: desc
+      });
+      continue;
+    }
+
     let narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
     narrative = applyMileMarkerCleanup(narrative, desc);
     if (isIncidentMajorRoute) {
@@ -417,7 +535,9 @@ function buildMajorRouteClosures(trafficTable) {
     fetched_at: trafficTable.fetched_at,
     source_url: trafficTable.url,
     count: items.length,
-    items
+    rejected_count: rejected.length,
+    items,
+    rejected
   };
 }
 
@@ -566,8 +686,28 @@ async function main() {
   }
 
   const major = buildMajorRouteClosures(resultsByName.travel_delays);
-  fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(major, null, 2));
-  console.log(`Wrote data/major_route_closures.json (${major.count} items)`);
+
+  // Keep the production file clean: accepted Core Network events only.
+  const majorAccepted = {
+    name: major.name,
+    fetched_at: major.fetched_at,
+    source_url: major.source_url,
+    count: major.count,
+    items: major.items
+  };
+  fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(majorAccepted, null, 2));
+  console.log(`Wrote data/major_route_closures.json (${major.count} accepted items)`);
+
+  // Diagnostic file: Major Route closures rejected by the Core Network filter.
+  const rejectedMajor = {
+    name: "rejected_major_route_closures",
+    fetched_at: major.fetched_at,
+    source_url: major.source_url,
+    count: major.rejected_count,
+    items: major.rejected
+  };
+  fs.writeFileSync(`data/rejected_major_route_closures.json`, JSON.stringify(rejectedMajor, null, 2));
+  console.log(`Wrote data/rejected_major_route_closures.json (${major.rejected_count} rejected items)`);
 
   const lane = buildLaneRestrictionsFromTraffic(resultsByName.travel_delays);
   fs.writeFileSync(`data/lane_restrictions.json`, JSON.stringify(lane, null, 2));
