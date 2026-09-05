@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rejected 511PA Roadways</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #121923;
+      --panel2: #182230;
+      --border: #2b394b;
+      --text: #f4f7fb;
+      --muted: #aeb9c7;
+      --accent: #ffb347;
+      --bad: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    h1 { margin: 0 0 4px; font-size: 1.65rem; }
+    .sub { color: var(--muted); margin-bottom: 18px; }
+    .toolbar {
+      display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+      background: var(--panel); border: 1px solid var(--border);
+      padding: 12px; border-radius: 10px; margin-bottom: 14px;
+    }
+    input, select, button {
+      background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 7px; padding: 9px 11px; font: inherit;
+    }
+    input { flex: 1 1 260px; }
+    button { cursor: pointer; }
+    .stats { margin-left: auto; color: var(--muted); white-space: nowrap; }
+    .status {
+      padding: 10px 12px; border-radius: 8px; margin-bottom: 14px;
+      background: var(--panel); border: 1px solid var(--border); color: var(--muted);
+    }
+    .status.error { color: #ffd2d2; border-color: #6d3434; }
+    .table-wrap {
+      overflow-x: auto; background: var(--panel);
+      border: 1px solid var(--border); border-radius: 10px;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th {
+      position: sticky; top: 0; background: var(--panel2); z-index: 1;
+      font-size: .85rem; text-transform: uppercase; letter-spacing: .04em;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .route { font-weight: 800; white-space: nowrap; }
+    .reason { color: var(--accent); font-weight: 650; }
+    .desc { min-width: 360px; }
+    .muted { color: var(--muted); }
+    .empty { padding: 35px; text-align: center; color: var(--muted); }
+    @media (max-width: 700px) {
+      .wrap { padding: 12px; }
+      .stats { width: 100%; margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rejected 511PA Roadways</h1>
+  <div class="sub">Major Route closures rejected by the Core Network filter</div>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="Search route, county, reason, description...">
+    <select id="route"><option value="">All routes</option></select>
+    <select id="county"><option value="">All counties</option></select>
+    <button id="refresh" type="button">Refresh</button>
+    <div class="stats" id="stats">Loading...</div>
+  </div>
+
+  <div class="status" id="status">Loading data/rejected_major_route_closures.json...</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th>County</th>
+          <th>Why Rejected</th>
+          <th>Description</th>
+          <th>Reopen</th>
+          <th>Event ID</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" hidden>No rejected roadways match the current filters.</div>
+  </div>
+</div>
+
+<script>
+const JSON_URL = "data/rejected_major_route_closures.json";
+let allItems = [];
+let fetchedAt = "";
+
+const $ = id => document.getElementById(id);
+
+function esc(v) {
+  return String(v ?? "")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function fmtDate(v) {
+  if (!v) return "—";
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? v : d.toLocaleString();
+}
+
+function populateSelect(id, values, label) {
+  const el = $(id);
+  const current = el.value;
+  el.innerHTML = `<option value="">All ${label}</option>` +
+    [...new Set(values.filter(Boolean))].sort((a,b) => a.localeCompare(b))
+      .map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  if ([...el.options].some(o => o.value === current)) el.value = current;
+}
+
+function render() {
+  const q = $("search").value.trim().toLowerCase();
+  const route = $("route").value;
+  const county = $("county").value;
+
+  const items = allItems.filter(x => {
+    if (route && x.route !== route) return false;
+    if (county && x.county !== county) return false;
+    if (!q) return true;
+    return [x.route, x.county, x.reason, x.description, x.eventId]
+      .some(v => String(v ?? "").toLowerCase().includes(q));
+  });
+
+  $("rows").innerHTML = items.map(x => `
+    <tr>
+      <td class="route">${esc(x.route || "—")}</td>
+      <td>${esc(x.county || "—")}</td>
+      <td class="reason">${esc(x.reason || "—")}</td>
+      <td class="desc">${esc(x.description || "—")}</td>
+      <td>${esc(x.anticipated_end_time || "—")}</td>
+      <td class="muted">${esc(x.eventId || x.id || "—")}</td>
+    </tr>
+  `).join("");
+
+  $("empty").hidden = items.length !== 0;
+  $("stats").textContent = `${items.length} shown / ${allItems.length} rejected`;
+}
+
+async function loadData() {
+  $("status").className = "status";
+  $("status").textContent = `Loading ${JSON_URL}...`;
+
+  try {
+    const res = await fetch(`${JSON_URL}?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    allItems = Array.isArray(data?.items) ? data.items : [];
+    fetchedAt = data?.fetched_at || "";
+
+    populateSelect("route", allItems.map(x => x.route), "routes");
+    populateSelect("county", allItems.map(x => x.county), "counties");
+
+    $("status").textContent =
+      `JSON updated: ${fetchedAt ? fmtDate(fetchedAt) : "unknown"} • ${allItems.length} rejected Major Route closure${allItems.length === 1 ? "" : "s"}`;
+    render();
+  } catch (err) {
+    allItems = [];
+    $("rows").innerHTML = "";
+    $("empty").hidden = false;
+    $("status").className = "status error";
+    $("status").textContent = `Could not load ${JSON_URL}: ${err.message}`;
+    $("stats").textContent = "Load failed";
+  }
+}
+
+$("search").addEventListener("input", render);
+$("route").addEventListener("change", render);
+$("county").addEventListener("change", render);
+$("refresh").addEventListener("click", loadData);
+
+loadData();
+setInterval(loadData, 60000);
+</script>
+</body>
+</html>
