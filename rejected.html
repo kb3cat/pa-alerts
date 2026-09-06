@@ -14,7 +14,8 @@
       --text: #f4f7fb;
       --muted: #aeb9c7;
       --accent: #ffb347;
-      --bad: #ff6b6b;
+      --good: #53d18a;
+      --blue: #67b7ff;
     }
     * { box-sizing: border-box; }
     body {
@@ -23,9 +24,18 @@
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    .wrap { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .wrap { max-width: 1550px; margin: 0 auto; padding: 20px; }
     h1 { margin: 0 0 4px; font-size: 1.65rem; }
     .sub { color: var(--muted); margin-bottom: 18px; }
+    .view-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .view-tabs button {
+      background: var(--panel); color: var(--muted);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 14px; font: inherit; font-weight: 700; cursor: pointer;
+    }
+    .view-tabs button.active {
+      background: var(--panel2); color: var(--text); border-color: #49647f;
+    }
     .toolbar {
       display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
       background: var(--panel); border: 1px solid var(--border);
@@ -35,7 +45,7 @@
       background: var(--panel2); color: var(--text); border: 1px solid var(--border);
       border-radius: 7px; padding: 9px 11px; font: inherit;
     }
-    input { flex: 1 1 260px; }
+    input { flex: 1 1 280px; }
     button { cursor: pointer; }
     .stats { margin-left: auto; color: var(--muted); white-space: nowrap; }
     .status {
@@ -47,18 +57,37 @@
       overflow-x: auto; background: var(--panel);
       border: 1px solid var(--border); border-radius: 10px;
     }
-    table { width: 100%; border-collapse: collapse; min-width: 900px; }
-    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+    th, td {
+      text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
     th {
       position: sticky; top: 0; background: var(--panel2); z-index: 1;
-      font-size: .85rem; text-transform: uppercase; letter-spacing: .04em;
+      font-size: .82rem; text-transform: uppercase; letter-spacing: .04em;
+      white-space: nowrap;
     }
     tr:last-child td { border-bottom: 0; }
     .route { font-weight: 800; white-space: nowrap; }
-    .reason { color: var(--accent); font-weight: 650; }
-    .desc { min-width: 360px; }
+    .reason { color: var(--accent); font-weight: 650; min-width: 260px; }
+    .desc { min-width: 390px; }
     .muted { color: var(--muted); }
+    .status-badge {
+      display: inline-block; border-radius: 999px; padding: 4px 8px;
+      font-size: .78rem; font-weight: 800; white-space: nowrap;
+    }
+    .status-badge.current {
+      color: #d9ffe8; background: rgba(83, 209, 138, .14);
+      border: 1px solid rgba(83, 209, 138, .35);
+    }
+    .status-badge.cleared {
+      color: #d8e8f8; background: rgba(103, 183, 255, .10);
+      border: 1px solid rgba(103, 183, 255, .28);
+    }
     .empty { padding: 35px; text-align: center; color: var(--muted); }
+    .history-only { display: none; }
+    body.history-view .history-only { display: table-cell; }
+    body.history-view select.history-only { display: inline-block; }
     @media (max-width: 700px) {
       .wrap { padding: 12px; }
       .stats { width: 100%; margin-left: 0; }
@@ -68,28 +97,42 @@
 <body>
 <div class="wrap">
   <h1>Rejected 511PA Roadways</h1>
-  <div class="sub">Major Route closures rejected by the Core Network filter</div>
+  <div class="sub">Core Network filter diagnostics — current snapshot and persistent history</div>
+
+  <div class="view-tabs">
+    <button id="currentTab" class="active" type="button">Current Rejections</button>
+    <button id="historyTab" type="button">Rejection History</button>
+  </div>
 
   <div class="toolbar">
-    <input id="search" type="search" placeholder="Search route, county, reason, description...">
+    <input id="search" type="search" placeholder="Search route, county, reason, description, Event ID...">
     <select id="route"><option value="">All routes</option></select>
     <select id="county"><option value="">All counties</option></select>
+    <select id="historyStatus" class="history-only">
+      <option value="">All history</option>
+      <option value="current">Currently rejected</option>
+      <option value="cleared">Cleared / no longer rejected</option>
+    </select>
     <button id="refresh" type="button">Refresh</button>
     <div class="stats" id="stats">Loading...</div>
   </div>
 
-  <div class="status" id="status">Loading data/rejected_major_route_closures.json...</div>
+  <div class="status" id="status">Loading rejected roadway data...</div>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
+          <th class="history-only">Status</th>
           <th>Route</th>
           <th>County</th>
           <th>Why Rejected</th>
           <th>Description</th>
           <th>Reopen</th>
           <th>Event ID</th>
+          <th class="history-only">First Seen</th>
+          <th class="history-only">Last Seen</th>
+          <th class="history-only">Runs Seen</th>
         </tr>
       </thead>
       <tbody id="rows"></tbody>
@@ -99,9 +142,14 @@
 </div>
 
 <script>
-const JSON_URL = "data/rejected_major_route_closures.json";
-let allItems = [];
-let fetchedAt = "";
+const CURRENT_URL = "data/rejected_major_route_closures.json";
+const HISTORY_URL = "data/rejected_major_route_history.json";
+
+let currentItems = [];
+let historyItems = [];
+let currentMeta = {};
+let historyMeta = {};
+let activeView = "current";
 
 const $ = id => document.getElementById(id);
 
@@ -115,7 +163,7 @@ function esc(v) {
 function fmtDate(v) {
   if (!v) return "—";
   const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? v : d.toLocaleString();
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
 }
 
 function populateSelect(id, values, label) {
@@ -127,65 +175,138 @@ function populateSelect(id, values, label) {
   if ([...el.options].some(o => o.value === current)) el.value = current;
 }
 
-function render() {
+function viewItems() {
+  return activeView === "history" ? historyItems : currentItems;
+}
+
+function setView(view) {
+  activeView = view === "history" ? "history" : "current";
+  document.body.classList.toggle("history-view", activeView === "history");
+  $("currentTab").classList.toggle("active", activeView === "current");
+  $("historyTab").classList.toggle("active", activeView === "history");
+
+  const items = viewItems();
+  populateSelect("route", items.map(x => x.route), "routes");
+  populateSelect("county", items.map(x => x.county), "counties");
+
+  render();
+  updateStatus();
+}
+
+function filteredItems() {
   const q = $("search").value.trim().toLowerCase();
   const route = $("route").value;
   const county = $("county").value;
+  const histStatus = $("historyStatus").value;
 
-  const items = allItems.filter(x => {
+  return viewItems().filter(x => {
     if (route && x.route !== route) return false;
     if (county && x.county !== county) return false;
+
+    if (activeView === "history") {
+      if (histStatus === "current" && !x.currently_rejected) return false;
+      if (histStatus === "cleared" && x.currently_rejected) return false;
+    }
+
     if (!q) return true;
-    return [x.route, x.county, x.reason, x.description, x.eventId]
-      .some(v => String(v ?? "").toLowerCase().includes(q));
+
+    return [
+      x.route, x.county, x.reason, x.description, x.eventId, x.id,
+      x.first_seen, x.last_seen
+    ].some(v => String(v ?? "").toLowerCase().includes(q));
   });
+}
+
+function render() {
+  const items = filteredItems();
+  const history = activeView === "history";
 
   $("rows").innerHTML = items.map(x => `
     <tr>
+      ${history ? `
+        <td>
+          <span class="status-badge ${x.currently_rejected ? "current" : "cleared"}">
+            ${x.currently_rejected ? "CURRENT" : "CLEARED"}
+          </span>
+        </td>` : ""}
       <td class="route">${esc(x.route || "—")}</td>
       <td>${esc(x.county || "—")}</td>
       <td class="reason">${esc(x.reason || "—")}</td>
       <td class="desc">${esc(x.description || "—")}</td>
       <td>${esc(x.anticipated_end_time || "—")}</td>
       <td class="muted">${esc(x.eventId || x.id || "—")}</td>
+      ${history ? `
+        <td>${esc(fmtDate(x.first_seen))}</td>
+        <td>${esc(fmtDate(x.last_seen))}</td>
+        <td>${esc(x.times_seen ?? 0)}</td>` : ""}
     </tr>
   `).join("");
 
   $("empty").hidden = items.length !== 0;
-  $("stats").textContent = `${items.length} shown / ${allItems.length} rejected`;
+
+  if (history) {
+    $("stats").textContent = `${items.length} shown / ${historyItems.length} historical`;
+  } else {
+    $("stats").textContent = `${items.length} shown / ${currentItems.length} currently rejected`;
+  }
+}
+
+function updateStatus() {
+  if (activeView === "history") {
+    const currentCount = historyItems.filter(x => x.currently_rejected).length;
+    $("status").textContent =
+      `History updated: ${fmtDate(historyMeta.updated_at)} • ` +
+      `${historyItems.length} total historical rejection${historyItems.length === 1 ? "" : "s"} • ` +
+      `${currentCount} currently rejected`;
+  } else {
+    $("status").textContent =
+      `Current JSON updated: ${fmtDate(currentMeta.fetched_at)} • ` +
+      `${currentItems.length} rejected Major Route closure${currentItems.length === 1 ? "" : "s"}`;
+  }
+}
+
+async function fetchJson(url) {
+  const res = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
+  return res.json();
 }
 
 async function loadData() {
   $("status").className = "status";
-  $("status").textContent = `Loading ${JSON_URL}...`;
+  $("status").textContent = "Loading rejected roadway data...";
 
   try {
-    const res = await fetch(`${JSON_URL}?t=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const [currentData, historyData] = await Promise.all([
+      fetchJson(CURRENT_URL),
+      fetchJson(HISTORY_URL)
+    ]);
 
-    allItems = Array.isArray(data?.items) ? data.items : [];
-    fetchedAt = data?.fetched_at || "";
+    currentItems = Array.isArray(currentData?.items) ? currentData.items : [];
+    historyItems = Array.isArray(historyData?.items) ? historyData.items : [];
+    currentMeta = currentData || {};
+    historyMeta = historyData || {};
 
-    populateSelect("route", allItems.map(x => x.route), "routes");
-    populateSelect("county", allItems.map(x => x.county), "counties");
+    const items = viewItems();
+    populateSelect("route", items.map(x => x.route), "routes");
+    populateSelect("county", items.map(x => x.county), "counties");
 
-    $("status").textContent =
-      `JSON updated: ${fetchedAt ? fmtDate(fetchedAt) : "unknown"} • ${allItems.length} rejected Major Route closure${allItems.length === 1 ? "" : "s"}`;
+    updateStatus();
     render();
   } catch (err) {
-    allItems = [];
     $("rows").innerHTML = "";
     $("empty").hidden = false;
     $("status").className = "status error";
-    $("status").textContent = `Could not load ${JSON_URL}: ${err.message}`;
+    $("status").textContent = `Could not load rejected roadway data: ${err.message}`;
     $("stats").textContent = "Load failed";
   }
 }
 
+$("currentTab").addEventListener("click", () => setView("current"));
+$("historyTab").addEventListener("click", () => setView("history"));
 $("search").addEventListener("input", render);
 $("route").addEventListener("change", render);
 $("county").addEventListener("change", render);
+$("historyStatus").addEventListener("change", render);
 $("refresh").addEventListener("click", loadData);
 
 loadData();
