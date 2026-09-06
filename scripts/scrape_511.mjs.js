@@ -1,0 +1,885 @@
+import { chromium } from "playwright";
+import fs from "fs";
+import crypto from "node:crypto";
+
+async function scrapeSimpleTable(browser, url, tableSelector = "table") {
+  const page = await browser.newPage();
+
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+
+    for (const sel of [
+      'button:has-text("Done")',
+      'button:has-text("Next")',
+      'button[aria-label="Close"]'
+    ]) {
+      try {
+        await page.click(sel, { timeout: 750 });
+      } catch {}
+    }
+
+    await page.waitForSelector(`${tableSelector} tbody tr`, { timeout: 20000 });
+
+    const headers = await page.$$eval(`${tableSelector} thead th`, ths =>
+      ths.map(th => th.innerText.trim())
+    );
+
+    const rows = await page.$$eval(`${tableSelector} tbody tr`, trs =>
+      trs.map(tr => {
+        const tds = Array.from(tr.querySelectorAll("td"));
+
+        const cells = tds.map(td => td.innerText.trim());
+
+        const links = tds.map(td => {
+          const a = td.querySelector("a");
+          return a ? (a.href || a.getAttribute("href") || "") : "";
+        });
+
+        const html = tr.innerHTML || "";
+        const rowText = tr.innerText || "";
+        const haystack = `${links.join(" ")} ${html} ${rowText}`;
+
+        const m =
+          haystack.match(/MajorRouteIncident[-/](\d+)/i) ||
+          haystack.match(/MajorRouteIncident-(\d+)/i) ||
+          haystack.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
+          haystack.match(/Closure[-/](\d+)/i) ||
+          haystack.match(/IncidentClosure[-/](\d+)/i) ||
+          haystack.match(/\/map\/data\/Closure\/(\d+)/i) ||
+          haystack.match(/\/map\/data\/IncidentClosure\/(\d+)/i) ||
+          haystack.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
+          haystack.match(/data-event-id=["']?(\d+)/i) ||
+          haystack.match(/data-id=["']?(\d+)/i);
+
+        return {
+          eventId: m ? m[1] : null,
+          cells,
+          links,
+          html,
+          text: rowText
+        };
+      })
+    );
+
+    return { url, fetched_at: new Date().toISOString(), headers, rows };
+  } finally {
+    await page.close();
+  }
+}
+
+/* ---------- HELPERS ---------- */
+
+function idx(headers, name) {
+  const i = headers.findIndex(h => h.trim().toLowerCase() === name.trim().toLowerCase());
+  return i >= 0 ? i : null;
+}
+
+function findHeader(headers, re) {
+  const i = headers.findIndex(h => re.test(String(h || "")));
+  return i >= 0 ? i : null;
+}
+
+function norm(s) {
+  return String(s || "").replace(/\s+/g, " ").trim();
+}
+
+function rowCells(row) {
+  return Array.isArray(row) ? row : (row?.cells || []);
+}
+
+function rowEventId(row) {
+  const direct = row?.eventId || row?.id || row?.event_id || row?.alertId || row?.alert_id;
+  if (direct) return String(direct).trim();
+
+  const haystack = `${(row?.links || []).join(" ")} ${row?.html || ""} ${row?.text || ""}`;
+
+  const m =
+    haystack.match(/MajorRouteIncident[-/](\d+)/i) ||
+    haystack.match(/MajorRouteIncident-(\d+)/i) ||
+    haystack.match(/\/map\/data\/MajorRouteIncident\/(\d+)/i) ||
+    haystack.match(/Closure[-/](\d+)/i) ||
+    haystack.match(/IncidentClosure[-/](\d+)/i) ||
+    haystack.match(/\/map\/data\/Closure\/(\d+)/i) ||
+    haystack.match(/\/map\/data\/IncidentClosure\/(\d+)/i) ||
+    haystack.match(/eventid["']?\s*[:=]\s*["']?(\d+)/i) ||
+    haystack.match(/data-event-id=["']?(\d+)/i) ||
+    haystack.match(/data-id=["']?(\d+)/i);
+
+  return m ? m[1] : null;
+}
+
+function parseRoute(desc) {
+  const m = String(desc || "").match(/\b(I|US|PA)\s*[- ]?\s*(\d{1,3})\b/i);
+  if (!m) return null;
+  return `${m[1].toUpperCase()}-${m[2]}`;
+}
+
+function parseDirection(desc) {
+  const m1 = String(desc || "").match(/\b(NB|SB|EB|WB)\b/i);
+  if (m1) return m1[1].toUpperCase();
+
+  const m2 = String(desc || "").match(/\b(NORTH|SOUTH|EAST|WEST)(BOUND)?\b/i);
+  if (!m2) return null;
+  return m2[1].toUpperCase();
+}
+
+function parseBetweenExits(desc) {
+  const d = String(desc || "");
+
+  const mA = d.match(/between\s+Exit\s+(\d+[A-Z]?)\s*:\s*([^]+?)\s+(?:and|to)\s+Exit\s+(\d+[A-Z]?)\s*:\s*([^]+?)(?:\.|$)/i);
+  if (mA) {
+    return {
+      from: `Exit ${mA[1]}: ${norm(mA[2])}`,
+      to: `Exit ${mA[3]}: ${norm(mA[4])}`
+    };
+  }
+
+  const mB = d.match(/between\s+Exit\s*:?\s*([^()]+?)\s*\((\d+[A-Z]?)\)\s*(?:and|to)\s*([^()]+?)\s*\((\d+[A-Z]?)\)/i);
+  if (mB) {
+    return {
+      from: `${norm(mB[1])} (${mB[2]})`,
+      to: `${norm(mB[3])} (${mB[4]})`
+    };
+  }
+
+  return null;
+}
+
+function isConstructionRelated(desc) {
+  return /(roadwork|construction|work zone|lane closure for work|paving|bridge|maintenance|utility work|shoulder work)/i.test(desc);
+}
+
+function isRoadClosed(desc) {
+  return (
+    /\bclosed\b/i.test(desc) ||
+    /\ball lanes (closed|blocked)\b/i.test(desc) ||
+    /\bblocking all lanes\b/i.test(desc) ||
+    /\ball lanes.*?block/i.test(desc)
+  );
+}
+
+function isAllLanesOpen(desc) {
+  return /\ball lanes open\b/i.test(desc);
+}
+
+function isLaneRestriction(desc) {
+  const s = String(desc || "");
+
+  if (isRoadClosed(s)) return false;
+  if (/\ball lanes?\s+(closed|blocked|restricted)\b/i.test(s)) return false;
+  if (/\bblocking all lanes\b/i.test(s)) return false;
+
+  return (
+    /\bthere is a lane restriction\b/i.test(s) ||
+    /\b(?:the\s+)?(?:left|right|center|centre|middle|inside|outside|travel|passing|express|local|one|two|three|four|\d+)\s+lanes?(?:\s*\([^)]*\))?\s+(?:is|are|remain|remains|will be|has been|have been)?\s*(?:blocked|restricted|closed)\b/i.test(s) ||
+    /\blanes?\s+(?:is|are|remain|remains|will be|has been|have been)?\s*(?:blocked|restricted)\b/i.test(s)
+  );
+}
+
+function parseCountyFromDesc(desc) {
+  const parts = String(desc || "")
+    .split("|")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (/^pennsylvania$/i.test(parts[i])) {
+      return parts[i + 1].replace(/\s*county$/i, "").trim();
+    }
+  }
+
+  const m = String(desc || "").match(/\b([A-Za-z .'-]+)\s+County\b/i);
+  if (m) return m[1].trim();
+
+  return null;
+}
+
+function extractNarrativeFromDesc(desc) {
+  const raw = String(desc || "");
+  if (!raw.includes("|")) return norm(raw);
+
+  const parts = raw
+    .split("|")
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const nonTime = parts.filter(
+    p => !/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*,\s*\d{1,2}:\d{2}\s*(AM|PM)$/i.test(p)
+  );
+
+  const paIdx = nonTime.findIndex(p => /^pennsylvania$/i.test(p));
+  const countyToken = (paIdx >= 0 && nonTime[paIdx + 1]) ? nonTime[paIdx + 1] : null;
+
+  const cleaned = nonTime.filter(p => {
+    const t = p.trim();
+
+    if (/^closure\b/i.test(t)) return false;
+    if (/^incident\b/i.test(t)) return false;
+    if (/^restriction\b/i.test(t)) return false;
+    if (/^event\b/i.test(t)) return false;
+    if (/^major route$/i.test(t)) return false;
+    if (/^pennsylvania$/i.test(t)) return false;
+    if (countyToken && t.toLowerCase() === countyToken.toLowerCase()) return false;
+    if (parseRoute(t)) return false;
+
+    return true;
+  });
+
+  return norm(cleaned[0] || raw);
+}
+
+function parseReopenToMMDDYY_HHMM(endRaw) {
+  const s = norm(endRaw);
+  if (!s) return "TBD";
+
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*,\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return "TBD";
+
+  const mo = String(parseInt(m[1], 10));
+  const da = String(parseInt(m[2], 10));
+  const yy = String(m[3]).slice(-2);
+
+  let hh = parseInt(m[4], 10);
+  const mm = String(m[5]).padStart(2, "0");
+  const ap = m[6].toUpperCase();
+
+  if (ap === "AM") {
+    if (hh === 12) hh = 0;
+  } else {
+    if (hh !== 12) hh += 12;
+  }
+
+  const hh2 = String(hh).padStart(2, "0");
+  return `${mo}/${da}/${yy} - ${hh2}:${mm}`;
+}
+
+function removeExpectDelays(s) {
+  return norm(
+    String(s || "")
+      .replace(/(?:,\s*|\.\s*)?\bexpect delays\b\.?/gi, "")
+      .replace(/\s+([,.!?])/g, "$1")
+  );
+}
+
+function normalizeNarrativeText(s) {
+  let t = String(s || "")
+    .replace(/\bMulti\s+vehicle\b/gi, "Multi-vehicle")
+    .replace(/\ball lanes (closed|blocked)\b/gi, (m, w) => `All lanes ${w[0].toUpperCase()}${w.slice(1).toLowerCase()}`);
+
+  if (t && !/[.!?]$/.test(t)) t += ".";
+  return t;
+}
+
+function extractMileMarker(text) {
+  const s = String(text || "");
+
+  const range = s.match(/Mile Post:\s*([\d.]+)\s*-\s*Mile Post:\s*([\d.]+)/i);
+  if (range) {
+    return {
+      type: "range",
+      start: range[1],
+      end: range[2]
+    };
+  }
+
+  const single = s.match(/Mile Post:\s*([\d.]+)/i);
+  if (single) {
+    return {
+      type: "single",
+      value: single[1]
+    };
+  }
+
+  return null;
+}
+
+function applyMileMarkerCleanup(narrative, sourceText) {
+  const mm = extractMileMarker(sourceText);
+  if (!mm) return narrative;
+
+  const hasRestArea = /rest area/i.test(narrative);
+  const hasMilesFromExit = /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b/i.test(narrative);
+
+  if (!hasRestArea && !hasMilesFromExit) return narrative;
+
+  if (mm.type === "range") {
+    let updated = narrative.replace(
+      /between.*?rest area.*?and.*?rest area/i,
+      `between Mile Marker ${mm.start} and ${mm.end}`
+    );
+
+    updated = updated.replace(
+      /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b.*?\band\b\s*\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b.*?(?=\.|$)/i,
+      `between Mile Marker ${mm.start} and ${mm.end}`
+    );
+
+    return updated;
+  }
+
+  if (mm.type === "single") {
+    let updated = narrative.replace(
+      /between.*?rest area.*?and.*?rest area/i,
+      `near Mile Marker ${mm.value}`
+    );
+
+    updated = updated.replace(
+      /\b\d+(\.\d+)?\s*miles?\s+(east|west|north|south)\s+of\s+exit\b[^.]*/i,
+      `near Mile Marker ${mm.value}`
+    );
+
+    return updated;
+  }
+
+  return narrative;
+}
+
+
+/* ---------- 511PA CORE ROADWAY NETWORK ----------
+   Filter "Major Route" events against PennDOT's actual Core Network
+   before writing major_route_closures.json.
+
+   NOTE: PennDOT defines some routes only by specific segments. The public
+   511 table does not expose PennDOT segment/offset IDs, so US-6 is handled
+   conservatively: only Lackawanna County events that look like limited-
+   access events are accepted. This rejects ordinary at-grade US-6 events
+   such as OLD LACKAWANNA TR / OLD STATE RD.
+*/
+
+const CORE_ROUTE_COUNTIES = {
+  "I-70":new Set(["Washington","Westmoreland","Somerset","Bedford","Fulton"]),
+  "I-76":null, "I-78":new Set(["Lebanon","Berks","Lehigh","Northampton"]),
+  "I-79":null, "I-80":null, "I-81":null,
+  "I-83":new Set(["York","Cumberland","Dauphin"]),
+  "I-84":new Set(["Lackawanna","Wayne","Pike"]), "I-86":new Set(["Erie"]),
+  "I-90":new Set(["Erie"]), "I-95":new Set(["Delaware","Philadelphia","Bucks"]),
+  "I-99":new Set(["Bedford","Blair","Centre"]), "I-176":new Set(["Berks"]),
+  "I-180":new Set(["Lycoming","Northumberland"]), "I-276":new Set(["Montgomery","Bucks"]),
+  "I-279":new Set(["Allegheny"]), "I-283":new Set(["Dauphin"]),
+  "I-376":new Set(["Mercer","Lawrence","Beaver","Allegheny"]),
+  "I-380":new Set(["Monroe","Lackawanna"]), "I-476":null,
+  "I-579":new Set(["Allegheny"]), "I-676":new Set(["Philadelphia"]),
+  "US-1":new Set(["Chester","Delaware","Philadelphia","Bucks"]),
+  "US-6":new Set(["Lackawanna"]),
+  "US-11":new Set(["Cumberland","Perry","Juniata","Snyder","Union"]),
+  "US-15":null, "US-19":new Set(["Allegheny"]), "US-22":null,
+  "US-30":new Set(["York","Lancaster","Chester"]),
+  "US-40":new Set(["Washington","Fayette"]), "US-119":new Set(["Fayette","Westmoreland"]),
+  "US-202":new Set(["Delaware","Chester","Montgomery"]), "US-209":new Set(["Monroe"]),
+  "US-219":new Set(["Somerset","Cambria"]), "US-220":new Set(["Clinton","Lycoming"]),
+  "US-222":new Set(["Lancaster","Berks"]), "US-322":null,
+  "US-422":new Set(["Berks","Montgomery"]),
+  "PA-28":new Set(["Allegheny","Butler","Armstrong"]),
+  "PA-33":new Set(["Northampton","Monroe"]), "PA-43":new Set(["Washington","Fayette"]),
+  "PA-60":new Set(["Allegheny"]), "PA-66":new Set(["Westmoreland"]),
+  "PA-100":new Set(["Chester"]), "PA-147":new Set(["Northumberland"]),
+  "PA-283":new Set(["Dauphin","Lancaster"]),
+  "PA-309":new Set(["Philadelphia","Montgomery","Bucks","Lehigh","Schuylkill","Luzerne"]),
+  "PA-576":new Set(["Washington","Allegheny"]), "PA-581":new Set(["Cumberland"])
+};
+
+function normalizeCountyName(county) {
+  return norm(county).replace(/\s*county$/i, "").trim();
+}
+
+function looksLikeLimitedAccessEvent(text) {
+  const s = String(text || "");
+  return /\bexit\s+\d+[A-Z]?\b/i.test(s) ||
+         /\bmile\s*(?:post|marker)\b/i.test(s) ||
+         /\binterchange\b/i.test(s) ||
+         /\brest\s+area\b/i.test(s);
+}
+
+function evaluate511CoreEvent(route, county, sourceText) {
+  const r = String(route || "").toUpperCase();
+  const c = normalizeCountyName(county);
+
+  if (!Object.prototype.hasOwnProperty.call(CORE_ROUTE_COUNTIES, r)) {
+    return {
+      accepted: false,
+      reason: `Route ${r || "UNKNOWN"} is not on the configured 511PA Core Network list`
+    };
+  }
+
+  const allowedCounties = CORE_ROUTE_COUNTIES[r];
+  if (allowedCounties && !allowedCounties.has(c)) {
+    return {
+      accepted: false,
+      reason: `${r} is Core only in configured county/segment areas; ${c || "Unknown"} County is not included`
+    };
+  }
+
+  // PennDOT Core PDF: US-6 = I-81/I-84 Interchange -> End of Limited Access.
+  if (r === "US-6") {
+    if (c !== "Lackawanna") {
+      return {
+        accepted: false,
+        reason: `US-6 Core segment is limited to Lackawanna County's limited-access section`
+      };
+    }
+
+    if (!looksLikeLimitedAccessEvent(sourceText)) {
+      return {
+        accepted: false,
+        reason: `US-6 event does not look like it is on the I-81/I-84 -> End of Limited Access Core segment`
+      };
+    }
+  }
+
+  return { accepted: true, reason: "Accepted as 511PA Core Network event" };
+}
+
+function is511CoreEvent(route, county, sourceText) {
+  return evaluate511CoreEvent(route, county, sourceText).accepted;
+}
+
+/* ---------- MAJOR ROUTE CLOSURES ---------- */
+
+function buildMajorRouteClosures(trafficTable) {
+  const headers = trafficTable.headers || [];
+  const rows = trafficTable.rows || [];
+
+  const typeIdx = idx(headers, "Type") ?? findHeader(headers, /type/i);
+  const descIdx = idx(headers, "Description") ?? findHeader(headers, /description/i);
+  const endIdx  = idx(headers, "Anticipated End Time") ?? findHeader(headers, /(anticipated|end)/i);
+  const countyIdx =
+    idx(headers, "County") ??
+    idx(headers, "County Name") ??
+    findHeader(headers, /\bcounty\b/i);
+
+  const items = [];
+  const rejected = [];
+
+  for (const r of rows) {
+    const row = rowCells(r);
+    const eventId = rowEventId(r);
+
+    const type = norm(typeIdx != null ? row[typeIdx] : "");
+    const desc = norm(descIdx != null ? row[descIdx] : "");
+    const end  = norm(endIdx != null ? row[endIdx] : "");
+
+    if (!desc) continue;
+
+    const isMajorRoute = /major route/i.test(type) || /major route/i.test(desc);
+    if (!isMajorRoute) continue;
+
+    const isIncidentMajorRoute =
+      /\bincident\s*-?\s*major route\b/i.test(type) ||
+      /\bincident\s*-?\s*major route\b/i.test(desc);
+
+    const isClosureOrIncident =
+      /\b(?:closure|incident)\s*-?\s*major route\b/i.test(type) ||
+      /\b(?:closure|incident)\s*-?\s*major route\b/i.test(desc);
+    if (!isClosureOrIncident) continue;
+    if (/^\s*special\s+event\b/i.test(type)) continue;
+
+    if (isConstructionRelated(desc)) continue;
+    if (isAllLanesOpen(desc)) continue;
+    if (!isRoadClosed(desc)) continue;
+
+    const route = parseRoute(desc) || "ROUTE";
+    const dir = parseDirection(desc) || "DIRECTION";
+    const between = parseBetweenExits(desc);
+
+    const countyFromCol = countyIdx != null ? norm(row[countyIdx]) : "";
+    const county = (countyFromCol && !/^unknown$/i.test(countyFromCol))
+      ? countyFromCol.replace(/\s*county$/i, "").trim()
+      : (parseCountyFromDesc(desc) || "Unknown");
+
+    // Final inclusion test against the 511PA Core Roadway Network.
+    // Keep a diagnostic record of anything rejected here so we can review
+    // false positives/false negatives without losing the source event.
+    const coreDecision = evaluate511CoreEvent(route, county, desc);
+    if (!coreDecision.accepted) {
+      rejected.push({
+        id: eventId,
+        eventId,
+        type,
+        route,
+        county,
+        reason: coreDecision.reason,
+        anticipated_end_time: end ? end : "",
+        description: desc
+      });
+      continue;
+    }
+
+    let narrative = normalizeNarrativeText(extractNarrativeFromDesc(desc));
+    narrative = applyMileMarkerCleanup(narrative, desc);
+    if (isIncidentMajorRoute) {
+      narrative = normalizeNarrativeText(removeExpectDelays(narrative));
+    }
+
+    const reopenFmt = parseReopenToMMDDYY_HHMM(end);
+
+    const narrativeHasBetween = /\bbetween\b/i.test(narrative);
+    const betweenText = (!narrativeHasBetween && between)
+      ? ` between ${between.from} and ${between.to}.`
+      : "";
+
+    const line = `${route} (${county} County) | ${narrative}${betweenText} Estimated Reopen: ${reopenFmt}`;
+
+    items.push({
+      id: eventId,
+      eventId,
+      route,
+      direction: dir,
+      between,
+      county,
+      anticipated_end_time: end ? end : "",
+      description: desc,
+      formatted: line
+    });
+  }
+
+  return {
+    name: "major_route_closures",
+    fetched_at: trafficTable.fetched_at,
+    source_url: trafficTable.url,
+    count: items.length,
+    rejected_count: rejected.length,
+    items,
+    rejected
+  };
+}
+
+/* ---------- LANE RESTRICTIONS ---------- */
+
+function buildLaneRestrictionsFromTraffic(trafficTable) {
+  const headers = trafficTable.headers || [];
+  const rows = trafficTable.rows || [];
+
+  const typeIdx =
+    idx(headers, "Type") ??
+    findHeader(headers, /type/i);
+
+  const roadwayIdx =
+    idx(headers, "Roadway") ??
+    findHeader(headers, /roadway/i);
+
+  const stateIdx =
+    idx(headers, "State") ??
+    findHeader(headers, /\bstate\b/i);
+
+  const countyIdx =
+    idx(headers, "County") ??
+    idx(headers, "County Name") ??
+    findHeader(headers, /\bcounty\b/i);
+
+  const descIdx =
+    idx(headers, "Description") ??
+    findHeader(headers, /description/i);
+
+  const startIdx =
+    idx(headers, "Start Time") ??
+    idx(headers, "Reported Time") ??
+    findHeader(headers, /start time|reported/i);
+
+  const endIdx =
+    idx(headers, "Anticipated End Time") ??
+    idx(headers, "End Time") ??
+    findHeader(headers, /anticipated end|end time|\bend\b/i);
+
+  const updatedIdx =
+    idx(headers, "Last Updated") ??
+    findHeader(headers, /last updated|updated/i);
+
+  const items = [];
+
+  for (const r of rows) {
+    const row = rowCells(r);
+    const eventId = rowEventId(r);
+
+    const type = norm(typeIdx != null ? row[typeIdx] : "");
+    const roadway = norm(roadwayIdx != null ? row[roadwayIdx] : "");
+    const state = norm(stateIdx != null ? row[stateIdx] : "");
+    const county = norm(countyIdx != null ? row[countyIdx] : "");
+    const desc = norm(descIdx != null ? row[descIdx] : "");
+    const start = norm(startIdx != null ? row[startIdx] : "");
+    const end = norm(endIdx != null ? row[endIdx] : "");
+    const updated = norm(updatedIdx != null ? row[updatedIdx] : "");
+
+    if (!desc) continue;
+
+    if (!/major route/i.test(type)) continue;
+    if (/^\s*special\s+event\b/i.test(type)) continue;
+    if (!isLaneRestriction(desc)) continue;
+
+    const isIncidentMajorRoute =
+      /\bincident\s*-?\s*major route\b/i.test(type) ||
+      /\bincident\s*-?\s*major route\b/i.test(desc);
+
+    const route = parseRoute(roadway || desc) || "ROUTE";
+    const direction = parseDirection(desc) || parseDirection(roadway) || "";
+    const countyClean = county
+      ? county.replace(/\s*county$/i, "").trim()
+      : (parseCountyFromDesc(desc) || "Unknown");
+
+    let narrative = desc.replace(/\s*There is a lane restriction\.?\s*$/i, "").trim();
+    narrative = narrative.replace(/\s*\(of\s+\d+\s+lanes?\)/gi, "");
+    narrative = applyMileMarkerCleanup(narrative, desc);
+    if (isIncidentMajorRoute) {
+      narrative = removeExpectDelays(narrative);
+    }
+    if (narrative && !/[.!?]$/.test(narrative)) narrative += ".";
+
+    const reopenFmt = parseReopenToMMDDYY_HHMM(end);
+    const line = `${route} (${countyClean} County) | ${narrative} Estimated Reopen: ${reopenFmt}`;
+
+    items.push({
+      id: eventId,
+      eventId,
+      type,
+      roadway,
+      state,
+      county: countyClean,
+      route,
+      direction,
+      description: desc,
+      start_time: start,
+      anticipated_end_time: end,
+      last_updated: updated,
+      formatted: line
+    });
+  }
+
+  return {
+    name: "lane_restrictions",
+    fetched_at: trafficTable.fetched_at,
+    source_url: trafficTable.url,
+    count: items.length,
+    items
+  };
+}
+
+
+/* ---------- REJECTED ROADWAY HISTORY ---------- */
+
+const REJECTED_HISTORY_FILE = "data/rejected_major_route_history.json";
+
+function rejectionHistoryKey(item) {
+  const eventId = norm(item?.eventId || item?.id || "");
+  if (eventId) return `event:${eventId}`;
+
+  // Rare fallback if 511PA does not provide an Event ID.
+  // Keep it deterministic so the same rejected event does not duplicate each run.
+  const fingerprintSource = [
+    norm(item?.route || ""),
+    normalizeCountyName(item?.county || ""),
+    norm(item?.description || "")
+  ].join("|").toLowerCase();
+
+  return `fallback:${crypto.createHash("sha256").update(fingerprintSource).digest("hex").slice(0, 24)}`;
+}
+
+function loadRejectedHistory() {
+  try {
+    if (!fs.existsSync(REJECTED_HISTORY_FILE)) {
+      return {
+        name: "rejected_major_route_history",
+        created_at: null,
+        updated_at: null,
+        count: 0,
+        currently_rejected_count: 0,
+        items: []
+      };
+    }
+
+    const parsed = JSON.parse(fs.readFileSync(REJECTED_HISTORY_FILE, "utf8"));
+    return {
+      name: "rejected_major_route_history",
+      created_at: parsed?.created_at || null,
+      updated_at: parsed?.updated_at || null,
+      count: Array.isArray(parsed?.items) ? parsed.items.length : 0,
+      currently_rejected_count: Number(parsed?.currently_rejected_count || 0),
+      items: Array.isArray(parsed?.items) ? parsed.items : []
+    };
+  } catch (err) {
+    console.warn(`Could not read ${REJECTED_HISTORY_FILE}; starting a new history file: ${err.message}`);
+    return {
+      name: "rejected_major_route_history",
+      created_at: null,
+      updated_at: null,
+      count: 0,
+      currently_rejected_count: 0,
+      items: []
+    };
+  }
+}
+
+function mergeRejectedHistory(currentRejected, fetchedAt, sourceUrl) {
+  const history = loadRejectedHistory();
+  const nowIso = fetchedAt || new Date().toISOString();
+
+  const byKey = new Map();
+
+  for (const old of history.items) {
+    const key = old?.history_key || rejectionHistoryKey(old);
+    byKey.set(key, {
+      ...old,
+      history_key: key,
+      currently_rejected: false
+    });
+  }
+
+  for (const item of (currentRejected || [])) {
+    const key = rejectionHistoryKey(item);
+    const existing = byKey.get(key);
+
+    if (!existing) {
+      byKey.set(key, {
+        history_key: key,
+        id: item?.id ?? item?.eventId ?? "",
+        eventId: item?.eventId ?? item?.id ?? "",
+        type: item?.type || "",
+        route: item?.route || "",
+        county: item?.county || "",
+        reason: item?.reason || "",
+        description: item?.description || "",
+        anticipated_end_time: item?.anticipated_end_time || "",
+        first_seen: nowIso,
+        last_seen: nowIso,
+        times_seen: 1,
+        currently_rejected: true,
+        source_url: sourceUrl || ""
+      });
+      continue;
+    }
+
+    const reasonChanged =
+      norm(existing.reason) &&
+      norm(item?.reason) &&
+      norm(existing.reason) !== norm(item.reason);
+
+    const reasonHistory = Array.isArray(existing.reason_history)
+      ? [...existing.reason_history]
+      : [];
+
+    if (reasonChanged && !reasonHistory.includes(existing.reason)) {
+      reasonHistory.push(existing.reason);
+    }
+
+    byKey.set(key, {
+      ...existing,
+      id: item?.id ?? item?.eventId ?? existing.id ?? "",
+      eventId: item?.eventId ?? item?.id ?? existing.eventId ?? "",
+      type: item?.type || existing.type || "",
+      route: item?.route || existing.route || "",
+      county: item?.county || existing.county || "",
+      reason: item?.reason || existing.reason || "",
+      description: item?.description || existing.description || "",
+      anticipated_end_time: item?.anticipated_end_time || existing.anticipated_end_time || "",
+      first_seen: existing.first_seen || nowIso,
+      last_seen: nowIso,
+      times_seen: Number(existing.times_seen || 0) + 1,
+      currently_rejected: true,
+      source_url: sourceUrl || existing.source_url || "",
+      ...(reasonHistory.length ? { reason_history: reasonHistory } : {})
+    });
+  }
+
+  const items = [...byKey.values()].sort((a, b) => {
+    if (!!a.currently_rejected !== !!b.currently_rejected) {
+      return a.currently_rejected ? -1 : 1;
+    }
+
+    const at = Date.parse(a.last_seen || "") || 0;
+    const bt = Date.parse(b.last_seen || "") || 0;
+    if (at !== bt) return bt - at;
+
+    return String(a.route || "").localeCompare(String(b.route || ""));
+  });
+
+  return {
+    name: "rejected_major_route_history",
+    created_at: history.created_at || nowIso,
+    updated_at: nowIso,
+    source_url: sourceUrl || "",
+    count: items.length,
+    currently_rejected_count: items.filter(x => x.currently_rejected).length,
+    items
+  };
+}
+
+
+/* ---------- MAIN ---------- */
+
+async function main() {
+  const outputs = [
+    {
+      name: "road_conditions",
+      url: "https://www.511pa.com/list/roadcondition"
+    },
+    {
+      name: "travel_delays",
+      url: "https://www.511pa.com/list/events/traffic?start=0&length=250&order%5Bi%5D=8&order%5Bdir%5D=desc"
+    },
+    {
+      name: "restrictions",
+      url: "https://www.511pa.com/list/allrestrictioneventslist?start=0&length=100&order%5Bi%5D=4&order%5Bdir%5D=asc"
+    }
+  ];
+
+  if (!fs.existsSync("data")) fs.mkdirSync("data");
+
+  const browser = await chromium.launch();
+  const resultsByName = {};
+
+  try {
+    for (const o of outputs) {
+      console.log(`Scraping ${o.name}...`);
+      const data = await scrapeSimpleTable(browser, o.url, "table");
+      resultsByName[o.name] = data;
+      fs.writeFileSync(`data/${o.name}.json`, JSON.stringify(data, null, 2));
+      console.log(`Wrote data/${o.name}.json (${data.rows.length} rows)`);
+    }
+  } finally {
+    await browser.close();
+  }
+
+  const major = buildMajorRouteClosures(resultsByName.travel_delays);
+
+  // Keep the production file clean: accepted Core Network events only.
+  const majorAccepted = {
+    name: major.name,
+    fetched_at: major.fetched_at,
+    source_url: major.source_url,
+    count: major.count,
+    items: major.items
+  };
+  fs.writeFileSync(`data/major_route_closures.json`, JSON.stringify(majorAccepted, null, 2));
+  console.log(`Wrote data/major_route_closures.json (${major.count} accepted items)`);
+
+  // Diagnostic file: Major Route closures rejected by the Core Network filter.
+  const rejectedMajor = {
+    name: "rejected_major_route_closures",
+    fetched_at: major.fetched_at,
+    source_url: major.source_url,
+    count: major.rejected_count,
+    items: major.rejected
+  };
+  fs.writeFileSync(`data/rejected_major_route_closures.json`, JSON.stringify(rejectedMajor, null, 2));
+  console.log(`Wrote data/rejected_major_route_closures.json (${major.rejected_count} rejected items)`);
+
+  // Persistent diagnostic history: one record per 511PA Event ID.
+  // Events remain in this file after they disappear from the current rejected snapshot.
+  const rejectedHistory = mergeRejectedHistory(
+    major.rejected,
+    major.fetched_at,
+    major.source_url
+  );
+  fs.writeFileSync(REJECTED_HISTORY_FILE, JSON.stringify(rejectedHistory, null, 2));
+  console.log(
+    `Wrote ${REJECTED_HISTORY_FILE} ` +
+    `(${rejectedHistory.count} historical items; ` +
+    `${rejectedHistory.currently_rejected_count} currently rejected)`
+  );
+
+  const lane = buildLaneRestrictionsFromTraffic(resultsByName.travel_delays);
+  fs.writeFileSync(`data/lane_restrictions.json`, JSON.stringify(lane, null, 2));
+  console.log(`Wrote data/lane_restrictions.json (${lane.count} items)`);
+}
+
+main().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
