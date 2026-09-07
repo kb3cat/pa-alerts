@@ -360,8 +360,11 @@ const CORE_ROUTE_COUNTIES = {
   "I-579":new Set(["Allegheny"]), "I-676":new Set(["Philadelphia"]),
   "US-1":new Set(["Chester","Delaware","Philadelphia","Bucks"]),
   "US-6":new Set(["Lackawanna"]),
-  "US-11":new Set(["Cumberland","Perry","Juniata","Snyder","Union"]),
-  "US-15":null, "US-19":new Set(["Allegheny"]), "US-22":null,
+  // PennDOT Core: US-11/15 from PA-581 Interchange to Perry/Juniata County Line.
+  // Dauphin is included because 511PA can county-tag events at the US-22/322 / US-11/15 boundary interchange as Dauphin.
+  "US-11":new Set(["Cumberland","Dauphin","Perry"]),
+  // PennDOT Core: US-15 from Maryland State Line to PA-581, then the US-11/15 shared Core segment north to the Perry/Juniata County Line.
+  "US-15":new Set(["Adams","York","Cumberland","Dauphin","Perry"]), "US-19":new Set(["Allegheny"]), "US-22":null,
   "US-30":new Set(["York","Lancaster","Chester"]),
   "US-40":new Set(["Washington","Fayette"]), "US-119":new Set(["Fayette","Westmoreland"]),
   "US-202":new Set(["Delaware","Chester","Montgomery"]), "US-209":new Set(["Monroe"]),
