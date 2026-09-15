@@ -335,49 +335,76 @@ function applyMileMarkerCleanup(narrative, sourceText) {
 
 
 /* ---------- 511PA CORE ROADWAY NETWORK ----------
-   Filter "Major Route" events against PennDOT's actual Core Network
-   before writing major_route_closures.json.
+   Source: PennDOT 511PA Core Roadway Network table, updated 1/28/2014.
 
-   NOTE: PennDOT defines some routes only by specific segments. The public
-   511 table does not expose PennDOT segment/offset IDs, so US-6 is handled
-   conservatively: only Lackawanna County events that look like limited-
-   access events are accepted. This rejects ordinary at-grade US-6 events
-   such as OLD LACKAWANNA TR / OLD STATE RD.
+   IMPORTANT: 511PA's public traffic table does not expose PennDOT's segment/
+   offset IDs or event coordinates. Therefore this filter uses the published
+   segment table to restrict each route to the counties actually touched by a
+   listed Core segment. This is much stricter than a route-only whitelist and
+   prevents events such as US-322 in Lancaster County from being accepted.
+
+   A few published Core limits begin/end inside the same county. Where the
+   public description gives enough information, a route-specific check is used
+   (currently US-6 limited access). Exact sub-county validation cannot be made
+   from the public list row alone when no usable interchange/mile marker is
+   present; those cases remain reviewable through the rejection history.
 */
 
 const CORE_ROUTE_COUNTIES = {
-  "I-70":new Set(["Washington","Westmoreland","Somerset","Bedford","Fulton"]),
-  "I-76":null, "I-78":new Set(["Lebanon","Berks","Lehigh","Northampton"]),
-  "I-79":null, "I-80":null, "I-81":null,
-  "I-83":new Set(["York","Cumberland","Dauphin"]),
-  "I-84":new Set(["Lackawanna","Wayne","Pike"]), "I-86":new Set(["Erie"]),
-  "I-90":new Set(["Erie"]), "I-95":new Set(["Delaware","Philadelphia","Bucks"]),
-  "I-99":new Set(["Bedford","Blair","Centre"]), "I-176":new Set(["Berks"]),
-  "I-180":new Set(["Lycoming","Northumberland"]), "I-276":new Set(["Montgomery","Bucks"]),
-  "I-279":new Set(["Allegheny"]), "I-283":new Set(["Dauphin"]),
-  "I-376":new Set(["Mercer","Lawrence","Beaver","Allegheny"]),
-  "I-380":new Set(["Monroe","Lackawanna"]), "I-476":null,
-  "I-579":new Set(["Allegheny"]), "I-676":new Set(["Philadelphia"]),
-  "US-1":new Set(["Chester","Delaware","Philadelphia","Bucks"]),
-  "US-6":new Set(["Lackawanna"]),
-  // PennDOT Core: US-11/15 from PA-581 Interchange to Perry/Juniata County Line.
-  // Dauphin is included because 511PA can county-tag events at the US-22/322 / US-11/15 boundary interchange as Dauphin.
-  "US-11":new Set(["Cumberland","Dauphin","Perry"]),
-  // PennDOT Core: US-15 from Maryland State Line to PA-581, then the US-11/15 shared Core segment north to the Perry/Juniata County Line.
-  "US-15":new Set(["Adams","York","Cumberland","Dauphin","Perry"]), "US-19":new Set(["Allegheny"]), "US-22":null,
-  "US-30":new Set(["York","Lancaster","Chester"]),
-  "US-40":new Set(["Washington","Fayette"]), "US-119":new Set(["Fayette","Westmoreland"]),
-  "US-202":new Set(["Delaware","Chester","Montgomery"]), "US-209":new Set(["Monroe"]),
-  "US-219":new Set(["Somerset","Cambria"]), "US-220":new Set(["Clinton","Lycoming"]),
-  "US-222":new Set(["Lancaster","Berks"]), "US-322":null,
-  "US-422":new Set(["Berks","Montgomery"]),
-  "PA-28":new Set(["Allegheny","Butler","Armstrong"]),
-  "PA-33":new Set(["Northampton","Monroe"]), "PA-43":new Set(["Washington","Fayette"]),
-  "PA-60":new Set(["Allegheny"]), "PA-66":new Set(["Westmoreland"]),
-  "PA-100":new Set(["Chester"]), "PA-147":new Set(["Northumberland"]),
-  "PA-283":new Set(["Dauphin","Lancaster"]),
-  "PA-309":new Set(["Philadelphia","Montgomery","Bucks","Lehigh","Schuylkill","Luzerne"]),
-  "PA-576":new Set(["Washington","Allegheny"]), "PA-581":new Set(["Cumberland"])
+  // Interstates / Turnpike routes in the PennDOT table.
+  "I-70":  new Set(["Washington","Westmoreland","Somerset","Bedford","Fulton"]),
+  "I-76":  null,
+  "I-78":  new Set(["Lebanon","Berks","Lehigh","Northampton"]),
+  "I-79":  null,
+  "I-80":  null,
+  "I-81":  null,
+  "I-83":  new Set(["York","Cumberland","Dauphin"]),
+  "I-84":  new Set(["Lackawanna","Wayne","Pike"]),
+  "I-86":  new Set(["Erie"]),
+  "I-90":  new Set(["Erie"]),
+  "I-95":  new Set(["Delaware","Philadelphia","Bucks"]),
+  "I-99":  new Set(["Bedford","Blair","Centre"]),
+  "I-176": new Set(["Berks"]),
+  "I-180": new Set(["Lycoming","Northumberland"]),
+  "I-276": new Set(["Montgomery","Bucks"]),
+  "I-279": new Set(["Allegheny"]),
+  "I-283": new Set(["Dauphin"]),
+  "I-376": new Set(["Mercer","Lawrence","Beaver","Allegheny"]),
+  "I-380": new Set(["Monroe","Lackawanna"]),
+  "I-476": new Set(["Delaware","Montgomery","Bucks","Lehigh","Carbon","Luzerne","Lackawanna"]),
+  "I-579": new Set(["Allegheny"]),
+  "I-676": new Set(["Philadelphia"]),
+
+  // U.S. routes. County sets follow only the segments explicitly listed in
+  // the PennDOT Core Network table; they are NOT statewide route whitelists.
+  "US-1":   new Set(["Chester","Delaware","Philadelphia","Bucks"]),
+  "US-6":   new Set(["Lackawanna"]),
+  "US-11":  new Set(["Cumberland","Dauphin","Perry","Juniata","Snyder"]),
+  "US-15":  new Set(["Adams","York","Cumberland","Dauphin","Perry","Juniata","Snyder","Union","Lycoming","Tioga"]),
+  "US-19":  new Set(["Allegheny"]),
+  "US-22":  new Set(["Washington","Allegheny","Cambria","Blair","Huntingdon","Mifflin","Juniata","Perry","Dauphin","Lebanon","Lehigh","Northampton"]),
+  "US-30":  new Set(["York","Lancaster","Chester"]),
+  "US-119": new Set(["Fayette","Westmoreland"]),
+  "US-202": new Set(["Delaware","Chester","Montgomery"]),
+  "US-209": new Set(["Monroe"]),
+  "US-219": new Set(["Somerset","Cambria"]),
+  "US-220": new Set(["Clinton","Lycoming"]),
+  "US-222": new Set(["Lancaster","Berks"]),
+  "US-322": new Set(["Delaware","Dauphin","Perry","Juniata","Mifflin","Centre"]),
+  "US-422": new Set(["Berks","Montgomery"]),
+
+  // PA routes explicitly listed in the Core Network table.
+  "PA-28":  new Set(["Allegheny","Butler","Armstrong"]),
+  "PA-33":  new Set(["Northampton","Monroe"]),
+  "PA-43":  new Set(["Washington","Fayette"]),
+  "PA-60":  new Set(["Allegheny"]),
+  "PA-66":  new Set(["Westmoreland"]),
+  "PA-100": new Set(["Chester"]),
+  "PA-147": new Set(["Northumberland"]),
+  "PA-283": new Set(["Dauphin","Lancaster"]),
+  "PA-309": new Set(["Philadelphia","Montgomery","Bucks","Lehigh","Schuylkill","Luzerne"]),
+  "PA-576": new Set(["Washington","Allegheny"]),
+  "PA-581": new Set(["Cumberland"])
 };
 
 function normalizeCountyName(county) {
@@ -399,7 +426,7 @@ function evaluate511CoreEvent(route, county, sourceText) {
   if (!Object.prototype.hasOwnProperty.call(CORE_ROUTE_COUNTIES, r)) {
     return {
       accepted: false,
-      reason: `Route ${r || "UNKNOWN"} is not on the configured 511PA Core Network list`
+      reason: `Route ${r || "UNKNOWN"} is not on the PennDOT 511PA Core Roadway Network table`
     };
   }
 
@@ -407,28 +434,21 @@ function evaluate511CoreEvent(route, county, sourceText) {
   if (allowedCounties && !allowedCounties.has(c)) {
     return {
       accepted: false,
-      reason: `${r} is Core only in configured county/segment areas; ${c || "Unknown"} County is not included`
+      reason: `${r} is outside the published 511PA Core segment in ${c || "Unknown"} County`
     };
   }
 
-  // PennDOT Core PDF: US-6 = I-81/I-84 Interchange -> End of Limited Access.
-  if (r === "US-6") {
-    if (c !== "Lackawanna") {
-      return {
-        accepted: false,
-        reason: `US-6 Core segment is limited to Lackawanna County's limited-access section`
-      };
-    }
-
-    if (!looksLikeLimitedAccessEvent(sourceText)) {
-      return {
-        accepted: false,
-        reason: `US-6 event does not look like it is on the I-81/I-84 -> End of Limited Access Core segment`
-      };
-    }
+  // PennDOT table: US-6 = I-81/I-84 Interchange -> End of Limited Access.
+  // Both limits are in Lackawanna County, so county alone cannot distinguish
+  // the Core freeway section from ordinary at-grade US-6.
+  if (r === "US-6" && !looksLikeLimitedAccessEvent(sourceText)) {
+    return {
+      accepted: false,
+      reason: `US-6 event does not look like it is on the I-81/I-84 -> End of Limited Access Core segment`
+    };
   }
 
-  return { accepted: true, reason: "Accepted as 511PA Core Network event" };
+  return { accepted: true, reason: "Accepted within a published 511PA Core Network route/county segment" };
 }
 
 function is511CoreEvent(route, county, sourceText) {
@@ -616,6 +636,10 @@ function buildLaneRestrictionsFromTraffic(trafficTable) {
     const countyClean = county
       ? county.replace(/\s*county$/i, "").trim()
       : (parseCountyFromDesc(desc) || "Unknown");
+
+    // Lane restrictions use the same PennDOT Core route/county segment filter
+    // as closures so non-Core portions do not reach the status board.
+    if (!is511CoreEvent(route, countyClean, desc)) continue;
 
     let narrative = desc.replace(/\s*There is a lane restriction\.?\s*$/i, "").trim();
     narrative = narrative.replace(/\s*\(of\s+\d+\s+lanes?\)/gi, "");
