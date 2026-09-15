@@ -1198,6 +1198,52 @@ function renderVehicleGroupedPlanned(elId, items){
   }
 }
 
+/* PA Turnpike roadway labeling.
+   If one of these Turnpike-designated routes has Estimated Reopen: TBD,
+   append " - PA Turnpike" to the county label. */
+const PA_TURNPIKE_ROUTES = new Set([
+  "I-76",
+  "I-276",
+  "I-376",
+  "I-476",
+  "PA-43",
+  "PA-60",
+  "PA-66",
+  "PA-576"
+]);
+
+function getPrimaryRouteLabel(text){
+  const s = String(text || "").trim();
+  const m =
+    s.match(/^\s*(I|US|PA)\s*[- ]?\s*(\d{1,4})\b/i) ||
+    s.match(/^\s*Interstate\s+(\d{1,4})\b/i);
+
+  if (!m) return "";
+
+  if (/^\s*Interstate/i.test(m[0])) {
+    return `I-${parseInt(m[1], 10)}`;
+  }
+
+  return `${String(m[1]).toUpperCase()}-${parseInt(m[2], 10)}`;
+}
+
+function markPaTurnpikeClosure(text){
+  const s = String(text || "");
+
+  if (!/\bEstimated Reopen:\s*TBD\b/i.test(s)) return s;
+
+  const route = getPrimaryRouteLabel(s);
+  if (!PA_TURNPIKE_ROUTES.has(route)) return s;
+
+  // Avoid adding the label twice.
+  if (/\([^()]*County\s*-\s*PA Turnpike\)/i.test(s)) return s;
+
+  return s.replace(
+    /\(([^()]*\bCounty)\)(?=\s*\|)/i,
+    "($1 - PA Turnpike)"
+  );
+}
+
 function closureDedupeKey(s){
   return String(s || "")
     .toLowerCase()
@@ -1306,7 +1352,8 @@ async function loadBoard(){
 
     const closuresPrimaryRaw = extractTextLines(closuresJson)
       .map(cleanLine)
-      .filter(Boolean);
+      .filter(Boolean)
+      .map(markPaTurnpikeClosure);
     const seen = new Set();
     const closuresMerged = [];
     for (const s of closuresPrimaryRaw) {
