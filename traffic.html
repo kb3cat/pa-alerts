@@ -593,6 +593,8 @@ function getRoadImage(text){
 }
 
 function buildRoadRow(text){
+  text = markPaTurnpikeClosure(text);
+
   const wrap = document.createElement("div");
   wrap.className = "road-row";
 
