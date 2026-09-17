@@ -150,12 +150,24 @@ function isConstructionRelated(desc) {
 }
 
 function isRoadClosed(desc) {
-  return (
-    /\bclosed\b/i.test(desc) ||
-    /\ball lanes (closed|blocked)\b/i.test(desc) ||
-    /\bblocking all lanes\b/i.test(desc) ||
-    /\ball lanes.*?block/i.test(desc)
-  );
+  const s = String(desc || "");
+
+  // Explicit mainline/all-lane closures always qualify.
+  if (/\ball lanes (closed|blocked)\b/i.test(s)) return true;
+  if (/\bblocking all lanes\b/i.test(s)) return true;
+  if (/\ball lanes.*?block/i.test(s)) return true;
+  if (/\b(?:road|roadway|highway|mainline)\s+(?:is\s+)?closed\b/i.test(s)) return true;
+
+  // 511PA often reports ramp/shoulder-only impacts as Major Route incidents,
+  // e.g. "Exit Ramp Closed, Left Shoulder Blocked, Right Shoulder Blocked."
+  // Remove those non-mainline impact phrases before considering a generic
+  // "Closed" token. If nothing closure-related remains, this is not a
+  // mainline closure and must not enter major_route_closures.json.
+  const mainlineImpactText = s
+    .replace(/\b(?:exit|entrance)?\s*ramp\s+(?:is\s+)?(?:closed|blocked|restricted)\b/gi, " ")
+    .replace(/\b(?:left|right|both|inside|outside)?\s*shoulders?\s+(?:is|are)?\s*(?:closed|blocked|restricted|disrupted)\b/gi, " ");
+
+  return /\bclosed\b/i.test(mainlineImpactText);
 }
 
 function isAllLanesOpen(desc) {
